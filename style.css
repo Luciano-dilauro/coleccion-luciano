@@ -58,7 +58,6 @@ body{
 
 /* =========================
    APP WRAP
-   (padding-top para dejar espacio al topbar fijo)
 ========================= */
 .app{
   padding: calc(var(--topbar-h) + 12px) var(--pad) 28px;
@@ -105,6 +104,22 @@ body{
   height:1px;
   background: var(--stroke);
   margin: 14px 0;
+}
+
+/* =========================
+   ✅ DETAIL HEADER STICKY
+   (fija la tarjeta de info del álbum)
+========================= */
+.detail-header{
+  position: sticky;
+  top: calc(var(--topbar-h) + 12px);
+  z-index: 50;
+
+  /* para que no “transparente” cuando pasa por encima */
+  background: var(--bg-panel);
+
+  /* sutil efecto de “pegado” */
+  box-shadow: 0 14px 30px rgba(0,0,0,.10);
 }
 
 /* =========================
