@@ -13,9 +13,11 @@
 
   --danger:#E33B3B;
 
-  --r-card: 24px;
-  --r-pill: 999px;
+  /* especiales (por ahora sutil, luego lo decorás) */
+  --gold-border: rgba(184,134,11,.55);
+  --gold-bg: rgba(184,134,11,.10);
 
+  --r-card: 24px;
   --container-pad: 16px;
   --topbar-h: 72px;
 }
