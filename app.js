@@ -1,11 +1,15 @@
 /* =============================
-   Colección Luciano - V2.2
-   - Secciones numéricas (global / perSection / ownNumbering)
+   Colección Luciano - V2.3 (Arquitectura)
+   - Colecciones simples y con secciones
+   - Secciones numéricas (global/perSection + numeración propia)
    - Secciones alfanuméricas con prefijo (PREFIJO+N)
-     -> por naturaleza reinician dentro de esa sección
+   - Backup Pro (export/import) con versión + reemplazar/fusionar
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
+const META_KEY = "coleccion_luciano_meta_v2";
+
+const BACKUP_VERSION = 1;
 
 const els = {
   backBtn: document.getElementById("backBtn"),
@@ -32,40 +36,58 @@ const els = {
   stMissing: document.getElementById("stMissing"),
   stPct: document.getElementById("stPct"),
   sectionsDetail: document.getElementById("sectionsDetail"),
+
+  // Settings / Backup
+  importInput: document.getElementById("importInput"),
+  exportMeta: document.getElementById("exportMeta"),
+  importMeta: document.getElementById("importMeta"),
+  storageMeta: document.getElementById("storageMeta"),
 };
 
 const state = {
   view: "home",
   currentId: null,
   data: { collections: [] },
+  meta: {
+    lastExportAt: null,
+    lastExportSize: null,
+    lastImportAt: null,
+    lastImportMode: null, // "replace" | "merge"
+  }
 };
 
 /* -----------------------------
-   Persistencia + mini-migración
+   Persistencia + migración suave
 ----------------------------- */
 function load() {
   try {
     const raw = localStorage.getItem(LS_KEY);
     state.data = raw ? JSON.parse(raw) : { collections: [] };
     if (!state.data.collections) state.data.collections = [];
-
-    // migración suave: secciones viejas sin formato/prefijo
-    for (const c of state.data.collections) {
-      if (c.structure === "sections" && Array.isArray(c.sections)) {
-        for (const s of c.sections) {
-          if (!s.format) s.format = "num";       // num | alfa
-          if (typeof s.prefix !== "string") s.prefix = "";
-          if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
-        }
-      }
-    }
   } catch {
     state.data = { collections: [] };
+  }
+
+  try {
+    const m = JSON.parse(localStorage.getItem(META_KEY) || "{}");
+    state.meta = { ...state.meta, ...m };
+  } catch {}
+
+  // migración suave de secciones
+  for (const c of state.data.collections) {
+    if (c.structure === "sections" && Array.isArray(c.sections)) {
+      for (const s of c.sections) {
+        if (!s.format) s.format = "num"; // num | alfa
+        if (typeof s.prefix !== "string") s.prefix = "";
+        if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+      }
+    }
   }
 }
 
 function save() {
   localStorage.setItem(LS_KEY, JSON.stringify(state.data));
+  localStorage.setItem(META_KEY, JSON.stringify(state.meta));
 }
 
 /* -----------------------------
@@ -99,6 +121,24 @@ function computeStats(col) {
   return { total, have, missing, pct };
 }
 
+function formatDateTime(ts) {
+  if (!ts) return "—";
+  try {
+    return new Date(ts).toLocaleString();
+  } catch {
+    return "—";
+  }
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+  const units = ["B","KB","MB","GB"];
+  let i = 0;
+  let n = bytes;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
 /* -----------------------------
    Navegación
 ----------------------------- */
@@ -114,6 +154,9 @@ function setView(view) {
     els.backBtn.classList.add("hidden");
   } else if (view === "create") {
     els.topbarTitle.textContent = "Nueva colección";
+    els.backBtn.classList.remove("hidden");
+  } else if (view === "settings") {
+    els.topbarTitle.textContent = "Ajustes / Backup";
     els.backBtn.classList.remove("hidden");
   } else {
     els.backBtn.classList.remove("hidden");
@@ -141,10 +184,16 @@ function goDetail(id) {
   if (col) els.topbarTitle.textContent = col.name;
 }
 
+function goSettings() {
+  renderSettings();
+  setView("settings");
+}
+
 /* -----------------------------
    Home render
 ----------------------------- */
 function renderHome() {
+  if (!els.collectionsList) return;
   els.collectionsList.innerHTML = "";
 
   const cols = state.data.collections;
@@ -180,10 +229,8 @@ function renderHome() {
 
     const meta = document.createElement("div");
     meta.className = "muted small";
-
     if (c.structure === "sections") {
-      meta.textContent =
-        `Con secciones · modo numérico: ${c.numberMode === "global" ? "global" : "por sección"} · soporta prefijos`;
+      meta.textContent = `Con secciones · num: ${c.numberMode === "global" ? "global" : "por sección"} · + prefijos`;
     } else {
       meta.textContent = "Simple";
     }
@@ -221,9 +268,9 @@ function resetCreateForm() {
 
   if (els.sectionsEditor) {
     els.sectionsEditor.innerHTML = "";
-    // ejemplo: dos equipos con prefijo + una sección numérica "Especiales"
-    addSectionRow({ name: "River", format: "alfa", prefix: "RIA", count: 20, ownNumbering: true });
-    addSectionRow({ name: "Boca",  format: "alfa", prefix: "BAE", count: 20, ownNumbering: true });
+    // ejemplo inicial útil
+    addSectionRow({ name: "Equipo 1", format: "alfa", prefix: "EQ1", count: 20, ownNumbering: true });
+    addSectionRow({ name: "Equipo 2", format: "alfa", prefix: "EQ2", count: 20, ownNumbering: true });
     addSectionRow({ name: "Especiales", format: "num", prefix: "", count: 10, ownNumbering: true });
   }
 }
@@ -249,7 +296,7 @@ function normalizePrefix(p) {
   return String(p || "")
     .trim()
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, ""); // solo letras/números
+    .replace(/[^A-Z0-9]/g, "");
 }
 
 function addSectionRow({ name = "", format = "num", prefix = "", count = 10, ownNumbering = false } = {}) {
@@ -257,14 +304,12 @@ function addSectionRow({ name = "", format = "num", prefix = "", count = 10, own
   row.className = "section-row";
   row.setAttribute("data-section-row", "1");
 
-  // Nombre
   const inName = document.createElement("input");
   inName.className = "input";
   inName.type = "text";
-  inName.placeholder = "Nombre (Ej: Argentina / Arsenal / etc)";
+  inName.placeholder = "Nombre (Ej: River / Boca / Especiales)";
   inName.value = name;
 
-  // Formato
   const selFormat = document.createElement("select");
   selFormat.className = "input";
   selFormat.innerHTML = `
@@ -273,14 +318,12 @@ function addSectionRow({ name = "", format = "num", prefix = "", count = 10, own
   `;
   selFormat.value = (format === "alfa") ? "alfa" : "num";
 
-  // Prefijo
   const inPrefix = document.createElement("input");
   inPrefix.className = "input";
   inPrefix.type = "text";
   inPrefix.placeholder = "Prefijo (Ej: RIA)";
   inPrefix.value = prefix;
 
-  // Cantidad
   const inCount = document.createElement("input");
   inCount.className = "input";
   inCount.type = "number";
@@ -288,10 +331,9 @@ function addSectionRow({ name = "", format = "num", prefix = "", count = 10, own
   inCount.max = "5000";
   inCount.value = String(count);
 
-  // Numeración propia
   const ownWrap = document.createElement("label");
   ownWrap.className = "inline-check";
-  ownWrap.title = "Si está activado, esta sección numérica reinicia su numeración aunque el modo principal sea global.";
+  ownWrap.title = "Si activás esto, esta sección numérica reinicia aunque el modo principal sea global.";
   const ownChk = document.createElement("input");
   ownChk.type = "checkbox";
   ownChk.checked = !!ownNumbering;
@@ -300,33 +342,25 @@ function addSectionRow({ name = "", format = "num", prefix = "", count = 10, own
   ownWrap.appendChild(ownChk);
   ownWrap.appendChild(ownTxt);
 
-  // Borrar
   const del = document.createElement("button");
   del.type = "button";
   del.className = "icon-danger";
   del.textContent = "✕";
   del.addEventListener("click", () => row.remove());
 
-  // Comportamiento UI según formato
   const syncRowUI = () => {
     const isAlfa = selFormat.value === "alfa";
-
-    // Prefijo requerido solo si alfa
     inPrefix.style.display = isAlfa ? "block" : "none";
 
-    // Alfanumérico: siempre es “local”, así que ownNumbering no aplica
+    // alfa => siempre local, numeración propia no aplica (pero conceptualmente sí)
     ownWrap.style.opacity = isAlfa ? "0.5" : "1";
     ownChk.disabled = isAlfa;
-
-    if (isAlfa) ownChk.checked = true; // conceptual: por sección
+    if (isAlfa) ownChk.checked = true;
   };
 
   selFormat.addEventListener("change", syncRowUI);
-  inPrefix.addEventListener("input", () => {
-    inPrefix.value = normalizePrefix(inPrefix.value);
-  });
+  inPrefix.addEventListener("input", () => { inPrefix.value = normalizePrefix(inPrefix.value); });
 
-  // layout
   row.appendChild(inName);
   row.appendChild(selFormat);
   row.appendChild(inPrefix);
@@ -354,7 +388,6 @@ function readSectionsFromEditor() {
 
   for (const r of rows) {
     const inputs = r.querySelectorAll("input, select");
-    // orden: name, format(select), prefix, count, own checkbox, delete btn
     const name = (inputs[0]?.value || "").trim();
     const format = (inputs[1]?.value === "alfa") ? "alfa" : "num";
     const prefix = normalizePrefix(inputs[2]?.value || "");
@@ -408,7 +441,7 @@ function createCollection() {
       });
     }
 
-    const col = {
+    state.data.collections.push({
       id: uid("col"),
       name,
       createdAt: Date.now(),
@@ -416,17 +449,15 @@ function createCollection() {
       numberMode: "global",
       sections,
       items
-    };
+    });
 
-    state.data.collections.push(col);
     save();
     renderHome();
     goHome();
     return;
   }
 
-  // sections
-  const numberMode = els.numberMode?.value === "perSection" ? "perSection" : "global";
+  const numberMode = (els.numberMode?.value === "perSection") ? "perSection" : "global";
 
   const read = readSectionsFromEditor();
   if (!read.ok) return alert(read.error);
@@ -435,8 +466,8 @@ function createCollection() {
     id: uid("sec"),
     name: s.name,
     count: s.count,
-    format: s.format,     // num | alfa
-    prefix: s.prefix,     // para alfa
+    format: s.format,
+    prefix: s.prefix,
     ownNumbering: s.ownNumbering
   }));
 
@@ -444,7 +475,6 @@ function createCollection() {
   let globalCounter = 1;
 
   for (const sec of sections) {
-    // Alfanumérico: siempre local, con prefijo
     if (sec.format === "alfa") {
       for (let i = 1; i <= sec.count; i++) {
         items.push({
@@ -460,7 +490,6 @@ function createCollection() {
       continue;
     }
 
-    // Numérico:
     const sectionIsLocal = (numberMode === "perSection") || sec.ownNumbering;
 
     for (let i = 1; i <= sec.count; i++) {
@@ -480,7 +509,7 @@ function createCollection() {
     }
   }
 
-  const col = {
+  state.data.collections.push({
     id: uid("col"),
     name,
     createdAt: Date.now(),
@@ -494,9 +523,8 @@ function createCollection() {
       ownNumbering: !!s.ownNumbering
     })),
     items
-  };
+  });
 
-  state.data.collections.push(col);
   save();
   renderHome();
   goHome();
@@ -539,9 +567,7 @@ function renderDetail() {
     grid.className = "items-grid";
 
     const items = bySec.get(sec.id) || [];
-    for (const it of items) {
-      grid.appendChild(buildItemCell(it));
-    }
+    for (const it of items) grid.appendChild(buildItemCell(it));
 
     card.appendChild(title);
     card.appendChild(grid);
@@ -630,6 +656,170 @@ function resetCollection() {
 }
 
 /* -----------------------------
+   Backup Pro
+----------------------------- */
+function exportBackup() {
+  // payload versionado
+  const payload = {
+    backupVersion: BACKUP_VERSION,
+    exportedAt: Date.now(),
+    app: "ColeccionLuciano",
+    data: state.data
+  };
+
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `backup-coleccion-luciano-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+
+  URL.revokeObjectURL(url);
+
+  state.meta.lastExportAt = Date.now();
+  state.meta.lastExportSize = blob.size;
+  save();
+
+  renderSettings();
+  alert("Backup exportado ✅");
+}
+
+function normalizeImportedPayload(obj) {
+  // Permite importar:
+  // - formato nuevo: {backupVersion, data:{collections:[]}}
+  // - formato “directo”: {collections:[]}
+  if (!obj || typeof obj !== "object") return null;
+
+  if (obj.data && obj.data.collections) {
+    return { collections: Array.isArray(obj.data.collections) ? obj.data.collections : [] };
+  }
+
+  if (obj.collections) {
+    return { collections: Array.isArray(obj.collections) ? obj.collections : [] };
+  }
+
+  return null;
+}
+
+function mergeCollections(current, incoming) {
+  const cur = Array.isArray(current) ? current : [];
+  const inc = Array.isArray(incoming) ? incoming : [];
+
+  const ids = new Set(cur.map(c => c.id));
+  const out = cur.slice();
+
+  for (const c of inc) {
+    // si no tiene id, le genero uno (protección)
+    if (!c.id) c.id = uid("col");
+
+    if (ids.has(c.id)) {
+      // conflicto: creo un id nuevo para no pisar
+      const copy = structuredCloneSafe(c);
+      copy.id = uid("col");
+      copy.name = `${copy.name || "Colección"} (import)`;
+      out.push(copy);
+      ids.add(copy.id);
+    } else {
+      out.push(c);
+      ids.add(c.id);
+    }
+  }
+
+  return out;
+}
+
+function structuredCloneSafe(obj) {
+  try { return structuredClone(obj); } catch { return JSON.parse(JSON.stringify(obj)); }
+}
+
+function handleImportFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const raw = JSON.parse(reader.result);
+      const normalized = normalizeImportedPayload(raw);
+      if (!normalized) {
+        alert("Este archivo no parece un backup válido.");
+        return;
+      }
+
+      const incomingCols = normalized.collections || [];
+      const hasAnything = state.data.collections.length > 0;
+
+      let mode = "replace";
+      if (hasAnything) {
+        const pick = prompt(
+          "Importar backup:\n\n1 = Reemplazar TODO (borra lo actual)\n2 = Fusionar (agrega sin borrar)\n\nEscribí 1 o 2",
+          "2"
+        );
+        mode = (String(pick || "2").trim() === "1") ? "replace" : "merge";
+      }
+
+      if (mode === "replace") {
+        const ok = confirm("¿Seguro que querés REEMPLAZAR todo? Esto borra lo que tenés ahora.");
+        if (!ok) return;
+
+        state.data.collections = incomingCols;
+      } else {
+        state.data.collections = mergeCollections(state.data.collections, incomingCols);
+      }
+
+      // migración suave de secciones
+      for (const c of state.data.collections) {
+        if (!c.items) c.items = [];
+        if (!c.sections) c.sections = [];
+        if (!c.structure) c.structure = "simple";
+
+        if (c.structure === "sections") {
+          for (const s of c.sections) {
+            if (!s.format) s.format = "num";
+            if (typeof s.prefix !== "string") s.prefix = "";
+            if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+          }
+        }
+      }
+
+      state.meta.lastImportAt = Date.now();
+      state.meta.lastImportMode = mode;
+      save();
+
+      renderHome();
+      renderSettings();
+      alert(`Backup importado ✅ (${mode === "replace" ? "Reemplazar" : "Fusionar"})`);
+    } catch (err) {
+      alert("Error al importar el backup.");
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* -----------------------------
+   Settings render
+----------------------------- */
+function renderSettings() {
+  if (els.exportMeta) {
+    els.exportMeta.textContent =
+      `Último: ${formatDateTime(state.meta.lastExportAt)} · Tamaño: ${formatBytes(state.meta.lastExportSize)}`;
+  }
+
+  if (els.importMeta) {
+    const modeTxt = state.meta.lastImportMode
+      ? (state.meta.lastImportMode === "replace" ? "Reemplazar" : "Fusionar")
+      : "—";
+    els.importMeta.textContent =
+      `Último: ${formatDateTime(state.meta.lastImportAt)} · Modo: ${modeTxt}`;
+  }
+
+  if (els.storageMeta) {
+    // tamaño aproximado del JSON en storage (para que veas “peso”)
+    const raw = localStorage.getItem(LS_KEY) || "";
+    els.storageMeta.textContent = `Datos actuales en el dispositivo: ${formatBytes(raw.length)}`;
+  }
+}
+
+/* -----------------------------
    Eventos
 ----------------------------- */
 document.addEventListener("click", (e) => {
@@ -642,16 +832,29 @@ document.addEventListener("click", (e) => {
   if (action === "create-cancel") return goHome();
   if (action === "create-save") return createCollection();
 
+  if (action === "go-settings") return goSettings();
+
   if (action === "open-collection") {
     const id = btn.getAttribute("data-id");
     if (id) return goDetail(id);
   }
 
   if (action === "reset-collection") return resetCollection();
+
+  if (action === "export-backup") return exportBackup();
 });
 
 els.backBtn?.addEventListener("click", () => {
+  // vuelve a home desde cualquier pantalla
   goHome();
+});
+
+els.importInput?.addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  handleImportFile(file);
+  // reset para poder importar el mismo archivo otra vez si hace falta
+  e.target.value = "";
 });
 
 /* -----------------------------
@@ -660,8 +863,8 @@ els.backBtn?.addEventListener("click", () => {
 function init() {
   load();
   renderHome();
+  renderSettings();
   setView("home");
   resetCreateForm();
 }
-
 document.addEventListener("DOMContentLoaded", init);
