@@ -1,22 +1,94 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Colección Luciano</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="theme.css?v=1" />
+  <link rel="stylesheet" href="style.css?v=1" />
 </head>
-<body>
 
-  <header class="topbar">
-    <h1>Mis Colecciones</h1>
+<body>
+  <!-- Topbar fijo -->
+  <header class="topbar" role="banner">
+    <button id="backBtn" class="icon-btn hidden" type="button" aria-label="Volver">←</button>
+    <div class="topbar-title" id="topbarTitle">Mis Colecciones</div>
+    <div class="topbar-spacer" aria-hidden="true"></div>
   </header>
 
-  <main id="app">
-    <!-- El contenido lo genera JS -->
+  <main class="app" id="appRoot">
+    <!-- HOME / LISTA -->
+    <section class="view is-active" data-view="home">
+      <h1 class="h1">Mis Colecciones</h1>
+
+      <div class="card">
+        <div class="row-between">
+          <h2 class="h2">Colecciones</h2>
+          <button class="btn primary" data-action="go-create" type="button">+ Nueva</button>
+        </div>
+
+        <div id="collectionsList" class="stack"></div>
+
+        <div class="muted small" style="margin-top:10px;">
+          Tip: tocá una colección para entrar.
+        </div>
+      </div>
+    </section>
+
+    <!-- CREAR -->
+    <section class="view" data-view="create">
+      <h1 class="h1">Nueva colección</h1>
+
+      <div class="card">
+        <div class="field">
+          <label>Nombre</label>
+          <input id="newName" class="input" type="text" placeholder="Ej: Adrenalyn WC 2026" />
+        </div>
+
+        <div class="field">
+          <label>Cantidad de ítems (números 1..N)</label>
+          <input id="newCount" class="input" type="number" min="1" max="5000" value="100" />
+        </div>
+
+        <div class="row gap">
+          <button class="btn primary" data-action="create-save" type="button">Crear</button>
+          <button class="btn" data-action="create-cancel" type="button">Cancelar</button>
+        </div>
+
+        <div class="muted small" style="margin-top:10px;">
+          Esta versión crea ítems 1..N (simple y estable). Después sumamos secciones, letras (A1), importaciones, etc.
+        </div>
+      </div>
+    </section>
+
+    <!-- DETALLE -->
+    <section class="view" data-view="detail">
+      <h1 class="h1" id="detailTitle">Colección</h1>
+
+      <div class="card">
+        <div class="stats-grid">
+          <div class="muted">Total</div> <div id="stTotal" class="right">0</div>
+          <div class="muted">Tengo</div> <div id="stHave" class="right">0</div>
+          <div class="muted">Faltan</div> <div id="stMissing" class="right">0</div>
+        </div>
+
+        <div class="pill">
+          Completo: <b id="stPct">0%</b>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row-between">
+          <h2 class="h2">Ítems</h2>
+          <button class="btn danger" data-action="reset-collection" type="button">Reset</button>
+        </div>
+
+        <div id="itemsGrid" class="items-grid"></div>
+      </div>
+    </section>
   </main>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=1"></script>
 </body>
 </html>
