@@ -80,6 +80,12 @@
             <label>Cantidad total</label>
             <input id="simpleCount" class="input" type="number" min="1" max="5000" value="100" />
           </div>
+
+          <div class="field">
+            <label>Especiales (lista)</label>
+            <input id="simpleSpecials" class="input" type="text" placeholder="Ej: 7, 10, 55" />
+            <div class="muted small" style="margin-top:6px;">Separados por coma.</div>
+          </div>
         </div>
 
         <!-- SECTIONS -->
@@ -100,6 +106,10 @@
           <div class="row-between">
             <h2 class="h2">Secciones</h2>
             <button id="btnAddSection" class="btn" type="button">+ Sección</button>
+          </div>
+
+          <div class="muted small" style="margin-top:8px;">
+            En cada sección tocá ⭐ para pegar la lista de especiales (ej: 7,10 o RIA1,RIA7).
           </div>
 
           <div id="sectionsEditor" class="stack" style="margin-top:10px;"></div>
@@ -157,6 +167,11 @@
             <h2 class="h2">Secciones</h2>
             <button id="editAddSection" class="btn" type="button">+ Sección</button>
           </div>
+
+          <div class="muted small" style="margin-top:8px;">
+            Tocá ⭐ en una sección para editar su lista de especiales.
+          </div>
+
           <div id="editSectionsEditor" class="stack" style="margin-top:10px;"></div>
         </div>
 
