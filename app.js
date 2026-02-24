@@ -1,8 +1,7 @@
 /* =============================
-   Colección Luciano - V2
-   - Colecciones simples o con secciones
-   - Numeración global o por sección
-   - Persistencia en localStorage
+   Colección Luciano - V2.1
+   - Secciones con modo principal (global / perSection)
+   - Cada sección puede forzar “numeración propia” (reinicia)
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -35,8 +34,8 @@ const els = {
 };
 
 const state = {
-  view: "home",     // home | create | detail
-  currentId: null,  // id colección
+  view: "home",
+  currentId: null,
   data: { collections: [] },
 };
 
@@ -105,7 +104,6 @@ function setView(view) {
     els.topbarTitle.textContent = "Nueva colección";
     els.backBtn.classList.remove("hidden");
   } else {
-    // detail
     els.backBtn.classList.remove("hidden");
   }
 
@@ -170,9 +168,13 @@ function renderHome() {
 
     const meta = document.createElement("div");
     meta.className = "muted small";
-    meta.textContent = c.structure === "sections"
-      ? `Con secciones · ${c.numberMode === "global" ? "Num global" : "Num por sección"}`
-      : "Simple";
+
+    if (c.structure === "sections") {
+      meta.textContent =
+        `Con secciones · modo principal: ${c.numberMode === "global" ? "global" : "por sección"}`;
+    } else {
+      meta.textContent = "Simple";
+    }
 
     left.appendChild(name);
     left.appendChild(meta);
@@ -190,7 +192,7 @@ function renderHome() {
 }
 
 /* -----------------------------
-   Create form (V2)
+   Create form
 ----------------------------- */
 function getStructType() {
   const r = els.structRadios.find(x => x.checked);
@@ -202,15 +204,13 @@ function resetCreateForm() {
   if (els.simpleCount) els.simpleCount.value = "100";
   if (els.numberMode) els.numberMode.value = "global";
 
-  // default: simple
   els.structRadios.forEach(r => r.checked = (r.value === "simple"));
   syncCreateBlocks();
 
-  // secciones: 2 por defecto
   if (els.sectionsEditor) {
     els.sectionsEditor.innerHTML = "";
-    addSectionRow("Sección 1", 50);
-    addSectionRow("Sección 2", 50);
+    addSectionRow("Sección 1", 50, false);
+    addSectionRow("Especiales", 20, true);
   }
 }
 
@@ -231,7 +231,7 @@ els.structRadios.forEach(r => {
   r.addEventListener("change", syncCreateBlocks);
 });
 
-function addSectionRow(name = "", count = 10) {
+function addSectionRow(name = "", count = 10, ownNumbering = false) {
   const row = document.createElement("div");
   row.className = "section-row";
   row.setAttribute("data-section-row", "1");
@@ -249,23 +249,37 @@ function addSectionRow(name = "", count = 10) {
   inCount.max = "5000";
   inCount.value = String(count);
 
+  const ownWrap = document.createElement("label");
+  ownWrap.className = "inline-check";
+  ownWrap.title = "Si está activado, esta sección reinicia su numeración aunque el modo principal sea global.";
+  const ownChk = document.createElement("input");
+  ownChk.type = "checkbox";
+  ownChk.checked = !!ownNumbering;
+  const ownTxt = document.createElement("span");
+  ownTxt.textContent = "Numeración propia";
+  ownWrap.appendChild(ownChk);
+  ownWrap.appendChild(ownTxt);
+
   const del = document.createElement("button");
   del.type = "button";
   del.className = "icon-danger";
   del.textContent = "✕";
-  del.addEventListener("click", () => {
-    row.remove();
-  });
+  del.addEventListener("click", () => row.remove());
 
   row.appendChild(inName);
   row.appendChild(inCount);
+  row.appendChild(ownWrap);
   row.appendChild(del);
 
   els.sectionsEditor.appendChild(row);
 }
 
 els.btnAddSection?.addEventListener("click", () => {
-  addSectionRow(`Sección ${els.sectionsEditor.querySelectorAll("[data-section-row]").length + 1}`, 10);
+  addSectionRow(
+    `Sección ${els.sectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
+    10,
+    false
+  );
 });
 
 function readSectionsFromEditor() {
@@ -273,14 +287,18 @@ function readSectionsFromEditor() {
   const out = [];
 
   for (const r of rows) {
-    const inputs = r.querySelectorAll("input");
-    const name = (inputs[0]?.value || "").trim();
-    const count = parseInt(inputs[1]?.value || "0", 10);
+    const inName = r.querySelector('input[type="text"]');
+    const inCount = r.querySelector('input[type="number"]');
+    const own = r.querySelector('input[type="checkbox"]');
+
+    const name = (inName?.value || "").trim();
+    const count = parseInt(inCount?.value || "0", 10);
+    const ownNumbering = !!own?.checked;
 
     if (!name) return { ok:false, error:"Hay una sección sin nombre." };
     if (!Number.isFinite(count) || count <= 0) return { ok:false, error:`Cantidad inválida en "${name}".` };
 
-    out.push({ name, count: clamp(count, 1, 5000) });
+    out.push({ name, count: clamp(count, 1, 5000), ownNumbering });
   }
 
   if (!out.length) return { ok:false, error:"Agregá al menos 1 sección." };
@@ -340,15 +358,18 @@ function createCollection() {
   const sections = read.sections.map(s => ({
     id: uid("sec"),
     name: s.name,
-    count: s.count
+    count: s.count,
+    ownNumbering: s.ownNumbering
   }));
 
   const items = [];
   let globalCounter = 1;
 
   for (const sec of sections) {
+    const sectionIsLocal = (numberMode === "perSection") || sec.ownNumbering;
+
     for (let i = 1; i <= sec.count; i++) {
-      const label = (numberMode === "global") ? String(globalCounter) : String(i);
+      const label = sectionIsLocal ? String(i) : String(globalCounter);
 
       items.push({
         id: uid("it"),
@@ -356,11 +377,11 @@ function createCollection() {
         label,
         have: false,
         rep: 0,
-        globalNo: (numberMode === "global") ? globalCounter : null,
-        localNo: (numberMode === "perSection") ? i : null
+        globalNo: sectionIsLocal ? null : globalCounter,
+        localNo: sectionIsLocal ? i : null
       });
 
-      if (numberMode === "global") globalCounter += 1;
+      if (!sectionIsLocal) globalCounter += 1;
     }
   }
 
@@ -370,7 +391,7 @@ function createCollection() {
     createdAt: Date.now(),
     structure: "sections",
     numberMode,
-    sections: sections.map(s => ({ id: s.id, name: s.name })),
+    sections: sections.map(s => ({ id: s.id, name: s.name, ownNumbering: !!s.ownNumbering })),
     items
   };
 
@@ -381,7 +402,7 @@ function createCollection() {
 }
 
 /* -----------------------------
-   Detail render (por secciones)
+   Detail render
 ----------------------------- */
 function renderDetail() {
   const col = getCurrent();
@@ -398,7 +419,6 @@ function renderDetail() {
 
   els.sectionsDetail.innerHTML = "";
 
-  // agrupamos items por sección
   const bySec = new Map();
   for (const sec of col.sections) bySec.set(sec.id, []);
   for (const it of col.items) {
@@ -419,8 +439,7 @@ function renderDetail() {
 
     const items = bySec.get(sec.id) || [];
     for (const it of items) {
-      const cell = buildItemCell(col, it);
-      grid.appendChild(cell);
+      grid.appendChild(buildItemCell(it));
     }
 
     card.appendChild(title);
@@ -429,7 +448,7 @@ function renderDetail() {
   }
 }
 
-function buildItemCell(col, it) {
+function buildItemCell(it) {
   const wrap = document.createElement("div");
   wrap.className = "item" + (it.have ? " have" : "");
   wrap.setAttribute("data-item-id", it.id);
@@ -492,7 +511,7 @@ function buildItemCell(col, it) {
 }
 
 /* -----------------------------
-   Reset colección
+   Reset
 ----------------------------- */
 function resetCollection() {
   const col = getCurrent();
@@ -511,7 +530,7 @@ function resetCollection() {
 }
 
 /* -----------------------------
-   Eventos globales
+   Eventos
 ----------------------------- */
 document.addEventListener("click", (e) => {
   const btn = e.target?.closest?.("[data-action]");
