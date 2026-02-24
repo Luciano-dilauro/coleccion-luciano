@@ -13,8 +13,7 @@ body{
 }
 
 /* =========================
-   TOPBAR FIJO (NO DESAPARECE)
-   - fixed + safe-area iOS
+   TOPBAR FIJO (estable)
 ========================= */
 .topbar{
   position: fixed;
@@ -65,7 +64,6 @@ body{
    APP LAYOUT
 ========================= */
 .app{
-  /* deja espacio para el topbar fijo */
   padding: calc(var(--topbar-h) + env(safe-area-inset-top) + 18px) var(--container-pad) 34px;
 }
 
@@ -167,37 +165,87 @@ label{ display:block; font-weight: 800; margin-bottom: 6px; }
   font-weight: 900;
 }
 
-/* =========================
-   LISTA COLECCIONES
-========================= */
+/* HOME list */
 .collection-row{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap: 12px;
-
   padding: 14px 14px;
   border-radius: 18px;
   border: 1px solid rgba(0,0,0,.08);
   background: rgba(0,0,0,.02);
 }
 
-.collection-name{
-  font-size: 18px;
-  font-weight: 950;
+/* =========================
+   CREATE: radios + secciones
+========================= */
+.radio-row{
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+}
+.radio{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  padding: 12px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(0,0,0,.02);
+  font-weight: 900;
+}
+.radio input{ width:18px; height:18px; }
+
+.block{ margin-top: 12px; }
+
+.sections-editor{
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+  margin-top: 12px;
 }
 
-.collection-meta{
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--text-muted);
-  text-align:right;
-  min-width: 110px;
+.section-row{
+  display:grid;
+  grid-template-columns: 1fr 120px 44px;
+  gap: 10px;
+  align-items:center;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(0,0,0,.02);
+}
+
+.icon-danger{
+  width:44px;
+  height:44px;
+  border-radius: 999px;
+  border: 1px solid rgba(220,38,38,.25);
+  background: rgba(220,38,38,.10);
+  color: rgb(220,38,38);
+  font-weight: 950;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
 /* =========================
-   GRID ÍTEMS
+   DETAIL: secciones + ítems
 ========================= */
+.section-card{
+  border-radius: 22px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(0,0,0,.02);
+  padding: 14px;
+}
+
+.section-title{
+  font-size: 20px;
+  font-weight: 950;
+  margin: 0 0 10px;
+}
+
 .items-grid{
   display:flex;
   flex-wrap: wrap;
