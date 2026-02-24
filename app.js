@@ -1,11 +1,11 @@
 /* =============================
-   Colección Luciano - Arquitectura estable (v2.1)
+   Colección Luciano - Arquitectura estable (v2.2)
    - Especiales por lista (por sección o simple)
    - Crear / Editar secciones + especiales sin perder progreso
    - Backup: solo REEMPLAZAR
    - NUEVO:
      ✅ Duplicar sección (⎘)
-     ✅ Reordenar secciones arrastrando (drag & drop)
+     ✅ Reordenar secciones: botones ↑ ↓ (y drag & drop opcional)
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -316,7 +316,7 @@ function resetCreateForm() {
 }
 
 /* -----------------------------
-   Secciones: Especiales + Duplicar + Drag&Drop
+   Especiales prompt
 ----------------------------- */
 function openSpecialsPrompt(currentArr, hint) {
   const current = (currentArr || []).join(", ");
@@ -324,9 +324,28 @@ function openSpecialsPrompt(currentArr, hint) {
     `Especiales (lista separada por coma)\n${hint}\n\nEj: 7, 10, 55  o  RIA1, RIA7\n\nActual:\n${current}`,
     current
   );
-  if (txt === null) return null; // cancel
+  if (txt === null) return null;
   const list = parseCodesList(txt).map(normCode);
   return Array.from(new Set(list));
+}
+
+/* -----------------------------
+   Reordenar filas en UI
+----------------------------- */
+function moveRow(container, row, dir) {
+  const rows = Array.from(container.querySelectorAll("[data-section-row]"));
+  const idx = rows.indexOf(row);
+  if (idx < 0) return;
+
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= rows.length) return;
+
+  const ref = rows[newIdx];
+  if (dir === -1) {
+    container.insertBefore(row, ref);
+  } else {
+    container.insertBefore(ref, row);
+  }
 }
 
 function getSectionRowValues(row) {
@@ -344,13 +363,16 @@ function getSectionRowValues(row) {
   return { name, format, prefix, count: Number.isFinite(count) ? count : 1, ownNumbering, specials };
 }
 
+/* -----------------------------
+   Secciones: crear fila
+----------------------------- */
 function addSectionRow(container, { name="", format="num", prefix="", count=10, ownNumbering=false, specials=[] } = {}) {
   const row = document.createElement("div");
   row.className = "section-row";
   row.setAttribute("data-section-row", "1");
   row.dataset.specials = JSON.stringify(Array.isArray(specials) ? specials : []);
 
-  // Drag handle “implícito”: toda la fila se puede arrastrar
+  // drag opcional (no necesario)
   row.draggable = true;
   row.style.cursor = "grab";
   row.addEventListener("dragstart", () => {
@@ -403,6 +425,27 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
   actions.className = "actions";
   actions.style.gap = "6px";
 
+  // ↑ ↓
+  const upBtn = document.createElement("button");
+  upBtn.type = "button";
+  upBtn.className = "icon-lite";
+  upBtn.title = "Subir sección";
+  upBtn.textContent = "↑";
+  upBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    moveRow(container, row, -1);
+  });
+
+  const downBtn = document.createElement("button");
+  downBtn.type = "button";
+  downBtn.className = "icon-lite";
+  downBtn.title = "Bajar sección";
+  downBtn.textContent = "↓";
+  downBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    moveRow(container, row, +1);
+  });
+
   const starBtn = document.createElement("button");
   starBtn.type = "button";
   starBtn.className = "icon-lite";
@@ -421,6 +464,8 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
   del.title = "Eliminar sección";
   del.textContent = "✕";
 
+  actions.appendChild(upBtn);
+  actions.appendChild(downBtn);
   actions.appendChild(starBtn);
   actions.appendChild(dupBtn);
   actions.appendChild(del);
@@ -459,16 +504,9 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
     e.stopPropagation();
 
     const v = getSectionRowValues(row);
-    const copy = {
-      ...v,
-      name: v.name ? `${v.name} (copia)` : "Sección (copia)"
-    };
+    const copy = { ...v, name: v.name ? `${v.name} (copia)` : "Sección (copia)" };
 
     const newRow = addSectionRow(container, copy);
-
-    // Si venía de EDIT, NO copiamos secId (para que sea sección nueva)
-    // (si el row original tenía secId, no lo pasamos)
-    // Inserta justo debajo
     container.insertBefore(newRow, row.nextSibling);
 
     enableDnD(container);
@@ -494,7 +532,7 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 }
 
 /* -----------------------------
-   Drag & Drop para reordenar secciones
+   Drag & Drop opcional (no necesario)
 ----------------------------- */
 function getDragAfterElement(container, y) {
   const draggableElements = [...container.querySelectorAll("[data-section-row]:not(.dragging)")];
@@ -528,7 +566,6 @@ function enableDnD(container) {
     }
   });
 
-  // Evitar que el click en botones active drag raro
   container.addEventListener("mousedown", (e) => {
     const row = e.target.closest?.("[data-section-row]");
     if (!row) return;
@@ -836,7 +873,7 @@ function resetCollection() {
 }
 
 /* -----------------------------
-   Edit (real) - conserva have/rep y recalcula special por lista
+   Edit (real)
 ----------------------------- */
 function renderEdit() {
   const col = getCurrent();
@@ -860,7 +897,7 @@ function renderEdit() {
         ownNumbering: !!sec.ownNumbering,
         specials: Array.isArray(sec.specials) ? sec.specials : []
       });
-      row.dataset.secId = sec.id; // importante para conservar mapeos
+      row.dataset.secId = sec.id;
     }
     enableDnD(els.editSectionsEditor);
   }
@@ -1033,7 +1070,6 @@ function handleImportFile(file) {
 
       state.data.collections = normalized.collections || [];
 
-      // migración suave post-import
       for (const c of state.data.collections) {
         if (!c.items) c.items = [];
         if (!c.sections) c.sections = [];
