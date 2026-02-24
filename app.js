@@ -1,8 +1,11 @@
 /* =============================
-   Colección Luciano - Arquitectura estable (v2)
+   Colección Luciano - Arquitectura estable (v2.1)
    - Especiales por lista (por sección o simple)
    - Crear / Editar secciones + especiales sin perder progreso
    - Backup: solo REEMPLAZAR
+   - NUEVO:
+     ✅ Duplicar sección (⎘)
+     ✅ Reordenar secciones arrastrando (drag & drop)
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -154,7 +157,6 @@ function load() {
       if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
     }
 
-    // items special flag
     for (const it of c.items) {
       if (typeof it.special !== "boolean") it.special = false;
       if (!it.key) it.key = `${it.sectionId}|${it.label}`;
@@ -243,8 +245,6 @@ function renderHome() {
 
     const row = document.createElement("div");
     row.className = "collection-row";
-    row.setAttribute("data-action", "open-collection");
-    row.setAttribute("data-id", c.id);
 
     const left = document.createElement("div");
     left.style.display = "flex";
@@ -311,10 +311,12 @@ function resetCreateForm() {
   addSectionRow(els.sectionsEditor, { name:"Equipo A", format:"alfa", prefix:"RIA", count:20, ownNumbering:true, specials:[] });
   addSectionRow(els.sectionsEditor, { name:"Equipo B", format:"alfa", prefix:"BAE", count:20, ownNumbering:true, specials:[] });
   addSectionRow(els.sectionsEditor, { name:"Especiales", format:"num", prefix:"", count:10, ownNumbering:true, specials:[] });
+
+  enableDnD(els.sectionsEditor);
 }
 
 /* -----------------------------
-   Secciones: fila con botón ⭐ (especiales)
+   Secciones: Especiales + Duplicar + Drag&Drop
 ----------------------------- */
 function openSpecialsPrompt(currentArr, hint) {
   const current = (currentArr || []).join(", ");
@@ -324,8 +326,22 @@ function openSpecialsPrompt(currentArr, hint) {
   );
   if (txt === null) return null; // cancel
   const list = parseCodesList(txt).map(normCode);
-  // únicos
   return Array.from(new Set(list));
+}
+
+function getSectionRowValues(row) {
+  const inputs = row.querySelectorAll("input, select");
+  const name = (inputs[0]?.value || "").trim();
+  const format = (inputs[1]?.value === "alfa") ? "alfa" : "num";
+  const prefix = normalizePrefix(inputs[2]?.value || "");
+  const count = parseInt(inputs[3]?.value || "0", 10);
+  const ownNumbering = !!inputs[4]?.checked;
+
+  let specials = [];
+  try { specials = JSON.parse(row.dataset.specials || "[]"); } catch { specials = []; }
+  specials = (Array.isArray(specials) ? specials : []).map(normCode);
+
+  return { name, format, prefix, count: Number.isFinite(count) ? count : 1, ownNumbering, specials };
 }
 
 function addSectionRow(container, { name="", format="num", prefix="", count=10, ownNumbering=false, specials=[] } = {}) {
@@ -333,6 +349,18 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
   row.className = "section-row";
   row.setAttribute("data-section-row", "1");
   row.dataset.specials = JSON.stringify(Array.isArray(specials) ? specials : []);
+
+  // Drag handle “implícito”: toda la fila se puede arrastrar
+  row.draggable = true;
+  row.style.cursor = "grab";
+  row.addEventListener("dragstart", () => {
+    row.classList.add("dragging");
+    row.style.opacity = "0.6";
+  });
+  row.addEventListener("dragend", () => {
+    row.classList.remove("dragging");
+    row.style.opacity = "";
+  });
 
   const inName = document.createElement("input");
   inName.className = "input";
@@ -373,12 +401,19 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   const actions = document.createElement("div");
   actions.className = "actions";
+  actions.style.gap = "6px";
 
   const starBtn = document.createElement("button");
   starBtn.type = "button";
   starBtn.className = "icon-lite";
   starBtn.title = "Editar especiales";
   starBtn.textContent = "⭐";
+
+  const dupBtn = document.createElement("button");
+  dupBtn.type = "button";
+  dupBtn.className = "icon-lite";
+  dupBtn.title = "Duplicar sección";
+  dupBtn.textContent = "⎘";
 
   const del = document.createElement("button");
   del.type = "button";
@@ -387,6 +422,7 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
   del.textContent = "✕";
 
   actions.appendChild(starBtn);
+  actions.appendChild(dupBtn);
   actions.appendChild(del);
 
   const syncRow = () => {
@@ -395,15 +431,14 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
     ownWrap.style.opacity = isAlfa ? "0.5" : "1";
     ownChk.disabled = isAlfa;
     if (isAlfa) ownChk.checked = true;
-
-    // si cambia a alfa, normalizo prefijo
     if (isAlfa) inPrefix.value = normalizePrefix(inPrefix.value);
   };
 
   selFormat.addEventListener("change", syncRow);
   inPrefix.addEventListener("input", () => { inPrefix.value = normalizePrefix(inPrefix.value); });
 
-  starBtn.addEventListener("click", () => {
+  starBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
     const secName = (inName.value || "Sección").trim();
     const isAlfa = selFormat.value === "alfa";
     const pref = isAlfa ? normalizePrefix(inPrefix.value) : "";
@@ -420,7 +455,30 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
     row.dataset.specials = JSON.stringify(next);
   });
 
-  del.addEventListener("click", () => row.remove());
+  dupBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+
+    const v = getSectionRowValues(row);
+    const copy = {
+      ...v,
+      name: v.name ? `${v.name} (copia)` : "Sección (copia)"
+    };
+
+    const newRow = addSectionRow(container, copy);
+
+    // Si venía de EDIT, NO copiamos secId (para que sea sección nueva)
+    // (si el row original tenía secId, no lo pasamos)
+    // Inserta justo debajo
+    container.insertBefore(newRow, row.nextSibling);
+
+    enableDnD(container);
+    window.scrollTo({ top: window.scrollY + 80, behavior: "smooth" });
+  });
+
+  del.addEventListener("click", (e) => {
+    e.stopPropagation();
+    row.remove();
+  });
 
   row.appendChild(inName);
   row.appendChild(selFormat);
@@ -431,19 +489,59 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   container.appendChild(row);
   syncRow();
+
+  return row;
 }
 
-els.btnAddSection?.addEventListener("click", () => {
-  addSectionRow(els.sectionsEditor, {
-    name: `Sección ${els.sectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
-    format: "num",
-    prefix: "",
-    count: 10,
-    ownNumbering: false,
-    specials: []
-  });
-});
+/* -----------------------------
+   Drag & Drop para reordenar secciones
+----------------------------- */
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll("[data-section-row]:not(.dragging)")];
 
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - (box.top + box.height / 2);
+    if (offset < 0 && offset > closest.offset) {
+      return { offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+}
+
+function enableDnD(container) {
+  if (!container) return;
+  if (container.dataset.dndEnabled === "1") return;
+  container.dataset.dndEnabled = "1";
+
+  container.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    const dragging = container.querySelector(".dragging");
+    if (!dragging) return;
+
+    const afterElement = getDragAfterElement(container, e.clientY);
+    if (afterElement == null) {
+      container.appendChild(dragging);
+    } else {
+      container.insertBefore(dragging, afterElement);
+    }
+  });
+
+  // Evitar que el click en botones active drag raro
+  container.addEventListener("mousedown", (e) => {
+    const row = e.target.closest?.("[data-section-row]");
+    if (!row) return;
+    if (e.target.closest("button, input, select, textarea, label")) {
+      row.draggable = false;
+      setTimeout(() => { row.draggable = true; }, 0);
+    }
+  });
+}
+
+/* -----------------------------
+   Leer secciones desde UI
+----------------------------- */
 function readSections(container) {
   const rows = Array.from(container.querySelectorAll("[data-section-row]"));
   const out = [];
@@ -477,6 +575,21 @@ function readSections(container) {
   if (!out.length) return { ok:false, error:"Agregá al menos 1 sección." };
   return { ok:true, sections: out, rows };
 }
+
+/* -----------------------------
+   Create - botones
+----------------------------- */
+els.btnAddSection?.addEventListener("click", () => {
+  addSectionRow(els.sectionsEditor, {
+    name: `Sección ${els.sectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
+    format: "num",
+    prefix: "",
+    count: 10,
+    ownNumbering: false,
+    specials: []
+  });
+  enableDnD(els.sectionsEditor);
+});
 
 /* -----------------------------
    Crear colección
@@ -739,7 +852,7 @@ function renderEdit() {
   if (isSections) {
     for (const sec of col.sections) {
       const count = col.items.filter(it => it.sectionId === sec.id).length;
-      addSectionRow(els.editSectionsEditor, {
+      const row = addSectionRow(els.editSectionsEditor, {
         name: sec.name,
         format: sec.format || "num",
         prefix: sec.prefix || "",
@@ -747,8 +860,9 @@ function renderEdit() {
         ownNumbering: !!sec.ownNumbering,
         specials: Array.isArray(sec.specials) ? sec.specials : []
       });
-      els.editSectionsEditor.lastElementChild.dataset.secId = sec.id;
+      row.dataset.secId = sec.id; // importante para conservar mapeos
     }
+    enableDnD(els.editSectionsEditor);
   }
 }
 
@@ -761,6 +875,7 @@ els.editAddSection?.addEventListener("click", () => {
     ownNumbering: false,
     specials: []
   });
+  enableDnD(els.editSectionsEditor);
 });
 
 function applyEdit() {
@@ -771,7 +886,6 @@ function applyEdit() {
   if (!newName) return alert("Nombre inválido.");
   col.name = newName;
 
-  // si es simple: solo recalculo especiales por lista del General (si existiera)
   if (col.structure !== "sections") {
     save();
     renderHome();
@@ -785,7 +899,6 @@ function applyEdit() {
 
   const rows = read.rows;
 
-  // index items por key para conservar progreso
   const oldByKey = new Map();
   for (const it of col.items) oldByKey.set(it.key || `${it.sectionId}|${it.label}`, it);
 
