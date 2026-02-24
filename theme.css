@@ -1,23 +1,29 @@
 :root{
+  /* Fondo */
   --bg-main:#F4F5F7;
   --bg-panel:#FFFFFF;
 
-  --text-main: rgba(0,0,0,.88);
-  --text-muted: rgba(0,0,0,.55);
+  /* Texto */
+  --text-main: rgba(0,0,0,.90);
+  --text-muted: rgba(0,0,0,.56);
 
+  /* Bordes y sombras */
   --stroke: rgba(0,0,0,.08);
   --shadow: 0 10px 30px rgba(0,0,0,.08);
 
+  /* Accent */
   --accent:#2D7DF6;
   --accent-soft: rgba(45,125,246,.16);
 
-  --danger:#E33B3B;
+  /* Dorado especiales */
+  --special-border: rgba(184,134,11,.55);
+  --special-bg: rgba(184,134,11,.12);
 
-  /* especiales (por ahora sutil, luego lo decorás) */
-  --gold-border: rgba(184,134,11,.55);
-  --gold-bg: rgba(184,134,11,.10);
+  /* Radios */
+  --r-card: 26px;
+  --r-pill: 999px;
 
-  --r-card: 24px;
-  --container-pad: 16px;
-  --topbar-h: 72px;
+  /* Layout */
+  --pad: 18px;
+  --topbar-h: 78px; /* fijo */
 }
