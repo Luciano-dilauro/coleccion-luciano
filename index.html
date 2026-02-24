@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Colección Luciano</title>
 
   <link rel="stylesheet" href="theme.css?v=1" />
@@ -10,48 +10,37 @@
 </head>
 
 <body>
-  <header class="topbar">
+
+  <!-- TOPBAR FIJO (no desaparece con scroll) -->
+  <header class="topbar" role="banner">
     <button id="backBtn" class="icon-btn hidden" type="button" aria-label="Volver">←</button>
-    <div class="topbar-title" id="topbarTitle">Mis Colecciones</div>
+    <div id="topbarTitle" class="topbar-title">Mis Colecciones</div>
     <div class="topbar-spacer"></div>
   </header>
 
-  <main class="app">
+  <!-- CONTENIDO (tiene padding-top para dejar espacio al topbar fijo) -->
+  <main class="app" role="main">
 
     <!-- HOME -->
     <section class="view is-active" data-view="home">
       <div class="card">
         <div class="row-between">
-          <h1 class="h1">Inicio</h1>
-          <button class="btn" type="button" data-action="go-settings">Ajustes</button>
+          <h1 class="h1">Mis Colecciones</h1>
+          <button class="btn primary" type="button" data-action="go-create">Nueva</button>
         </div>
 
-        <div class="grid-2" style="margin-top:12px;">
-          <button class="card-btn" type="button" data-action="go-create">
-            <div class="card-icon">＋</div>
-            <div class="card-label">Nueva</div>
-          </button>
+        <div id="collectionsList" class="stack" style="margin-top:12px;"></div>
 
-          <button class="card-btn" type="button" onclick="window.scrollTo({top:99999, behavior:'smooth'})">
-            <div class="card-icon">📚</div>
-            <div class="card-label">Ver lista</div>
-          </button>
-        </div>
-      </div>
+        <div class="divider"></div>
 
-      <div class="card" style="margin-top:14px;">
-        <h2 class="h2">Mis colecciones</h2>
-        <div id="collectionsList" class="stack"></div>
+        <button class="btn" type="button" data-action="go-settings">Ajustes / Backup</button>
       </div>
     </section>
 
     <!-- CREATE -->
     <section class="view" data-view="create">
       <div class="card">
-        <div class="row-between">
-          <h1 class="h1">Nueva colección</h1>
-          <button class="btn" type="button" data-action="create-cancel">Cancelar</button>
-        </div>
+        <h1 class="h1">Nueva colección</h1>
 
         <div class="field">
           <label>Nombre</label>
@@ -62,12 +51,12 @@
 
         <div class="field">
           <label>Estructura</label>
-          <div class="radio-row">
-            <label class="radio">
+          <div class="seg">
+            <label class="seg-opt">
               <input type="radio" name="structType" value="simple" checked />
-              <span>Simple (1..N)</span>
+              <span>Simple</span>
             </label>
-            <label class="radio">
+            <label class="seg-opt">
               <input type="radio" name="structType" value="sections" />
               <span>Con secciones</span>
             </label>
@@ -82,44 +71,35 @@
           </div>
 
           <div class="field">
-            <label>Especiales (lista)</label>
+            <label>Especiales (coma)</label>
             <input id="simpleSpecials" class="input" type="text" placeholder="Ej: 7, 10, 55" />
-            <div class="muted small" style="margin-top:6px;">Separados por coma.</div>
           </div>
         </div>
 
         <!-- SECTIONS -->
         <div id="sectionsBlock" style="display:none;">
           <div class="field">
-            <label>Modo numérico</label>
+            <label>Modo de numeración</label>
             <select id="numberMode" class="input">
-              <option value="global">Global (correlativo)</option>
+              <option value="global">Global (correlativa)</option>
               <option value="perSection">Por sección (reinicia)</option>
             </select>
-            <div class="muted small" style="margin-top:6px;">
-              Nota: Las secciones alfanuméricas siempre usan prefijo+N.
-            </div>
           </div>
 
-          <div class="divider"></div>
+          <!-- El generador rápido se inyecta acá por app.js -->
+          <div id="sectionsEditor" class="stack"></div>
 
-          <div class="row-between">
-            <h2 class="h2">Secciones</h2>
-            <button id="btnAddSection" class="btn" type="button">+ Sección</button>
-          </div>
-
-          <div class="muted small" style="margin-top:8px;">
-            En cada sección tocá ⭐ para pegar la lista de especiales (ej: 7,10 o RIA1,RIA7).
-          </div>
-
-          <div id="sectionsEditor" class="stack" style="margin-top:10px;"></div>
+          <button id="btnAddSection" class="btn" type="button" style="margin-top:10px;">
+            + Agregar sección
+          </button>
         </div>
 
         <div class="divider"></div>
 
-        <button class="btn primary full" type="button" data-action="create-save">
-          Guardar colección
-        </button>
+        <div class="row gap">
+          <button class="btn" type="button" data-action="create-cancel">Cancelar</button>
+          <button class="btn primary" type="button" data-action="create-save">Crear</button>
+        </div>
       </div>
     </section>
 
@@ -127,20 +107,18 @@
     <section class="view" data-view="detail">
       <div class="card">
         <div class="row-between">
-          <h1 class="h1" id="detailTitle">Detalle</h1>
-          <button class="btn" type="button" data-action="open-edit">Editar</button>
+          <h1 id="detailTitle" class="h1">Colección</h1>
+          <div class="row gap">
+            <button class="btn" type="button" data-action="open-edit">Editar</button>
+            <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
+          </div>
         </div>
 
-        <div class="stats-grid">
-          <div class="stat-row"><span>Total</span><b id="stTotal">0</b></div>
-          <div class="stat-row"><span>Tengo</span><b id="stHave">0</b></div>
-          <div class="stat-row"><span>Faltan</span><b id="stMissing">0</b></div>
-          <div class="stat-row"><span>Completo</span><b id="stPct">0%</b></div>
-        </div>
-
-        <div class="row-between" style="margin-top:10px;">
-          <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
-          <div class="muted small">Tip: tocá un número para marcar “Tengo”.</div>
+        <div class="stats">
+          <div class="stat"><span>Total</span><b id="stTotal">0</b></div>
+          <div class="stat"><span>Tengo</span><b id="stHave">0</b></div>
+          <div class="stat"><span>Faltan</span><b id="stMissing">0</b></div>
+          <div class="stat"><span>%</span><b id="stPct">0%</b></div>
         </div>
       </div>
 
@@ -151,8 +129,11 @@
     <section class="view" data-view="edit">
       <div class="card">
         <div class="row-between">
-          <h1 class="h1" id="editTitle">Editar</h1>
-          <button class="btn" type="button" data-action="edit-cancel">Volver</button>
+          <h1 id="editTitle" class="h1">Editar</h1>
+          <div class="row gap">
+            <button class="btn" type="button" data-action="edit-cancel">Cancelar</button>
+            <button class="btn primary" type="button" data-action="edit-save">Guardar</button>
+          </div>
         </div>
 
         <div class="field">
@@ -160,55 +141,48 @@
           <input id="editName" class="input" type="text" />
         </div>
 
-        <div class="divider"></div>
-
         <div id="editSectionsArea" style="display:none;">
+          <div class="divider"></div>
+
           <div class="row-between">
             <h2 class="h2">Secciones</h2>
-            <button id="editAddSection" class="btn" type="button">+ Sección</button>
+            <button id="editAddSection" class="btn" type="button">+ Agregar</button>
           </div>
 
-          <div class="muted small" style="margin-top:8px;">
-            Tocá ⭐ en una sección para editar su lista de especiales.
-          </div>
-
-          <div id="editSectionsEditor" class="stack" style="margin-top:10px;"></div>
+          <div id="editSectionsEditor" class="stack"></div>
         </div>
-
-        <div class="divider"></div>
-
-        <button class="btn primary full" type="button" data-action="edit-save">Guardar cambios</button>
       </div>
     </section>
 
     <!-- SETTINGS -->
     <section class="view" data-view="settings">
       <div class="card">
-        <div class="row-between">
-          <h1 class="h1">Ajustes / Backup</h1>
-          <button class="btn" type="button" data-action="go-home">Volver</button>
-        </div>
+        <h1 class="h1">Ajustes / Backup</h1>
 
-        <div class="divider"></div>
-
-        <div class="grid-2">
+        <div class="grid-2" style="margin-top:10px;">
           <button class="card-btn" type="button" data-action="export-backup">
-            <div class="card-icon">⬆️</div>
-            <div class="card-label">Exportar</div>
-            <div class="card-meta" id="exportMeta">—</div>
+            <div class="card-ico">⬆️</div>
+            <div class="card-txt">
+              <div class="card-title">Exportar backup</div>
+              <div id="exportMeta" class="card-sub">Último: — · Tamaño: —</div>
+            </div>
           </button>
 
           <label class="card-btn" style="cursor:pointer;">
-            <div class="card-icon">⬇️</div>
-            <div class="card-label">Importar</div>
-            <div class="card-meta" id="importMeta">—</div>
-            <input id="importInput" type="file" accept="application/json" style="display:none;" />
+            <div class="card-ico">⬇️</div>
+            <div class="card-txt">
+              <div class="card-title">Importar backup</div>
+              <div id="importMeta" class="card-sub">Último: — · Modo: Reemplazar</div>
+            </div>
+            <input id="importInput" type="file" accept="application/json" style="display:none;">
           </label>
         </div>
 
-        <div class="card-sub" style="margin-top:12px;">
-          <div class="muted small" id="storageMeta">—</div>
-        </div>
+        <div class="divider"></div>
+        <div id="storageMeta" class="muted">Datos actuales en el dispositivo: —</div>
+
+        <div class="divider"></div>
+        <button class="btn" type="button" data-action="go-home">Volver</button>
       </div>
     </section>
 
