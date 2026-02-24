@@ -1,27 +1,19 @@
 :root{
-  /* Fondo */
   --bg-main:#F4F5F7;
   --bg-panel:#FFFFFF;
 
-  /* Texto */
   --text-main: rgba(0,0,0,.88);
   --text-muted: rgba(0,0,0,.55);
 
-  /* Bordes y sombras */
   --stroke: rgba(0,0,0,.10);
   --shadow: 0 12px 30px rgba(0,0,0,.08);
 
-  /* Color principal */
   --accent:#2D7DF6;
   --accent-soft: rgba(45,125,246,.16);
 
-  /* Radios */
   --r-card: 26px;
   --r-pill: 999px;
 
-  /* Layout */
   --container-pad: 18px;
-
-  /* Topbar */
   --topbar-h: 86px;
 }
