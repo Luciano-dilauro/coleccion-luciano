@@ -1,9 +1,9 @@
 /* =============================
-   Colección Luciano - V2.3 (Arquitectura)
+   Colección Luciano - V2.4 (Arquitectura)
    - Colecciones simples y con secciones
    - Secciones numéricas (global/perSection + numeración propia)
    - Secciones alfanuméricas con prefijo (PREFIJO+N)
-   - Backup Pro (export/import) con versión + reemplazar/fusionar
+   - Backup Pro (export/import) SOLO REEMPLAZAR
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -52,7 +52,7 @@ const state = {
     lastExportAt: null,
     lastExportSize: null,
     lastImportAt: null,
-    lastImportMode: null, // "replace" | "merge"
+    lastImportMode: null, // "replace"
   }
 };
 
@@ -123,11 +123,8 @@ function computeStats(col) {
 
 function formatDateTime(ts) {
   if (!ts) return "—";
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return "—";
-  }
+  try { return new Date(ts).toLocaleString(); }
+  catch { return "—"; }
 }
 
 function formatBytes(bytes) {
@@ -288,9 +285,7 @@ function syncCreateBlocks() {
   }
 }
 
-els.structRadios.forEach(r => {
-  r.addEventListener("change", syncCreateBlocks);
-});
+els.structRadios.forEach(r => r.addEventListener("change", syncCreateBlocks));
 
 function normalizePrefix(p) {
   return String(p || "")
@@ -352,7 +347,6 @@ function addSectionRow({ name = "", format = "num", prefix = "", count = 10, own
     const isAlfa = selFormat.value === "alfa";
     inPrefix.style.display = isAlfa ? "block" : "none";
 
-    // alfa => siempre local, numeración propia no aplica (pero conceptualmente sí)
     ownWrap.style.opacity = isAlfa ? "0.5" : "1";
     ownChk.disabled = isAlfa;
     if (isAlfa) ownChk.checked = true;
@@ -656,10 +650,9 @@ function resetCollection() {
 }
 
 /* -----------------------------
-   Backup Pro
+   Backup Pro (SOLO REEMPLAZAR)
 ----------------------------- */
 function exportBackup() {
-  // payload versionado
   const payload = {
     backupVersion: BACKUP_VERSION,
     exportedAt: Date.now(),
@@ -687,9 +680,6 @@ function exportBackup() {
 }
 
 function normalizeImportedPayload(obj) {
-  // Permite importar:
-  // - formato nuevo: {backupVersion, data:{collections:[]}}
-  // - formato “directo”: {collections:[]}
   if (!obj || typeof obj !== "object") return null;
 
   if (obj.data && obj.data.collections) {
@@ -703,37 +693,6 @@ function normalizeImportedPayload(obj) {
   return null;
 }
 
-function mergeCollections(current, incoming) {
-  const cur = Array.isArray(current) ? current : [];
-  const inc = Array.isArray(incoming) ? incoming : [];
-
-  const ids = new Set(cur.map(c => c.id));
-  const out = cur.slice();
-
-  for (const c of inc) {
-    // si no tiene id, le genero uno (protección)
-    if (!c.id) c.id = uid("col");
-
-    if (ids.has(c.id)) {
-      // conflicto: creo un id nuevo para no pisar
-      const copy = structuredCloneSafe(c);
-      copy.id = uid("col");
-      copy.name = `${copy.name || "Colección"} (import)`;
-      out.push(copy);
-      ids.add(copy.id);
-    } else {
-      out.push(c);
-      ids.add(c.id);
-    }
-  }
-
-  return out;
-}
-
-function structuredCloneSafe(obj) {
-  try { return structuredClone(obj); } catch { return JSON.parse(JSON.stringify(obj)); }
-}
-
 function handleImportFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -745,28 +704,16 @@ function handleImportFile(file) {
         return;
       }
 
-      const incomingCols = normalized.collections || [];
-      const hasAnything = state.data.collections.length > 0;
+      const ok = confirm(
+        "Importar backup (REEMPLAZAR):\n\n" +
+        "Esto borrará TODO lo actual y cargará el contenido del backup.\n\n" +
+        "¿Continuar?"
+      );
+      if (!ok) return;
 
-      let mode = "replace";
-      if (hasAnything) {
-        const pick = prompt(
-          "Importar backup:\n\n1 = Reemplazar TODO (borra lo actual)\n2 = Fusionar (agrega sin borrar)\n\nEscribí 1 o 2",
-          "2"
-        );
-        mode = (String(pick || "2").trim() === "1") ? "replace" : "merge";
-      }
+      state.data.collections = normalized.collections || [];
 
-      if (mode === "replace") {
-        const ok = confirm("¿Seguro que querés REEMPLAZAR todo? Esto borra lo que tenés ahora.");
-        if (!ok) return;
-
-        state.data.collections = incomingCols;
-      } else {
-        state.data.collections = mergeCollections(state.data.collections, incomingCols);
-      }
-
-      // migración suave de secciones
+      // migración suave
       for (const c of state.data.collections) {
         if (!c.items) c.items = [];
         if (!c.sections) c.sections = [];
@@ -782,13 +729,13 @@ function handleImportFile(file) {
       }
 
       state.meta.lastImportAt = Date.now();
-      state.meta.lastImportMode = mode;
+      state.meta.lastImportMode = "replace";
       save();
 
       renderHome();
       renderSettings();
-      alert(`Backup importado ✅ (${mode === "replace" ? "Reemplazar" : "Fusionar"})`);
-    } catch (err) {
+      alert("Backup importado ✅ (Reemplazar)");
+    } catch {
       alert("Error al importar el backup.");
     }
   };
@@ -805,15 +752,12 @@ function renderSettings() {
   }
 
   if (els.importMeta) {
-    const modeTxt = state.meta.lastImportMode
-      ? (state.meta.lastImportMode === "replace" ? "Reemplazar" : "Fusionar")
-      : "—";
+    const modeTxt = state.meta.lastImportMode ? "Reemplazar" : "—";
     els.importMeta.textContent =
       `Último: ${formatDateTime(state.meta.lastImportAt)} · Modo: ${modeTxt}`;
   }
 
   if (els.storageMeta) {
-    // tamaño aproximado del JSON en storage (para que veas “peso”)
     const raw = localStorage.getItem(LS_KEY) || "";
     els.storageMeta.textContent = `Datos actuales en el dispositivo: ${formatBytes(raw.length)}`;
   }
@@ -845,7 +789,6 @@ document.addEventListener("click", (e) => {
 });
 
 els.backBtn?.addEventListener("click", () => {
-  // vuelve a home desde cualquier pantalla
   goHome();
 });
 
@@ -853,7 +796,6 @@ els.importInput?.addEventListener("change", (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   handleImportFile(file);
-  // reset para poder importar el mismo archivo otra vez si hace falta
   e.target.value = "";
 });
 
