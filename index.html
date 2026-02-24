@@ -30,6 +30,10 @@
 
         <div id="collectionsList" class="stack"></div>
 
+        <div class="divider"></div>
+
+        <button class="btn full" data-action="go-settings" type="button">⚙️ Ajustes / Backup</button>
+
         <div class="muted small" style="margin-top:10px;">
           Tip: tocá una colección para entrar.
         </div>
@@ -74,13 +78,13 @@
         <!-- SECTIONS -->
         <div id="sectionsBlock" class="block" style="display:none;">
           <div class="field">
-            <label>Modo principal de numeración (solo para secciones numéricas)</label>
+            <label>Modo principal de numeración (solo secciones numéricas)</label>
             <select id="numberMode" class="input">
               <option value="global">Correlativa global (1..Total, sin reiniciar)</option>
               <option value="perSection">Reinicia por sección (cada sección empieza en 1)</option>
             </select>
             <div class="muted small" style="margin-top:8px;">
-              Las secciones “Alfanuméricas” (con prefijo) siempre se generan como PREFIJO+N dentro de esa sección.
+              Las secciones “Alfanuméricas” (prefijo) siempre se generan como PREFIJO+N dentro de esa sección.
             </div>
           </div>
 
@@ -94,7 +98,7 @@
           <div id="sectionsEditor" class="sections-editor"></div>
 
           <div class="muted small" style="margin-top:10px;">
-            Tip: ejemplo: “River” prefijo “RIA” → RIA1, RIA2...
+            Tip: ejemplo “River” prefijo “RIA” → RIA1, RIA2...
           </div>
         </div>
 
@@ -130,6 +134,34 @@
         </div>
 
         <div id="sectionsDetail" class="stack"></div>
+      </div>
+    </section>
+
+    <!-- AJUSTES / BACKUP -->
+    <section class="view" data-view="settings">
+      <h1 class="h1">Ajustes / Backup</h1>
+
+      <div class="card">
+        <h2 class="h2">Backup</h2>
+
+        <div class="grid-2">
+          <button class="card-btn" data-action="export-backup" type="button">
+            <div class="card-icon">⬆️</div>
+            <div class="card-label">Exportar backup</div>
+            <div class="card-meta" id="exportMeta">—</div>
+          </button>
+
+          <label class="card-btn" style="cursor:pointer;">
+            <div class="card-icon">⬇️</div>
+            <div class="card-label">Importar backup</div>
+            <div class="card-meta" id="importMeta">—</div>
+            <input id="importInput" type="file" accept="application/json" style="display:none;" />
+          </label>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="muted small" id="storageMeta">—</div>
       </div>
     </section>
   </main>
