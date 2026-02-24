@@ -1,47 +1,57 @@
 /* =============================
-   Colección Luciano - V2.4 (Arquitectura)
-   - Colecciones simples y con secciones
-   - Secciones numéricas (global/perSection + numeración propia)
-   - Secciones alfanuméricas con prefijo (PREFIJO+N)
-   - Backup Pro (export/import) SOLO REEMPLAZAR
+   Colección Luciano - Arquitectura estable
+   - Crear colecciones simples / por secciones
+   - Soporta: num global, num por sección, secciones num con “numeración propia”
+   - Soporta: alfanumérico PREFIJO+N por sección
+   - Detalle: marcar tengo + repetidas (solo si tengo)
+   - EDIT REAL: renombrar + editar secciones (nombre/cantidad/prefijo) sin perder progreso
+   - Backup: export/import SOLO REEMPLAZAR (sin fusionar)
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
 const META_KEY = "coleccion_luciano_meta_v2";
-
 const BACKUP_VERSION = 1;
 
+const $ = (id) => document.getElementById(id);
+
 const els = {
-  backBtn: document.getElementById("backBtn"),
-  topbarTitle: document.getElementById("topbarTitle"),
+  backBtn: $("backBtn"),
+  topbarTitle: $("topbarTitle"),
 
   views: Array.from(document.querySelectorAll("[data-view]")),
 
-  collectionsList: document.getElementById("collectionsList"),
+  collectionsList: $("collectionsList"),
 
   // Create
-  newName: document.getElementById("newName"),
+  newName: $("newName"),
   structRadios: Array.from(document.querySelectorAll('input[name="structType"]')),
-  simpleBlock: document.getElementById("simpleBlock"),
-  sectionsBlock: document.getElementById("sectionsBlock"),
-  simpleCount: document.getElementById("simpleCount"),
-  numberMode: document.getElementById("numberMode"),
-  sectionsEditor: document.getElementById("sectionsEditor"),
-  btnAddSection: document.getElementById("btnAddSection"),
+  simpleBlock: $("simpleBlock"),
+  sectionsBlock: $("sectionsBlock"),
+  simpleCount: $("simpleCount"),
+  numberMode: $("numberMode"),
+  sectionsEditor: $("sectionsEditor"),
+  btnAddSection: $("btnAddSection"),
 
   // Detail
-  detailTitle: document.getElementById("detailTitle"),
-  stTotal: document.getElementById("stTotal"),
-  stHave: document.getElementById("stHave"),
-  stMissing: document.getElementById("stMissing"),
-  stPct: document.getElementById("stPct"),
-  sectionsDetail: document.getElementById("sectionsDetail"),
+  detailTitle: $("detailTitle"),
+  stTotal: $("stTotal"),
+  stHave: $("stHave"),
+  stMissing: $("stMissing"),
+  stPct: $("stPct"),
+  sectionsDetail: $("sectionsDetail"),
 
-  // Settings / Backup
-  importInput: document.getElementById("importInput"),
-  exportMeta: document.getElementById("exportMeta"),
-  importMeta: document.getElementById("importMeta"),
-  storageMeta: document.getElementById("storageMeta"),
+  // Edit
+  editTitle: $("editTitle"),
+  editName: $("editName"),
+  editSectionsArea: $("editSectionsArea"),
+  editAddSection: $("editAddSection"),
+  editSectionsEditor: $("editSectionsEditor"),
+
+  // Settings
+  importInput: $("importInput"),
+  exportMeta: $("exportMeta"),
+  importMeta: $("importMeta"),
+  storageMeta: $("storageMeta"),
 };
 
 const state = {
@@ -52,12 +62,12 @@ const state = {
     lastExportAt: null,
     lastExportSize: null,
     lastImportAt: null,
-    lastImportMode: null, // "replace"
+    lastImportMode: "replace",
   }
 };
 
 /* -----------------------------
-   Persistencia + migración suave
+   Persistencia
 ----------------------------- */
 function load() {
   try {
@@ -73,13 +83,23 @@ function load() {
     state.meta = { ...state.meta, ...m };
   } catch {}
 
-  // migración suave de secciones
+  // migración suave
   for (const c of state.data.collections) {
-    if (c.structure === "sections" && Array.isArray(c.sections)) {
+    if (!c.sections) c.sections = [];
+    if (!c.items) c.items = [];
+    if (!c.structure) c.structure = "simple";
+    if (!c.numberMode) c.numberMode = "global";
+
+    if (c.structure === "sections") {
       for (const s of c.sections) {
-        if (!s.format) s.format = "num"; // num | alfa
+        if (!s.format) s.format = "num";
         if (typeof s.prefix !== "string") s.prefix = "";
         if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+      }
+    } else {
+      // simple
+      if (!c.sections.length) {
+        c.sections = [{ id: c.sections?.[0]?.id || uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false }];
       }
     }
   }
@@ -96,10 +116,7 @@ function save() {
 function uid(prefix = "id") {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
-
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
-}
+function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
 function getCurrent() {
   if (!state.currentId) return null;
@@ -107,44 +124,39 @@ function getCurrent() {
 }
 
 function computeStats(col) {
-  const all = col.items || [];
-  const total = all.length;
+  const total = col.items.length;
   let have = 0;
-  let missing = 0;
-
-  for (const it of all) {
-    if (it.have) have += 1;
-    else missing += 1;
-  }
-
+  for (const it of col.items) if (it.have) have++;
+  const missing = total - have;
   const pct = total ? Math.round((have / total) * 100) : 0;
   return { total, have, missing, pct };
 }
 
 function formatDateTime(ts) {
   if (!ts) return "—";
-  try { return new Date(ts).toLocaleString(); }
-  catch { return "—"; }
+  try { return new Date(ts).toLocaleString(); } catch { return "—"; }
 }
-
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "—";
-  const units = ["B","KB","MB","GB"];
-  let i = 0;
-  let n = bytes;
-  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
-  return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+  const u = ["B","KB","MB","GB"];
+  let i = 0, n = bytes;
+  while (n >= 1024 && i < u.length - 1) { n/=1024; i++; }
+  return `${n.toFixed(i===0?0:1)} ${u[i]}`;
+}
+
+function normalizePrefix(p) {
+  return String(p || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
 }
 
 /* -----------------------------
-   Navegación
+   Views
 ----------------------------- */
 function setView(view) {
   state.view = view;
-
-  for (const v of els.views) {
-    v.classList.toggle("is-active", v.dataset.view === view);
-  }
+  for (const v of els.views) v.classList.toggle("is-active", v.dataset.view === view);
 
   if (view === "home") {
     els.topbarTitle.textContent = "Mis Colecciones";
@@ -154,6 +166,8 @@ function setView(view) {
     els.backBtn.classList.remove("hidden");
   } else if (view === "settings") {
     els.topbarTitle.textContent = "Ajustes / Backup";
+    els.backBtn.classList.remove("hidden");
+  } else if (view === "edit") {
     els.backBtn.classList.remove("hidden");
   } else {
     els.backBtn.classList.remove("hidden");
@@ -165,6 +179,7 @@ function setView(view) {
 function goHome() {
   state.currentId = null;
   renderHome();
+  renderSettings();
   setView("home");
 }
 
@@ -176,9 +191,9 @@ function goCreate() {
 function goDetail(id) {
   state.currentId = id;
   renderDetail();
-  setView("detail");
   const col = getCurrent();
   if (col) els.topbarTitle.textContent = col.name;
+  setView("detail");
 }
 
 function goSettings() {
@@ -186,8 +201,13 @@ function goSettings() {
   setView("settings");
 }
 
+function goEdit() {
+  renderEdit();
+  setView("edit");
+}
+
 /* -----------------------------
-   Home render
+   Home
 ----------------------------- */
 function renderHome() {
   if (!els.collectionsList) return;
@@ -198,7 +218,7 @@ function renderHome() {
   if (!cols.length) {
     const empty = document.createElement("div");
     empty.className = "muted";
-    empty.textContent = "Todavía no tenés colecciones. Tocá “+ Nueva”.";
+    empty.textContent = "Todavía no tenés colecciones. Tocá “Nueva”.";
     els.collectionsList.appendChild(empty);
     return;
   }
@@ -209,8 +229,6 @@ function renderHome() {
     const row = document.createElement("button");
     row.type = "button";
     row.className = "collection-row";
-    row.style.width = "100%";
-    row.style.cursor = "pointer";
     row.setAttribute("data-action", "open-collection");
     row.setAttribute("data-id", c.id);
 
@@ -221,16 +239,15 @@ function renderHome() {
 
     const name = document.createElement("div");
     name.style.fontWeight = "950";
-    name.style.fontSize = "18px";
+    name.style.fontSize = "16px";
     name.textContent = c.name;
 
     const meta = document.createElement("div");
     meta.className = "muted small";
-    if (c.structure === "sections") {
-      meta.textContent = `Con secciones · num: ${c.numberMode === "global" ? "global" : "por sección"} · + prefijos`;
-    } else {
-      meta.textContent = "Simple";
-    }
+    meta.textContent =
+      c.structure === "sections"
+        ? `Con secciones · num: ${c.numberMode === "global" ? "global" : "por sección"} · alfa: prefijos`
+        : "Simple";
 
     left.appendChild(name);
     left.appendChild(meta);
@@ -248,34 +265,15 @@ function renderHome() {
 }
 
 /* -----------------------------
-   Create form
+   Create
 ----------------------------- */
 function getStructType() {
   const r = els.structRadios.find(x => x.checked);
   return r ? r.value : "simple";
 }
 
-function resetCreateForm() {
-  if (els.newName) els.newName.value = "";
-  if (els.simpleCount) els.simpleCount.value = "100";
-  if (els.numberMode) els.numberMode.value = "global";
-
-  els.structRadios.forEach(r => r.checked = (r.value === "simple"));
-  syncCreateBlocks();
-
-  if (els.sectionsEditor) {
-    els.sectionsEditor.innerHTML = "";
-    // ejemplo inicial útil
-    addSectionRow({ name: "Equipo 1", format: "alfa", prefix: "EQ1", count: 20, ownNumbering: true });
-    addSectionRow({ name: "Equipo 2", format: "alfa", prefix: "EQ2", count: 20, ownNumbering: true });
-    addSectionRow({ name: "Especiales", format: "num", prefix: "", count: 10, ownNumbering: true });
-  }
-}
-
 function syncCreateBlocks() {
   const t = getStructType();
-  if (!els.simpleBlock || !els.sectionsBlock) return;
-
   if (t === "simple") {
     els.simpleBlock.style.display = "block";
     els.sectionsBlock.style.display = "none";
@@ -284,17 +282,23 @@ function syncCreateBlocks() {
     els.sectionsBlock.style.display = "block";
   }
 }
-
 els.structRadios.forEach(r => r.addEventListener("change", syncCreateBlocks));
 
-function normalizePrefix(p) {
-  return String(p || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
+function resetCreateForm() {
+  els.newName.value = "";
+  els.simpleCount.value = "100";
+  els.numberMode.value = "global";
+  els.structRadios.forEach(r => r.checked = (r.value === "simple"));
+  syncCreateBlocks();
+
+  els.sectionsEditor.innerHTML = "";
+  // ejemplos por defecto
+  addSectionRow(els.sectionsEditor, { name:"Equipo 1", format:"alfa", prefix:"EQ1", count:20, ownNumbering:true });
+  addSectionRow(els.sectionsEditor, { name:"Equipo 2", format:"alfa", prefix:"EQ2", count:20, ownNumbering:true });
+  addSectionRow(els.sectionsEditor, { name:"Especiales", format:"num", prefix:"", count:10, ownNumbering:true });
 }
 
-function addSectionRow({ name = "", format = "num", prefix = "", count = 10, ownNumbering = false } = {}) {
+function addSectionRow(container, { name="", format="num", prefix="", count=10, ownNumbering=false } = {}) {
   const row = document.createElement("div");
   row.className = "section-row";
   row.setAttribute("data-section-row", "1");
@@ -302,21 +306,21 @@ function addSectionRow({ name = "", format = "num", prefix = "", count = 10, own
   const inName = document.createElement("input");
   inName.className = "input";
   inName.type = "text";
-  inName.placeholder = "Nombre (Ej: River / Boca / Especiales)";
+  inName.placeholder = "Nombre";
   inName.value = name;
 
   const selFormat = document.createElement("select");
   selFormat.className = "input";
   selFormat.innerHTML = `
-    <option value="num">Numérico (1..N)</option>
-    <option value="alfa">Alfanumérico (PREFIJO+N)</option>
+    <option value="num">Numérico</option>
+    <option value="alfa">Alfanumérico</option>
   `;
   selFormat.value = (format === "alfa") ? "alfa" : "num";
 
   const inPrefix = document.createElement("input");
   inPrefix.className = "input";
   inPrefix.type = "text";
-  inPrefix.placeholder = "Prefijo (Ej: RIA)";
+  inPrefix.placeholder = "Prefijo";
   inPrefix.value = prefix;
 
   const inCount = document.createElement("input");
@@ -328,7 +332,6 @@ function addSectionRow({ name = "", format = "num", prefix = "", count = 10, own
 
   const ownWrap = document.createElement("label");
   ownWrap.className = "inline-check";
-  ownWrap.title = "Si activás esto, esta sección numérica reinicia aunque el modo principal sea global.";
   const ownChk = document.createElement("input");
   ownChk.type = "checkbox";
   ownChk.checked = !!ownNumbering;
@@ -343,16 +346,15 @@ function addSectionRow({ name = "", format = "num", prefix = "", count = 10, own
   del.textContent = "✕";
   del.addEventListener("click", () => row.remove());
 
-  const syncRowUI = () => {
+  const syncRow = () => {
     const isAlfa = selFormat.value === "alfa";
     inPrefix.style.display = isAlfa ? "block" : "none";
-
     ownWrap.style.opacity = isAlfa ? "0.5" : "1";
     ownChk.disabled = isAlfa;
     if (isAlfa) ownChk.checked = true;
   };
 
-  selFormat.addEventListener("change", syncRowUI);
+  selFormat.addEventListener("change", syncRow);
   inPrefix.addEventListener("input", () => { inPrefix.value = normalizePrefix(inPrefix.value); });
 
   row.appendChild(inName);
@@ -362,12 +364,12 @@ function addSectionRow({ name = "", format = "num", prefix = "", count = 10, own
   row.appendChild(ownWrap);
   row.appendChild(del);
 
-  els.sectionsEditor.appendChild(row);
-  syncRowUI();
+  container.appendChild(row);
+  syncRow();
 }
 
 els.btnAddSection?.addEventListener("click", () => {
-  addSectionRow({
+  addSectionRow(els.sectionsEditor, {
     name: `Sección ${els.sectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
     format: "num",
     prefix: "",
@@ -376,8 +378,8 @@ els.btnAddSection?.addEventListener("click", () => {
   });
 });
 
-function readSectionsFromEditor() {
-  const rows = Array.from(els.sectionsEditor.querySelectorAll("[data-section-row]"));
+function readSections(container) {
+  const rows = Array.from(container.querySelectorAll("[data-section-row]"));
   const out = [];
 
   for (const r of rows) {
@@ -390,10 +392,7 @@ function readSectionsFromEditor() {
 
     if (!name) return { ok:false, error:"Hay una sección sin nombre." };
     if (!Number.isFinite(count) || count <= 0) return { ok:false, error:`Cantidad inválida en "${name}".` };
-
-    if (format === "alfa" && !prefix) {
-      return { ok:false, error:`La sección "${name}" es alfanumérica pero no tiene prefijo.` };
-    }
+    if (format === "alfa" && !prefix) return { ok:false, error:`La sección "${name}" es alfanumérica pero no tiene prefijo.` };
 
     out.push({
       name,
@@ -409,13 +408,13 @@ function readSectionsFromEditor() {
 }
 
 function createCollection() {
-  const name = (els.newName?.value || "").trim();
+  const name = (els.newName.value || "").trim();
   if (!name) return alert("Escribí un nombre.");
 
   const structure = getStructType();
 
   if (structure === "simple") {
-    let count = parseInt(els.simpleCount?.value || "0", 10);
+    let count = parseInt(els.simpleCount.value || "0", 10);
     if (!Number.isFinite(count) || count <= 0) return alert("Cantidad inválida.");
     count = clamp(count, 1, 5000);
 
@@ -430,8 +429,7 @@ function createCollection() {
         label: String(i),
         have: false,
         rep: 0,
-        globalNo: i,
-        localNo: null,
+        key: `num:${i}` // clave estable para editar sin perder progreso
       });
     }
 
@@ -446,39 +444,39 @@ function createCollection() {
     });
 
     save();
-    renderHome();
     goHome();
     return;
   }
 
-  const numberMode = (els.numberMode?.value === "perSection") ? "perSection" : "global";
-
-  const read = readSectionsFromEditor();
+  const numberMode = (els.numberMode.value === "perSection") ? "perSection" : "global";
+  const read = readSections(els.sectionsEditor);
   if (!read.ok) return alert(read.error);
 
   const sections = read.sections.map(s => ({
     id: uid("sec"),
     name: s.name,
-    count: s.count,
     format: s.format,
     prefix: s.prefix,
-    ownNumbering: s.ownNumbering
+    ownNumbering: !!s.ownNumbering
   }));
 
   const items = [];
   let globalCounter = 1;
 
   for (const sec of sections) {
+    const sDef = read.sections.find(x => x.name === sec.name && x.prefix === sec.prefix && x.format === sec.format) || null;
+    const count = sDef ? sDef.count : 1;
+
     if (sec.format === "alfa") {
-      for (let i = 1; i <= sec.count; i++) {
+      for (let i = 1; i <= count; i++) {
+        const label = `${sec.prefix}${i}`;
         items.push({
           id: uid("it"),
           sectionId: sec.id,
-          label: `${sec.prefix}${i}`,
+          label,
           have: false,
           rep: 0,
-          globalNo: null,
-          localNo: i
+          key: `alfa:${sec.prefix}:${i}`
         });
       }
       continue;
@@ -486,19 +484,16 @@ function createCollection() {
 
     const sectionIsLocal = (numberMode === "perSection") || sec.ownNumbering;
 
-    for (let i = 1; i <= sec.count; i++) {
-      const label = sectionIsLocal ? String(i) : String(globalCounter);
-
+    for (let i = 1; i <= count; i++) {
+      const n = sectionIsLocal ? i : globalCounter;
       items.push({
         id: uid("it"),
         sectionId: sec.id,
-        label,
+        label: String(n),
         have: false,
         rep: 0,
-        globalNo: sectionIsLocal ? null : globalCounter,
-        localNo: sectionIsLocal ? i : null
+        key: sectionIsLocal ? `numLocal:${sec.id}:${i}` : `numGlobal:${globalCounter}`
       });
-
       if (!sectionIsLocal) globalCounter += 1;
     }
   }
@@ -509,23 +504,16 @@ function createCollection() {
     createdAt: Date.now(),
     structure: "sections",
     numberMode,
-    sections: sections.map(s => ({
-      id: s.id,
-      name: s.name,
-      format: s.format,
-      prefix: s.prefix,
-      ownNumbering: !!s.ownNumbering
-    })),
+    sections,
     items
   });
 
   save();
-  renderHome();
   goHome();
 }
 
 /* -----------------------------
-   Detail render
+   Detail
 ----------------------------- */
 function renderDetail() {
   const col = getCurrent();
@@ -583,10 +571,8 @@ function buildItemCell(it) {
 
   wrap.addEventListener("click", (e) => {
     if (e.target && e.target.closest && e.target.closest("button")) return;
-
     it.have = !it.have;
     if (!it.have) it.rep = 0;
-
     save();
     renderDetail();
   });
@@ -630,27 +616,160 @@ function buildItemCell(it) {
   return wrap;
 }
 
-/* -----------------------------
-   Reset
------------------------------ */
 function resetCollection() {
   const col = getCurrent();
   if (!col) return;
-
   const ok = confirm(`Resetear "${col.name}"?\n\nSe borran Tengo y Rep de todos los ítems.`);
   if (!ok) return;
-
-  for (const it of col.items) {
-    it.have = false;
-    it.rep = 0;
-  }
-
+  for (const it of col.items) { it.have = false; it.rep = 0; }
   save();
   renderDetail();
 }
 
 /* -----------------------------
-   Backup Pro (SOLO REEMPLAZAR)
+   EDIT REAL
+----------------------------- */
+function renderEdit() {
+  const col = getCurrent();
+  if (!col) return goHome();
+
+  els.editTitle.textContent = `Editar: ${col.name}`;
+  els.topbarTitle.textContent = "Editar";
+
+  els.editName.value = col.name;
+
+  // solo muestro editor de secciones si el álbum tiene secciones
+  const isSections = col.structure === "sections";
+  els.editSectionsArea.style.display = isSections ? "block" : "none";
+
+  els.editSectionsEditor.innerHTML = "";
+
+  if (isSections) {
+    // reconstruyo filas con el “count real” por sección (lo calculo desde items)
+    for (const sec of col.sections) {
+      const count = col.items.filter(it => it.sectionId === sec.id).length;
+      addSectionRow(els.editSectionsEditor, {
+        name: sec.name,
+        format: sec.format || "num",
+        prefix: sec.prefix || "",
+        count,
+        ownNumbering: !!sec.ownNumbering
+      });
+      // guardo el id original en el row para mapear
+      els.editSectionsEditor.lastElementChild.dataset.secId = sec.id;
+    }
+  }
+}
+
+els.editAddSection?.addEventListener("click", () => {
+  addSectionRow(els.editSectionsEditor, {
+    name: `Sección ${els.editSectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
+    format: "num",
+    prefix: "",
+    count: 10,
+    ownNumbering: false
+  });
+});
+
+function applyEdit() {
+  const col = getCurrent();
+  if (!col) return goHome();
+
+  const newName = (els.editName.value || "").trim();
+  if (!newName) return alert("Nombre inválido.");
+  col.name = newName;
+
+  if (col.structure !== "sections") {
+    save();
+    renderHome();
+    goDetail(col.id);
+    alert("Cambios guardados ✅");
+    return;
+  }
+
+  // leer secciones nuevas
+  const read = readSections(els.editSectionsEditor);
+  if (!read.ok) return alert(read.error);
+
+  // Mapeo: intento conservar IDs existentes por fila si vienen con data-sec-id
+  const rows = Array.from(els.editSectionsEditor.querySelectorAll("[data-section-row]"));
+
+  // índice de items por key para conservar progreso
+  const oldByKey = new Map();
+  for (const it of col.items) oldByKey.set(it.key || `${it.sectionId}|${it.label}`, it);
+
+  const newSections = [];
+  const newItems = [];
+  let globalCounter = 1;
+
+  // para detectar si estamos usando global o perSection
+  const numberMode = col.numberMode === "perSection" ? "perSection" : "global";
+
+  for (let idx = 0; idx < rows.length; idx++) {
+    const r = rows[idx];
+    const inputs = r.querySelectorAll("input, select");
+    const secName = (inputs[0]?.value || "").trim();
+    const format = (inputs[1]?.value === "alfa") ? "alfa" : "num";
+    const prefix = normalizePrefix(inputs[2]?.value || "");
+    const count = clamp(parseInt(inputs[3]?.value || "0", 10), 1, 5000);
+    const ownNumbering = (format === "alfa") ? true : !!inputs[4]?.checked;
+
+    const existingId = r.dataset.secId || null;
+    const secId = existingId || uid("sec");
+
+    newSections.push({ id: secId, name: secName, format, prefix, ownNumbering });
+
+    if (format === "alfa") {
+      for (let i = 1; i <= count; i++) {
+        const key = `alfa:${prefix}:${i}`;
+        const label = `${prefix}${i}`;
+        const old = oldByKey.get(key);
+
+        newItems.push({
+          id: old?.id || uid("it"),
+          sectionId: secId,
+          label,
+          have: !!old?.have,
+          rep: old?.rep || 0,
+          key
+        });
+      }
+      continue;
+    }
+
+    const sectionIsLocal = (numberMode === "perSection") || ownNumbering;
+
+    for (let i = 1; i <= count; i++) {
+      const n = sectionIsLocal ? i : globalCounter;
+      const label = String(n);
+
+      const key = sectionIsLocal ? `numLocal:${secId}:${i}` : `numGlobal:${globalCounter}`;
+      const old = oldByKey.get(key);
+
+      newItems.push({
+        id: old?.id || uid("it"),
+        sectionId: secId,
+        label,
+        have: !!old?.have,
+        rep: old?.rep || 0,
+        key
+      });
+
+      if (!sectionIsLocal) globalCounter += 1;
+    }
+  }
+
+  col.sections = newSections;
+  col.items = newItems;
+
+  save();
+  renderHome();
+  goDetail(col.id);
+  alert("Cambios guardados ✅");
+}
+
+/* -----------------------------
+   Backup (SOLO REEMPLAZAR)
 ----------------------------- */
 function exportBackup() {
   const payload = {
@@ -685,11 +804,9 @@ function normalizeImportedPayload(obj) {
   if (obj.data && obj.data.collections) {
     return { collections: Array.isArray(obj.data.collections) ? obj.data.collections : [] };
   }
-
   if (obj.collections) {
     return { collections: Array.isArray(obj.collections) ? obj.collections : [] };
   }
-
   return null;
 }
 
@@ -699,10 +816,7 @@ function handleImportFile(file) {
     try {
       const raw = JSON.parse(reader.result);
       const normalized = normalizeImportedPayload(raw);
-      if (!normalized) {
-        alert("Este archivo no parece un backup válido.");
-        return;
-      }
+      if (!normalized) return alert("Este archivo no parece un backup válido.");
 
       const ok = confirm(
         "Importar backup (REEMPLAZAR):\n\n" +
@@ -713,17 +827,21 @@ function handleImportFile(file) {
 
       state.data.collections = normalized.collections || [];
 
-      // migración suave
+      // migración suave post-import
       for (const c of state.data.collections) {
         if (!c.items) c.items = [];
         if (!c.sections) c.sections = [];
         if (!c.structure) c.structure = "simple";
-
+        if (!c.numberMode) c.numberMode = "global";
         if (c.structure === "sections") {
           for (const s of c.sections) {
             if (!s.format) s.format = "num";
             if (typeof s.prefix !== "string") s.prefix = "";
             if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+          }
+        } else {
+          if (!c.sections.length) {
+            c.sections = [{ id: uid("sec"), name:"General", format:"num", prefix:"", ownNumbering:false }];
           }
         }
       }
@@ -732,8 +850,7 @@ function handleImportFile(file) {
       state.meta.lastImportMode = "replace";
       save();
 
-      renderHome();
-      renderSettings();
+      goHome();
       alert("Backup importado ✅ (Reemplazar)");
     } catch {
       alert("Error al importar el backup.");
@@ -742,21 +859,15 @@ function handleImportFile(file) {
   reader.readAsText(file);
 }
 
-/* -----------------------------
-   Settings render
------------------------------ */
 function renderSettings() {
   if (els.exportMeta) {
     els.exportMeta.textContent =
       `Último: ${formatDateTime(state.meta.lastExportAt)} · Tamaño: ${formatBytes(state.meta.lastExportSize)}`;
   }
-
   if (els.importMeta) {
-    const modeTxt = state.meta.lastImportMode ? "Reemplazar" : "—";
     els.importMeta.textContent =
-      `Último: ${formatDateTime(state.meta.lastImportAt)} · Modo: ${modeTxt}`;
+      `Último: ${formatDateTime(state.meta.lastImportAt)} · Modo: Reemplazar`;
   }
-
   if (els.storageMeta) {
     const raw = localStorage.getItem(LS_KEY) || "";
     els.storageMeta.textContent = `Datos actuales en el dispositivo: ${formatBytes(raw.length)}`;
@@ -764,7 +875,7 @@ function renderSettings() {
 }
 
 /* -----------------------------
-   Eventos
+   Eventos globales
 ----------------------------- */
 document.addEventListener("click", (e) => {
   const btn = e.target?.closest?.("[data-action]");
@@ -772,6 +883,7 @@ document.addEventListener("click", (e) => {
 
   const action = btn.getAttribute("data-action");
 
+  if (action === "go-home") return goHome();
   if (action === "go-create") return goCreate();
   if (action === "create-cancel") return goHome();
   if (action === "create-save") return createCollection();
@@ -783,14 +895,16 @@ document.addEventListener("click", (e) => {
     if (id) return goDetail(id);
   }
 
+  if (action === "open-edit") return goEdit();
+  if (action === "edit-cancel") return goDetail(state.currentId);
+  if (action === "edit-save") return applyEdit();
+
   if (action === "reset-collection") return resetCollection();
 
   if (action === "export-backup") return exportBackup();
 });
 
-els.backBtn?.addEventListener("click", () => {
-  goHome();
-});
+els.backBtn?.addEventListener("click", () => goHome());
 
 els.importInput?.addEventListener("change", (e) => {
   const file = e.target.files?.[0];
@@ -809,4 +923,5 @@ function init() {
   setView("home");
   resetCreateForm();
 }
+
 document.addEventListener("DOMContentLoaded", init);
