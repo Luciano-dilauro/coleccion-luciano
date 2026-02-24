@@ -1,11 +1,8 @@
 /* =============================
-   Colección Luciano - Arquitectura estable
-   - Crear colecciones simples / por secciones
-   - Soporta: num global, num por sección, secciones num con “numeración propia”
-   - Soporta: alfanumérico PREFIJO+N por sección
-   - Detalle: marcar tengo + repetidas (solo si tengo)
-   - EDIT REAL: renombrar + editar secciones (nombre/cantidad/prefijo) sin perder progreso
-   - Backup: export/import SOLO REEMPLAZAR (sin fusionar)
+   Colección Luciano - Arquitectura estable (v2)
+   - Especiales por lista (por sección o simple)
+   - Crear / Editar secciones + especiales sin perder progreso
+   - Backup: solo REEMPLAZAR
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -28,6 +25,7 @@ const els = {
   simpleBlock: $("simpleBlock"),
   sectionsBlock: $("sectionsBlock"),
   simpleCount: $("simpleCount"),
+  simpleSpecials: $("simpleSpecials"),
   numberMode: $("numberMode"),
   sectionsEditor: $("sectionsEditor"),
   btnAddSection: $("btnAddSection"),
@@ -67,6 +65,58 @@ const state = {
 };
 
 /* -----------------------------
+   Helpers
+----------------------------- */
+function uid(prefix = "id") {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+function formatDateTime(ts) {
+  if (!ts) return "—";
+  try { return new Date(ts).toLocaleString(); } catch { return "—"; }
+}
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+  const u = ["B","KB","MB","GB"];
+  let i = 0, n = bytes;
+  while (n >= 1024 && i < u.length - 1) { n/=1024; i++; }
+  return `${n.toFixed(i===0?0:1)} ${u[i]}`;
+}
+
+function normalizePrefix(p) {
+  return String(p || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function parseCodesList(input) {
+  return String(input || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function normCode(s) {
+  return String(s || "").trim().toUpperCase();
+}
+
+function getCurrent() {
+  if (!state.currentId) return null;
+  return state.data.collections.find(c => c.id === state.currentId) || null;
+}
+
+function computeStats(col) {
+  const total = col.items.length;
+  let have = 0;
+  for (const it of col.items) if (it.have) have++;
+  const missing = total - have;
+  const pct = total ? Math.round((have / total) * 100) : 0;
+  return { total, have, missing, pct };
+}
+
+/* -----------------------------
    Persistencia
 ----------------------------- */
 function load() {
@@ -95,12 +145,19 @@ function load() {
         if (!s.format) s.format = "num";
         if (typeof s.prefix !== "string") s.prefix = "";
         if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+        if (!Array.isArray(s.specials)) s.specials = [];
       }
     } else {
-      // simple
       if (!c.sections.length) {
-        c.sections = [{ id: c.sections?.[0]?.id || uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false }];
+        c.sections = [{ id: c.sections?.[0]?.id || uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false, specials: [] }];
       }
+      if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
+    }
+
+    // items special flag
+    for (const it of c.items) {
+      if (typeof it.special !== "boolean") it.special = false;
+      if (!it.key) it.key = `${it.sectionId}|${it.label}`;
     }
   }
 }
@@ -108,47 +165,6 @@ function load() {
 function save() {
   localStorage.setItem(LS_KEY, JSON.stringify(state.data));
   localStorage.setItem(META_KEY, JSON.stringify(state.meta));
-}
-
-/* -----------------------------
-   Helpers
------------------------------ */
-function uid(prefix = "id") {
-  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
-
-function getCurrent() {
-  if (!state.currentId) return null;
-  return state.data.collections.find(c => c.id === state.currentId) || null;
-}
-
-function computeStats(col) {
-  const total = col.items.length;
-  let have = 0;
-  for (const it of col.items) if (it.have) have++;
-  const missing = total - have;
-  const pct = total ? Math.round((have / total) * 100) : 0;
-  return { total, have, missing, pct };
-}
-
-function formatDateTime(ts) {
-  if (!ts) return "—";
-  try { return new Date(ts).toLocaleString(); } catch { return "—"; }
-}
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "—";
-  const u = ["B","KB","MB","GB"];
-  let i = 0, n = bytes;
-  while (n >= 1024 && i < u.length - 1) { n/=1024; i++; }
-  return `${n.toFixed(i===0?0:1)} ${u[i]}`;
-}
-
-function normalizePrefix(p) {
-  return String(p || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
 }
 
 /* -----------------------------
@@ -168,6 +184,7 @@ function setView(view) {
     els.topbarTitle.textContent = "Ajustes / Backup";
     els.backBtn.classList.remove("hidden");
   } else if (view === "edit") {
+    els.topbarTitle.textContent = "Editar";
     els.backBtn.classList.remove("hidden");
   } else {
     els.backBtn.classList.remove("hidden");
@@ -210,11 +227,9 @@ function goEdit() {
    Home
 ----------------------------- */
 function renderHome() {
-  if (!els.collectionsList) return;
   els.collectionsList.innerHTML = "";
 
   const cols = state.data.collections;
-
   if (!cols.length) {
     const empty = document.createElement("div");
     empty.className = "muted";
@@ -226,8 +241,7 @@ function renderHome() {
   for (const c of cols) {
     const st = computeStats(c);
 
-    const row = document.createElement("button");
-    row.type = "button";
+    const row = document.createElement("div");
     row.className = "collection-row";
     row.setAttribute("data-action", "open-collection");
     row.setAttribute("data-id", c.id);
@@ -246,7 +260,7 @@ function renderHome() {
     meta.className = "muted small";
     meta.textContent =
       c.structure === "sections"
-        ? `Con secciones · num: ${c.numberMode === "global" ? "global" : "por sección"} · alfa: prefijos`
+        ? `Con secciones · num: ${c.numberMode === "global" ? "global" : "por sección"}`
         : "Simple";
 
     left.appendChild(name);
@@ -260,12 +274,13 @@ function renderHome() {
     row.appendChild(left);
     row.appendChild(right);
 
+    row.addEventListener("click", () => goDetail(c.id));
     els.collectionsList.appendChild(row);
   }
 }
 
 /* -----------------------------
-   Create
+   Create UI
 ----------------------------- */
 function getStructType() {
   const r = els.structRadios.find(x => x.checked);
@@ -287,21 +302,37 @@ els.structRadios.forEach(r => r.addEventListener("change", syncCreateBlocks));
 function resetCreateForm() {
   els.newName.value = "";
   els.simpleCount.value = "100";
+  els.simpleSpecials.value = "";
   els.numberMode.value = "global";
   els.structRadios.forEach(r => r.checked = (r.value === "simple"));
   syncCreateBlocks();
 
   els.sectionsEditor.innerHTML = "";
-  // ejemplos por defecto
-  addSectionRow(els.sectionsEditor, { name:"Equipo 1", format:"alfa", prefix:"EQ1", count:20, ownNumbering:true });
-  addSectionRow(els.sectionsEditor, { name:"Equipo 2", format:"alfa", prefix:"EQ2", count:20, ownNumbering:true });
-  addSectionRow(els.sectionsEditor, { name:"Especiales", format:"num", prefix:"", count:10, ownNumbering:true });
+  addSectionRow(els.sectionsEditor, { name:"Equipo A", format:"alfa", prefix:"RIA", count:20, ownNumbering:true, specials:[] });
+  addSectionRow(els.sectionsEditor, { name:"Equipo B", format:"alfa", prefix:"BAE", count:20, ownNumbering:true, specials:[] });
+  addSectionRow(els.sectionsEditor, { name:"Especiales", format:"num", prefix:"", count:10, ownNumbering:true, specials:[] });
 }
 
-function addSectionRow(container, { name="", format="num", prefix="", count=10, ownNumbering=false } = {}) {
+/* -----------------------------
+   Secciones: fila con botón ⭐ (especiales)
+----------------------------- */
+function openSpecialsPrompt(currentArr, hint) {
+  const current = (currentArr || []).join(", ");
+  const txt = prompt(
+    `Especiales (lista separada por coma)\n${hint}\n\nEj: 7, 10, 55  o  RIA1, RIA7\n\nActual:\n${current}`,
+    current
+  );
+  if (txt === null) return null; // cancel
+  const list = parseCodesList(txt).map(normCode);
+  // únicos
+  return Array.from(new Set(list));
+}
+
+function addSectionRow(container, { name="", format="num", prefix="", count=10, ownNumbering=false, specials=[] } = {}) {
   const row = document.createElement("div");
   row.className = "section-row";
   row.setAttribute("data-section-row", "1");
+  row.dataset.specials = JSON.stringify(Array.isArray(specials) ? specials : []);
 
   const inName = document.createElement("input");
   inName.className = "input";
@@ -340,11 +371,23 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
   ownWrap.appendChild(ownChk);
   ownWrap.appendChild(ownTxt);
 
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
+  const starBtn = document.createElement("button");
+  starBtn.type = "button";
+  starBtn.className = "icon-lite";
+  starBtn.title = "Editar especiales";
+  starBtn.textContent = "⭐";
+
   const del = document.createElement("button");
   del.type = "button";
   del.className = "icon-danger";
+  del.title = "Eliminar sección";
   del.textContent = "✕";
-  del.addEventListener("click", () => row.remove());
+
+  actions.appendChild(starBtn);
+  actions.appendChild(del);
 
   const syncRow = () => {
     const isAlfa = selFormat.value === "alfa";
@@ -352,17 +395,39 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
     ownWrap.style.opacity = isAlfa ? "0.5" : "1";
     ownChk.disabled = isAlfa;
     if (isAlfa) ownChk.checked = true;
+
+    // si cambia a alfa, normalizo prefijo
+    if (isAlfa) inPrefix.value = normalizePrefix(inPrefix.value);
   };
 
   selFormat.addEventListener("change", syncRow);
   inPrefix.addEventListener("input", () => { inPrefix.value = normalizePrefix(inPrefix.value); });
+
+  starBtn.addEventListener("click", () => {
+    const secName = (inName.value || "Sección").trim();
+    const isAlfa = selFormat.value === "alfa";
+    const pref = isAlfa ? normalizePrefix(inPrefix.value) : "";
+    const hint = isAlfa
+      ? `Sección "${secName}" (Alfa) · Prefijo: ${pref || "(sin prefijo)"}`
+      : `Sección "${secName}" (Numérica)`;
+
+    let current = [];
+    try { current = JSON.parse(row.dataset.specials || "[]"); } catch { current = []; }
+
+    const next = openSpecialsPrompt(current, hint);
+    if (next === null) return;
+
+    row.dataset.specials = JSON.stringify(next);
+  });
+
+  del.addEventListener("click", () => row.remove());
 
   row.appendChild(inName);
   row.appendChild(selFormat);
   row.appendChild(inPrefix);
   row.appendChild(inCount);
   row.appendChild(ownWrap);
-  row.appendChild(del);
+  row.appendChild(actions);
 
   container.appendChild(row);
   syncRow();
@@ -374,7 +439,8 @@ els.btnAddSection?.addEventListener("click", () => {
     format: "num",
     prefix: "",
     count: 10,
-    ownNumbering: false
+    ownNumbering: false,
+    specials: []
   });
 });
 
@@ -390,6 +456,10 @@ function readSections(container) {
     const count = parseInt(inputs[3]?.value || "0", 10);
     const ownNumbering = !!inputs[4]?.checked;
 
+    let specials = [];
+    try { specials = JSON.parse(r.dataset.specials || "[]"); } catch { specials = []; }
+    specials = (Array.isArray(specials) ? specials : []).map(normCode);
+
     if (!name) return { ok:false, error:"Hay una sección sin nombre." };
     if (!Number.isFinite(count) || count <= 0) return { ok:false, error:`Cantidad inválida en "${name}".` };
     if (format === "alfa" && !prefix) return { ok:false, error:`La sección "${name}" es alfanumérica pero no tiene prefijo.` };
@@ -399,14 +469,18 @@ function readSections(container) {
       format,
       prefix,
       count: clamp(count, 1, 5000),
-      ownNumbering: (format === "alfa") ? true : !!ownNumbering
+      ownNumbering: (format === "alfa") ? true : !!ownNumbering,
+      specials
     });
   }
 
   if (!out.length) return { ok:false, error:"Agregá al menos 1 sección." };
-  return { ok:true, sections: out };
+  return { ok:true, sections: out, rows };
 }
 
+/* -----------------------------
+   Crear colección
+----------------------------- */
 function createCollection() {
   const name = (els.newName.value || "").trim();
   if (!name) return alert("Escribí un nombre.");
@@ -419,17 +493,29 @@ function createCollection() {
     count = clamp(count, 1, 5000);
 
     const sectionId = uid("sec");
-    const sections = [{ id: sectionId, name: "General", format: "num", prefix: "", ownNumbering: false }];
+    const specials = parseCodesList(els.simpleSpecials.value).map(normCode);
+    const specialsSet = new Set(specials);
+
+    const sections = [{
+      id: sectionId,
+      name: "General",
+      format: "num",
+      prefix: "",
+      ownNumbering: false,
+      specials
+    }];
 
     const items = [];
     for (let i = 1; i <= count; i++) {
+      const label = String(i);
       items.push({
         id: uid("it"),
         sectionId,
-        label: String(i),
+        label,
         have: false,
         rep: 0,
-        key: `num:${i}` // clave estable para editar sin perder progreso
+        special: specialsSet.has(normCode(label)),
+        key: `num:${i}`
       });
     }
 
@@ -457,26 +543,31 @@ function createCollection() {
     name: s.name,
     format: s.format,
     prefix: s.prefix,
-    ownNumbering: !!s.ownNumbering
+    ownNumbering: !!s.ownNumbering,
+    specials: s.specials
   }));
 
   const items = [];
   let globalCounter = 1;
 
-  for (const sec of sections) {
-    const sDef = read.sections.find(x => x.name === sec.name && x.prefix === sec.prefix && x.format === sec.format) || null;
-    const count = sDef ? sDef.count : 1;
+  for (let idx = 0; idx < sections.length; idx++) {
+    const sec = sections[idx];
+    const sDef = read.sections[idx];
+    const count = sDef.count;
+    const specialsSet = new Set((sec.specials || []).map(normCode));
 
     if (sec.format === "alfa") {
       for (let i = 1; i <= count; i++) {
         const label = `${sec.prefix}${i}`;
+        const key = `alfa:${sec.prefix}:${i}`;
         items.push({
           id: uid("it"),
           sectionId: sec.id,
           label,
           have: false,
           rep: 0,
-          key: `alfa:${sec.prefix}:${i}`
+          special: specialsSet.has(normCode(label)),
+          key
         });
       }
       continue;
@@ -486,14 +577,19 @@ function createCollection() {
 
     for (let i = 1; i <= count; i++) {
       const n = sectionIsLocal ? i : globalCounter;
+      const label = String(n);
+      const key = sectionIsLocal ? `numLocal:${sec.id}:${i}` : `numGlobal:${globalCounter}`;
+
       items.push({
         id: uid("it"),
         sectionId: sec.id,
-        label: String(n),
+        label,
         have: false,
         rep: 0,
-        key: sectionIsLocal ? `numLocal:${sec.id}:${i}` : `numGlobal:${globalCounter}`
+        special: specialsSet.has(normCode(label)),
+        key
       });
+
       if (!sectionIsLocal) globalCounter += 1;
     }
   }
@@ -559,7 +655,7 @@ function renderDetail() {
 
 function buildItemCell(it) {
   const wrap = document.createElement("div");
-  wrap.className = "item" + (it.have ? " have" : "");
+  wrap.className = "item" + (it.have ? " have" : "") + (it.special ? " special" : "");
 
   const code = document.createElement("div");
   code.className = "item-code";
@@ -627,25 +723,20 @@ function resetCollection() {
 }
 
 /* -----------------------------
-   EDIT REAL
+   Edit (real) - conserva have/rep y recalcula special por lista
 ----------------------------- */
 function renderEdit() {
   const col = getCurrent();
   if (!col) return goHome();
 
   els.editTitle.textContent = `Editar: ${col.name}`;
-  els.topbarTitle.textContent = "Editar";
-
   els.editName.value = col.name;
 
-  // solo muestro editor de secciones si el álbum tiene secciones
   const isSections = col.structure === "sections";
   els.editSectionsArea.style.display = isSections ? "block" : "none";
-
   els.editSectionsEditor.innerHTML = "";
 
   if (isSections) {
-    // reconstruyo filas con el “count real” por sección (lo calculo desde items)
     for (const sec of col.sections) {
       const count = col.items.filter(it => it.sectionId === sec.id).length;
       addSectionRow(els.editSectionsEditor, {
@@ -653,9 +744,9 @@ function renderEdit() {
         format: sec.format || "num",
         prefix: sec.prefix || "",
         count,
-        ownNumbering: !!sec.ownNumbering
+        ownNumbering: !!sec.ownNumbering,
+        specials: Array.isArray(sec.specials) ? sec.specials : []
       });
-      // guardo el id original en el row para mapear
       els.editSectionsEditor.lastElementChild.dataset.secId = sec.id;
     }
   }
@@ -667,7 +758,8 @@ els.editAddSection?.addEventListener("click", () => {
     format: "num",
     prefix: "",
     count: 10,
-    ownNumbering: false
+    ownNumbering: false,
+    specials: []
   });
 });
 
@@ -679,6 +771,7 @@ function applyEdit() {
   if (!newName) return alert("Nombre inválido.");
   col.name = newName;
 
+  // si es simple: solo recalculo especiales por lista del General (si existiera)
   if (col.structure !== "sections") {
     save();
     renderHome();
@@ -687,42 +780,42 @@ function applyEdit() {
     return;
   }
 
-  // leer secciones nuevas
   const read = readSections(els.editSectionsEditor);
   if (!read.ok) return alert(read.error);
 
-  // Mapeo: intento conservar IDs existentes por fila si vienen con data-sec-id
-  const rows = Array.from(els.editSectionsEditor.querySelectorAll("[data-section-row]"));
+  const rows = read.rows;
 
-  // índice de items por key para conservar progreso
+  // index items por key para conservar progreso
   const oldByKey = new Map();
   for (const it of col.items) oldByKey.set(it.key || `${it.sectionId}|${it.label}`, it);
 
   const newSections = [];
   const newItems = [];
   let globalCounter = 1;
-
-  // para detectar si estamos usando global o perSection
   const numberMode = col.numberMode === "perSection" ? "perSection" : "global";
 
   for (let idx = 0; idx < rows.length; idx++) {
     const r = rows[idx];
-    const inputs = r.querySelectorAll("input, select");
-    const secName = (inputs[0]?.value || "").trim();
-    const format = (inputs[1]?.value === "alfa") ? "alfa" : "num";
-    const prefix = normalizePrefix(inputs[2]?.value || "");
-    const count = clamp(parseInt(inputs[3]?.value || "0", 10), 1, 5000);
-    const ownNumbering = (format === "alfa") ? true : !!inputs[4]?.checked;
+    const s = read.sections[idx];
 
     const existingId = r.dataset.secId || null;
     const secId = existingId || uid("sec");
 
-    newSections.push({ id: secId, name: secName, format, prefix, ownNumbering });
+    newSections.push({
+      id: secId,
+      name: s.name,
+      format: s.format,
+      prefix: s.prefix,
+      ownNumbering: !!s.ownNumbering,
+      specials: s.specials
+    });
 
-    if (format === "alfa") {
-      for (let i = 1; i <= count; i++) {
-        const key = `alfa:${prefix}:${i}`;
-        const label = `${prefix}${i}`;
+    const specialsSet = new Set((s.specials || []).map(normCode));
+
+    if (s.format === "alfa") {
+      for (let i = 1; i <= s.count; i++) {
+        const label = `${s.prefix}${i}`;
+        const key = `alfa:${s.prefix}:${i}`;
         const old = oldByKey.get(key);
 
         newItems.push({
@@ -731,18 +824,18 @@ function applyEdit() {
           label,
           have: !!old?.have,
           rep: old?.rep || 0,
+          special: specialsSet.has(normCode(label)),
           key
         });
       }
       continue;
     }
 
-    const sectionIsLocal = (numberMode === "perSection") || ownNumbering;
+    const sectionIsLocal = (numberMode === "perSection") || s.ownNumbering;
 
-    for (let i = 1; i <= count; i++) {
+    for (let i = 1; i <= s.count; i++) {
       const n = sectionIsLocal ? i : globalCounter;
       const label = String(n);
-
       const key = sectionIsLocal ? `numLocal:${secId}:${i}` : `numGlobal:${globalCounter}`;
       const old = oldByKey.get(key);
 
@@ -752,6 +845,7 @@ function applyEdit() {
         label,
         have: !!old?.have,
         rep: old?.rep || 0,
+        special: specialsSet.has(normCode(label)),
         key
       });
 
@@ -769,7 +863,7 @@ function applyEdit() {
 }
 
 /* -----------------------------
-   Backup (SOLO REEMPLAZAR)
+   Backup (solo REEMPLAZAR)
 ----------------------------- */
 function exportBackup() {
   const payload = {
@@ -800,7 +894,6 @@ function exportBackup() {
 
 function normalizeImportedPayload(obj) {
   if (!obj || typeof obj !== "object") return null;
-
   if (obj.data && obj.data.collections) {
     return { collections: Array.isArray(obj.data.collections) ? obj.data.collections : [] };
   }
@@ -833,16 +926,24 @@ function handleImportFile(file) {
         if (!c.sections) c.sections = [];
         if (!c.structure) c.structure = "simple";
         if (!c.numberMode) c.numberMode = "global";
+
         if (c.structure === "sections") {
           for (const s of c.sections) {
             if (!s.format) s.format = "num";
             if (typeof s.prefix !== "string") s.prefix = "";
             if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+            if (!Array.isArray(s.specials)) s.specials = [];
           }
         } else {
           if (!c.sections.length) {
-            c.sections = [{ id: uid("sec"), name:"General", format:"num", prefix:"", ownNumbering:false }];
+            c.sections = [{ id: uid("sec"), name:"General", format:"num", prefix:"", ownNumbering:false, specials:[] }];
           }
+          if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
+        }
+
+        for (const it of c.items) {
+          if (typeof it.special !== "boolean") it.special = false;
+          if (!it.key) it.key = `${it.sectionId}|${it.label}`;
         }
       }
 
@@ -875,7 +976,7 @@ function renderSettings() {
 }
 
 /* -----------------------------
-   Eventos globales
+   Eventos
 ----------------------------- */
 document.addEventListener("click", (e) => {
   const btn = e.target?.closest?.("[data-action]");
@@ -889,11 +990,6 @@ document.addEventListener("click", (e) => {
   if (action === "create-save") return createCollection();
 
   if (action === "go-settings") return goSettings();
-
-  if (action === "open-collection") {
-    const id = btn.getAttribute("data-id");
-    if (id) return goDetail(id);
-  }
 
   if (action === "open-edit") return goEdit();
   if (action === "edit-cancel") return goDetail(state.currentId);
