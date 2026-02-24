@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Colección Luciano</title>
 
   <link rel="stylesheet" href="theme.css?v=1" />
@@ -10,160 +10,193 @@
 </head>
 
 <body>
-  <!-- Topbar fijo -->
-  <header class="topbar" role="banner">
+  <header class="topbar">
     <button id="backBtn" class="icon-btn hidden" type="button" aria-label="Volver">←</button>
     <div class="topbar-title" id="topbarTitle">Mis Colecciones</div>
-    <div class="topbar-spacer" aria-hidden="true"></div>
+    <div class="topbar-spacer"></div>
   </header>
 
-  <main class="app" id="appRoot">
+  <main class="app">
+
     <!-- HOME -->
     <section class="view is-active" data-view="home">
-      <h1 class="h1">Mis Colecciones</h1>
-
       <div class="card">
         <div class="row-between">
-          <h2 class="h2">Colecciones</h2>
-          <button class="btn primary" data-action="go-create" type="button">+ Nueva</button>
+          <h1 class="h1">Inicio</h1>
+          <button class="btn" type="button" data-action="go-settings">Ajustes</button>
         </div>
 
+        <div class="grid-2" style="margin-top:12px;">
+          <button class="card-btn" type="button" data-action="go-create">
+            <div class="card-icon">＋</div>
+            <div class="card-label">Nueva</div>
+          </button>
+
+          <button class="card-btn" type="button" onclick="window.scrollTo({top:99999, behavior:'smooth'})">
+            <div class="card-icon">📚</div>
+            <div class="card-label">Ver lista</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <h2 class="h2">Mis colecciones</h2>
         <div id="collectionsList" class="stack"></div>
-
-        <div class="divider"></div>
-
-        <button class="btn full" data-action="go-settings" type="button">⚙️ Ajustes / Backup</button>
-
-        <div class="muted small" style="margin-top:10px;">
-          Tip: tocá una colección para entrar.
-        </div>
       </div>
     </section>
 
-    <!-- CREAR -->
+    <!-- CREATE -->
     <section class="view" data-view="create">
-      <h1 class="h1">Nueva colección</h1>
-
       <div class="card">
+        <div class="row-between">
+          <h1 class="h1">Nueva colección</h1>
+          <button class="btn" type="button" data-action="create-cancel">Cancelar</button>
+        </div>
+
         <div class="field">
           <label>Nombre</label>
-          <input id="newName" class="input" type="text" placeholder="Ej: Figuritas Mundial 2026" />
+          <input id="newName" class="input" type="text" placeholder="Ej: Mundial 2026" />
         </div>
 
         <div class="divider"></div>
 
         <div class="field">
-          <label>Tipo de álbum</label>
+          <label>Estructura</label>
           <div class="radio-row">
             <label class="radio">
               <input type="radio" name="structType" value="simple" checked />
-              <span>Simple (sin secciones)</span>
+              <span>Simple (1..N)</span>
             </label>
-
             <label class="radio">
               <input type="radio" name="structType" value="sections" />
-              <span>Con secciones (equipos/categorías)</span>
+              <span>Con secciones</span>
             </label>
           </div>
         </div>
 
         <!-- SIMPLE -->
-        <div id="simpleBlock" class="block">
+        <div id="simpleBlock">
           <div class="field">
-            <label>Cantidad total de ítems (1..N)</label>
+            <label>Cantidad total</label>
             <input id="simpleCount" class="input" type="number" min="1" max="5000" value="100" />
           </div>
         </div>
 
         <!-- SECTIONS -->
-        <div id="sectionsBlock" class="block" style="display:none;">
+        <div id="sectionsBlock" style="display:none;">
           <div class="field">
-            <label>Modo principal de numeración (solo secciones numéricas)</label>
+            <label>Modo numérico</label>
             <select id="numberMode" class="input">
-              <option value="global">Correlativa global (1..Total, sin reiniciar)</option>
-              <option value="perSection">Reinicia por sección (cada sección empieza en 1)</option>
+              <option value="global">Global (correlativo)</option>
+              <option value="perSection">Por sección (reinicia)</option>
             </select>
-            <div class="muted small" style="margin-top:8px;">
-              Las secciones “Alfanuméricas” (prefijo) siempre se generan como PREFIJO+N dentro de esa sección.
+            <div class="muted small" style="margin-top:6px;">
+              Nota: Las secciones alfanuméricas siempre usan prefijo+N.
             </div>
           </div>
 
           <div class="divider"></div>
 
           <div class="row-between">
-            <h2 class="h2" style="margin:0;">Secciones</h2>
-            <button class="btn" id="btnAddSection" type="button">+ Agregar</button>
+            <h2 class="h2">Secciones</h2>
+            <button id="btnAddSection" class="btn" type="button">+ Sección</button>
           </div>
 
-          <div id="sectionsEditor" class="sections-editor"></div>
-
-          <div class="muted small" style="margin-top:10px;">
-            Tip: ejemplo “River” prefijo “RIA” → RIA1, RIA2...
-          </div>
+          <div id="sectionsEditor" class="stack" style="margin-top:10px;"></div>
         </div>
 
         <div class="divider"></div>
 
-        <div class="row gap">
-          <button class="btn primary" data-action="create-save" type="button">Crear</button>
-          <button class="btn" data-action="create-cancel" type="button">Cancelar</button>
-        </div>
+        <button class="btn primary full" type="button" data-action="create-save">
+          Guardar colección
+        </button>
       </div>
     </section>
 
-    <!-- DETALLE -->
+    <!-- DETAIL -->
     <section class="view" data-view="detail">
-      <h1 class="h1" id="detailTitle">Colección</h1>
-
       <div class="card">
-        <div class="stats-grid">
-          <div class="muted">Total</div> <div id="stTotal" class="right">0</div>
-          <div class="muted">Tengo</div> <div id="stHave" class="right">0</div>
-          <div class="muted">Faltan</div> <div id="stMissing" class="right">0</div>
+        <div class="row-between">
+          <h1 class="h1" id="detailTitle">Detalle</h1>
+          <button class="btn" type="button" data-action="open-edit">Editar</button>
         </div>
 
-        <div class="pill">
-          Completo: <b id="stPct">0%</b>
+        <div class="stats-grid">
+          <div class="stat-row"><span>Total</span><b id="stTotal">0</b></div>
+          <div class="stat-row"><span>Tengo</span><b id="stHave">0</b></div>
+          <div class="stat-row"><span>Faltan</span><b id="stMissing">0</b></div>
+          <div class="stat-row"><span>Completo</span><b id="stPct">0%</b></div>
+        </div>
+
+        <div class="row-between" style="margin-top:10px;">
+          <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
+          <div class="muted small">Tip: tocá un número para marcar “Tengo”.</div>
+        </div>
+      </div>
+
+      <div id="sectionsDetail" class="stack" style="margin-top:14px;"></div>
+    </section>
+
+    <!-- EDIT -->
+    <section class="view" data-view="edit">
+      <div class="card">
+        <div class="row-between">
+          <h1 class="h1" id="editTitle">Editar</h1>
+          <button class="btn" type="button" data-action="edit-cancel">Volver</button>
+        </div>
+
+        <div class="field">
+          <label>Nombre</label>
+          <input id="editName" class="input" type="text" />
         </div>
 
         <div class="divider"></div>
 
-        <div class="row-between">
-          <h2 class="h2">Secciones</h2>
-          <button class="btn danger" data-action="reset-collection" type="button">Reset</button>
+        <div id="editSectionsArea" style="display:none;">
+          <div class="row-between">
+            <h2 class="h2">Secciones</h2>
+            <button id="editAddSection" class="btn" type="button">+ Sección</button>
+          </div>
+          <div id="editSectionsEditor" class="stack" style="margin-top:10px;"></div>
         </div>
 
-        <div id="sectionsDetail" class="stack"></div>
+        <div class="divider"></div>
+
+        <button class="btn primary full" type="button" data-action="edit-save">Guardar cambios</button>
       </div>
     </section>
 
-    <!-- AJUSTES / BACKUP -->
+    <!-- SETTINGS -->
     <section class="view" data-view="settings">
-      <h1 class="h1">Ajustes / Backup</h1>
-
       <div class="card">
-        <h2 class="h2">Backup</h2>
+        <div class="row-between">
+          <h1 class="h1">Ajustes / Backup</h1>
+          <button class="btn" type="button" data-action="go-home">Volver</button>
+        </div>
+
+        <div class="divider"></div>
 
         <div class="grid-2">
-          <button class="card-btn" data-action="export-backup" type="button">
+          <button class="card-btn" type="button" data-action="export-backup">
             <div class="card-icon">⬆️</div>
-            <div class="card-label">Exportar backup</div>
+            <div class="card-label">Exportar</div>
             <div class="card-meta" id="exportMeta">—</div>
           </button>
 
           <label class="card-btn" style="cursor:pointer;">
             <div class="card-icon">⬇️</div>
-            <div class="card-label">Importar backup</div>
+            <div class="card-label">Importar</div>
             <div class="card-meta" id="importMeta">—</div>
             <input id="importInput" type="file" accept="application/json" style="display:none;" />
           </label>
         </div>
 
-        <div class="divider"></div>
-
-        <div class="muted small" id="storageMeta">—</div>
+        <div class="card-sub" style="margin-top:12px;">
+          <div class="muted small" id="storageMeta">—</div>
+        </div>
       </div>
     </section>
+
   </main>
 
   <script src="app.js?v=1"></script>
