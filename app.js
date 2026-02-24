@@ -1,11 +1,11 @@
 /* =============================
-   Colección Luciano - Arquitectura estable (v2.2)
+   Colección Luciano - Arquitectura estable (v2.3)
    - Especiales por lista (por sección o simple)
    - Crear / Editar secciones + especiales sin perder progreso
    - Backup: solo REEMPLAZAR
-   - NUEVO:
-     ✅ Duplicar sección (⎘)
-     ✅ Reordenar secciones: botones ↑ ↓ (y drag & drop opcional)
+   - Reordenar secciones: botones ↑ ↓ (y drag & drop opcional)
+   - NUEVO (v2.3):
+     ✅ Generador rápido de secciones por lista (separadas por coma)
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -98,6 +98,14 @@ function parseCodesList(input) {
   return String(input || "")
     .split(",")
     .map(s => s.trim())
+    .filter(Boolean);
+}
+
+/** Generador: acepta comas y/o saltos de línea (pero vos usarás coma) */
+function parsePrefixList(input) {
+  return String(input || "")
+    .split(/[,;\n\r]+/g)
+    .map(s => normalizePrefix(s))
     .filter(Boolean);
 }
 
@@ -204,6 +212,7 @@ function goHome() {
 
 function goCreate() {
   resetCreateForm();
+  ensureBulkBuilderUI(); // ✅ inyecta el generador si hace falta
   setView("create");
 }
 
@@ -295,6 +304,7 @@ function syncCreateBlocks() {
   } else {
     els.simpleBlock.style.display = "none";
     els.sectionsBlock.style.display = "block";
+    ensureBulkBuilderUI(); // ✅ cuando cambia a secciones
   }
 }
 els.structRadios.forEach(r => r.addEventListener("change", syncCreateBlocks));
@@ -307,12 +317,119 @@ function resetCreateForm() {
   els.structRadios.forEach(r => r.checked = (r.value === "simple"));
   syncCreateBlocks();
 
-  els.sectionsEditor.innerHTML = "";
-  addSectionRow(els.sectionsEditor, { name:"Equipo A", format:"alfa", prefix:"RIA", count:20, ownNumbering:true, specials:[] });
-  addSectionRow(els.sectionsEditor, { name:"Equipo B", format:"alfa", prefix:"BAE", count:20, ownNumbering:true, specials:[] });
-  addSectionRow(els.sectionsEditor, { name:"Especiales", format:"num", prefix:"", count:10, ownNumbering:true, specials:[] });
+  if (els.sectionsEditor) {
+    els.sectionsEditor.innerHTML = "";
+    addSectionRow(els.sectionsEditor, { name:"Equipo A", format:"alfa", prefix:"RIA", count:20, ownNumbering:true, specials:[] });
+    addSectionRow(els.sectionsEditor, { name:"Equipo B", format:"alfa", prefix:"BAE", count:20, ownNumbering:true, specials:[] });
+    addSectionRow(els.sectionsEditor, { name:"Especiales", format:"num", prefix:"", count:10, ownNumbering:true, specials:[] });
+    enableDnD(els.sectionsEditor);
+  }
+}
 
-  enableDnD(els.sectionsEditor);
+/* -----------------------------
+   Generador rápido por lista (coma)
+   - Se inyecta arriba del editor de secciones.
+----------------------------- */
+function ensureBulkBuilderUI() {
+  if (!els.sectionsBlock || !els.sectionsEditor) return;
+  if ($("bulkBuilder")) return; // ya existe
+
+  const wrap = document.createElement("div");
+  wrap.id = "bulkBuilder";
+  wrap.className = "card";
+  wrap.style.marginBottom = "14px";
+
+  wrap.innerHTML = `
+    <div class="h2" style="margin-bottom:10px;">Generador rápido por lista (con coma)</div>
+    <div class="muted small" style="margin-bottom:10px;">
+      Pegá prefijos separados por coma. Ej: RIA, BAE, ATL
+    </div>
+
+    <div class="field">
+      <label>Prefijos (con coma)</label>
+      <textarea id="bulkPrefixes" class="input" rows="3" placeholder="RIA, BAE, ATL"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Cantidad por equipo</label>
+      <input id="bulkCount" class="input" type="number" min="1" max="5000" value="20" />
+    </div>
+
+    <label class="inline-check" style="margin-top:8px;">
+      <input id="bulkAddSpecialSection" type="checkbox" checked />
+      <span>Agregar sección “Especiales” (numérica con numeración propia)</span>
+    </label>
+
+    <div class="field" style="margin-top:10px;">
+      <label>Cantidad en “Especiales”</label>
+      <input id="bulkSpecialCount" class="input" type="number" min="1" max="5000" value="10" />
+    </div>
+
+    <div class="row gap" style="margin-top:12px;">
+      <button id="btnBulkGenerate" class="btn primary" type="button">Generar secciones</button>
+      <button id="btnBulkClear" class="btn" type="button">Limpiar lista</button>
+    </div>
+
+    <div class="muted small" style="margin-top:10px;">
+      Nota: esto reemplaza todas las secciones actuales del editor.
+    </div>
+  `;
+
+  // Insertar arriba del editor
+  els.sectionsBlock.insertBefore(wrap, els.sectionsEditor);
+
+  const bulkPrefixes = $("bulkPrefixes");
+  const bulkCount = $("bulkCount");
+  const bulkAddSpecialSection = $("bulkAddSpecialSection");
+  const bulkSpecialCount = $("bulkSpecialCount");
+  const btnBulkGenerate = $("btnBulkGenerate");
+  const btnBulkClear = $("btnBulkClear");
+
+  btnBulkClear?.addEventListener("click", () => {
+    if (bulkPrefixes) bulkPrefixes.value = "";
+    bulkPrefixes?.focus();
+  });
+
+  btnBulkGenerate?.addEventListener("click", () => {
+    const list = parsePrefixList(bulkPrefixes?.value || "");
+    if (!list.length) return alert("Pegá al menos 1 prefijo (separados por coma).");
+
+    let perTeam = parseInt(bulkCount?.value || "0", 10);
+    if (!Number.isFinite(perTeam) || perTeam <= 0) return alert("Cantidad por equipo inválida.");
+    perTeam = clamp(perTeam, 1, 5000);
+
+    let specialsN = parseInt(bulkSpecialCount?.value || "0", 10);
+    if (!Number.isFinite(specialsN) || specialsN <= 0) specialsN = 10;
+    specialsN = clamp(specialsN, 1, 5000);
+
+    // Reemplazo total del editor
+    els.sectionsEditor.innerHTML = "";
+
+    for (const pref of list) {
+      addSectionRow(els.sectionsEditor, {
+        name: pref,
+        format: "alfa",
+        prefix: pref,
+        count: perTeam,
+        ownNumbering: true,
+        specials: []
+      });
+    }
+
+    if (bulkAddSpecialSection?.checked) {
+      addSectionRow(els.sectionsEditor, {
+        name: "Especiales",
+        format: "num",
+        prefix: "",
+        count: specialsN,
+        ownNumbering: true,
+        specials: []
+      });
+    }
+
+    enableDnD(els.sectionsEditor);
+    alert("Secciones generadas ✅");
+  });
 }
 
 /* -----------------------------
@@ -372,7 +489,7 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
   row.setAttribute("data-section-row", "1");
   row.dataset.specials = JSON.stringify(Array.isArray(specials) ? specials : []);
 
-  // drag opcional (no necesario)
+  // drag opcional
   row.draggable = true;
   row.style.cursor = "grab";
   row.addEventListener("dragstart", () => {
@@ -425,7 +542,6 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
   actions.className = "actions";
   actions.style.gap = "6px";
 
-  // ↑ ↓
   const upBtn = document.createElement("button");
   upBtn.type = "button";
   upBtn.className = "icon-lite";
@@ -532,7 +648,7 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 }
 
 /* -----------------------------
-   Drag & Drop opcional (no necesario)
+   Drag & Drop opcional
 ----------------------------- */
 function getDragAfterElement(container, y) {
   const draggableElements = [...container.querySelectorAll("[data-section-row]:not(.dragging)")];
@@ -1167,6 +1283,7 @@ function init() {
   renderSettings();
   setView("home");
   resetCreateForm();
+  ensureBulkBuilderUI(); // ✅ queda listo para cuando uses “secciones”
 }
 
 document.addEventListener("DOMContentLoaded", init);
