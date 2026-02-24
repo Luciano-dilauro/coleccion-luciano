@@ -1,7 +1,8 @@
 /* =============================
-   Colección Luciano - V2.1
-   - Secciones con modo principal (global / perSection)
-   - Cada sección puede forzar “numeración propia” (reinicia)
+   Colección Luciano - V2.2
+   - Secciones numéricas (global / perSection / ownNumbering)
+   - Secciones alfanuméricas con prefijo (PREFIJO+N)
+     -> por naturaleza reinician dentro de esa sección
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -40,13 +41,24 @@ const state = {
 };
 
 /* -----------------------------
-   Persistencia
+   Persistencia + mini-migración
 ----------------------------- */
 function load() {
   try {
     const raw = localStorage.getItem(LS_KEY);
     state.data = raw ? JSON.parse(raw) : { collections: [] };
     if (!state.data.collections) state.data.collections = [];
+
+    // migración suave: secciones viejas sin formato/prefijo
+    for (const c of state.data.collections) {
+      if (c.structure === "sections" && Array.isArray(c.sections)) {
+        for (const s of c.sections) {
+          if (!s.format) s.format = "num";       // num | alfa
+          if (typeof s.prefix !== "string") s.prefix = "";
+          if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+        }
+      }
+    }
   } catch {
     state.data = { collections: [] };
   }
@@ -171,7 +183,7 @@ function renderHome() {
 
     if (c.structure === "sections") {
       meta.textContent =
-        `Con secciones · modo principal: ${c.numberMode === "global" ? "global" : "por sección"}`;
+        `Con secciones · modo numérico: ${c.numberMode === "global" ? "global" : "por sección"} · soporta prefijos`;
     } else {
       meta.textContent = "Simple";
     }
@@ -209,8 +221,10 @@ function resetCreateForm() {
 
   if (els.sectionsEditor) {
     els.sectionsEditor.innerHTML = "";
-    addSectionRow("Sección 1", 50, false);
-    addSectionRow("Especiales", 20, true);
+    // ejemplo: dos equipos con prefijo + una sección numérica "Especiales"
+    addSectionRow({ name: "River", format: "alfa", prefix: "RIA", count: 20, ownNumbering: true });
+    addSectionRow({ name: "Boca",  format: "alfa", prefix: "BAE", count: 20, ownNumbering: true });
+    addSectionRow({ name: "Especiales", format: "num", prefix: "", count: 10, ownNumbering: true });
   }
 }
 
@@ -231,17 +245,42 @@ els.structRadios.forEach(r => {
   r.addEventListener("change", syncCreateBlocks);
 });
 
-function addSectionRow(name = "", count = 10, ownNumbering = false) {
+function normalizePrefix(p) {
+  return String(p || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, ""); // solo letras/números
+}
+
+function addSectionRow({ name = "", format = "num", prefix = "", count = 10, ownNumbering = false } = {}) {
   const row = document.createElement("div");
   row.className = "section-row";
   row.setAttribute("data-section-row", "1");
 
+  // Nombre
   const inName = document.createElement("input");
   inName.className = "input";
   inName.type = "text";
   inName.placeholder = "Nombre (Ej: Argentina / Arsenal / etc)";
   inName.value = name;
 
+  // Formato
+  const selFormat = document.createElement("select");
+  selFormat.className = "input";
+  selFormat.innerHTML = `
+    <option value="num">Numérico (1..N)</option>
+    <option value="alfa">Alfanumérico (PREFIJO+N)</option>
+  `;
+  selFormat.value = (format === "alfa") ? "alfa" : "num";
+
+  // Prefijo
+  const inPrefix = document.createElement("input");
+  inPrefix.className = "input";
+  inPrefix.type = "text";
+  inPrefix.placeholder = "Prefijo (Ej: RIA)";
+  inPrefix.value = prefix;
+
+  // Cantidad
   const inCount = document.createElement("input");
   inCount.className = "input";
   inCount.type = "number";
@@ -249,9 +288,10 @@ function addSectionRow(name = "", count = 10, ownNumbering = false) {
   inCount.max = "5000";
   inCount.value = String(count);
 
+  // Numeración propia
   const ownWrap = document.createElement("label");
   ownWrap.className = "inline-check";
-  ownWrap.title = "Si está activado, esta sección reinicia su numeración aunque el modo principal sea global.";
+  ownWrap.title = "Si está activado, esta sección numérica reinicia su numeración aunque el modo principal sea global.";
   const ownChk = document.createElement("input");
   ownChk.type = "checkbox";
   ownChk.checked = !!ownNumbering;
@@ -260,26 +300,52 @@ function addSectionRow(name = "", count = 10, ownNumbering = false) {
   ownWrap.appendChild(ownChk);
   ownWrap.appendChild(ownTxt);
 
+  // Borrar
   const del = document.createElement("button");
   del.type = "button";
   del.className = "icon-danger";
   del.textContent = "✕";
   del.addEventListener("click", () => row.remove());
 
+  // Comportamiento UI según formato
+  const syncRowUI = () => {
+    const isAlfa = selFormat.value === "alfa";
+
+    // Prefijo requerido solo si alfa
+    inPrefix.style.display = isAlfa ? "block" : "none";
+
+    // Alfanumérico: siempre es “local”, así que ownNumbering no aplica
+    ownWrap.style.opacity = isAlfa ? "0.5" : "1";
+    ownChk.disabled = isAlfa;
+
+    if (isAlfa) ownChk.checked = true; // conceptual: por sección
+  };
+
+  selFormat.addEventListener("change", syncRowUI);
+  inPrefix.addEventListener("input", () => {
+    inPrefix.value = normalizePrefix(inPrefix.value);
+  });
+
+  // layout
   row.appendChild(inName);
+  row.appendChild(selFormat);
+  row.appendChild(inPrefix);
   row.appendChild(inCount);
   row.appendChild(ownWrap);
   row.appendChild(del);
 
   els.sectionsEditor.appendChild(row);
+  syncRowUI();
 }
 
 els.btnAddSection?.addEventListener("click", () => {
-  addSectionRow(
-    `Sección ${els.sectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
-    10,
-    false
-  );
+  addSectionRow({
+    name: `Sección ${els.sectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
+    format: "num",
+    prefix: "",
+    count: 10,
+    ownNumbering: false
+  });
 });
 
 function readSectionsFromEditor() {
@@ -287,22 +353,31 @@ function readSectionsFromEditor() {
   const out = [];
 
   for (const r of rows) {
-    const inName = r.querySelector('input[type="text"]');
-    const inCount = r.querySelector('input[type="number"]');
-    const own = r.querySelector('input[type="checkbox"]');
-
-    const name = (inName?.value || "").trim();
-    const count = parseInt(inCount?.value || "0", 10);
-    const ownNumbering = !!own?.checked;
+    const inputs = r.querySelectorAll("input, select");
+    // orden: name, format(select), prefix, count, own checkbox, delete btn
+    const name = (inputs[0]?.value || "").trim();
+    const format = (inputs[1]?.value === "alfa") ? "alfa" : "num";
+    const prefix = normalizePrefix(inputs[2]?.value || "");
+    const count = parseInt(inputs[3]?.value || "0", 10);
+    const ownNumbering = !!inputs[4]?.checked;
 
     if (!name) return { ok:false, error:"Hay una sección sin nombre." };
     if (!Number.isFinite(count) || count <= 0) return { ok:false, error:`Cantidad inválida en "${name}".` };
 
-    out.push({ name, count: clamp(count, 1, 5000), ownNumbering });
+    if (format === "alfa" && !prefix) {
+      return { ok:false, error:`La sección "${name}" es alfanumérica pero no tiene prefijo.` };
+    }
+
+    out.push({
+      name,
+      format,
+      prefix,
+      count: clamp(count, 1, 5000),
+      ownNumbering: (format === "alfa") ? true : !!ownNumbering
+    });
   }
 
   if (!out.length) return { ok:false, error:"Agregá al menos 1 sección." };
-
   return { ok:true, sections: out };
 }
 
@@ -318,7 +393,7 @@ function createCollection() {
     count = clamp(count, 1, 5000);
 
     const sectionId = uid("sec");
-    const sections = [{ id: sectionId, name: "General" }];
+    const sections = [{ id: sectionId, name: "General", format: "num", prefix: "", ownNumbering: false }];
 
     const items = [];
     for (let i = 1; i <= count; i++) {
@@ -328,7 +403,8 @@ function createCollection() {
         label: String(i),
         have: false,
         rep: 0,
-        globalNo: i
+        globalNo: i,
+        localNo: null,
       });
     }
 
@@ -349,7 +425,7 @@ function createCollection() {
     return;
   }
 
-  // structure === "sections"
+  // sections
   const numberMode = els.numberMode?.value === "perSection" ? "perSection" : "global";
 
   const read = readSectionsFromEditor();
@@ -359,6 +435,8 @@ function createCollection() {
     id: uid("sec"),
     name: s.name,
     count: s.count,
+    format: s.format,     // num | alfa
+    prefix: s.prefix,     // para alfa
     ownNumbering: s.ownNumbering
   }));
 
@@ -366,6 +444,23 @@ function createCollection() {
   let globalCounter = 1;
 
   for (const sec of sections) {
+    // Alfanumérico: siempre local, con prefijo
+    if (sec.format === "alfa") {
+      for (let i = 1; i <= sec.count; i++) {
+        items.push({
+          id: uid("it"),
+          sectionId: sec.id,
+          label: `${sec.prefix}${i}`,
+          have: false,
+          rep: 0,
+          globalNo: null,
+          localNo: i
+        });
+      }
+      continue;
+    }
+
+    // Numérico:
     const sectionIsLocal = (numberMode === "perSection") || sec.ownNumbering;
 
     for (let i = 1; i <= sec.count; i++) {
@@ -391,7 +486,13 @@ function createCollection() {
     createdAt: Date.now(),
     structure: "sections",
     numberMode,
-    sections: sections.map(s => ({ id: s.id, name: s.name, ownNumbering: !!s.ownNumbering })),
+    sections: sections.map(s => ({
+      id: s.id,
+      name: s.name,
+      format: s.format,
+      prefix: s.prefix,
+      ownNumbering: !!s.ownNumbering
+    })),
     items
   };
 
@@ -451,7 +552,6 @@ function renderDetail() {
 function buildItemCell(it) {
   const wrap = document.createElement("div");
   wrap.className = "item" + (it.have ? " have" : "");
-  wrap.setAttribute("data-item-id", it.id);
 
   const code = document.createElement("div");
   code.className = "item-code";
