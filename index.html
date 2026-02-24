@@ -74,13 +74,13 @@
         <!-- SECTIONS -->
         <div id="sectionsBlock" class="block" style="display:none;">
           <div class="field">
-            <label>Modo principal de numeración</label>
+            <label>Modo principal de numeración (solo para secciones numéricas)</label>
             <select id="numberMode" class="input">
               <option value="global">Correlativa global (1..Total, sin reiniciar)</option>
               <option value="perSection">Reinicia por sección (cada sección empieza en 1)</option>
             </select>
             <div class="muted small" style="margin-top:8px;">
-              Podés marcar una sección como “Numeración propia” para que reinicie aunque el modo principal sea global.
+              Las secciones “Alfanuméricas” (con prefijo) siempre se generan como PREFIJO+N dentro de esa sección.
             </div>
           </div>
 
@@ -94,7 +94,7 @@
           <div id="sectionsEditor" class="sections-editor"></div>
 
           <div class="muted small" style="margin-top:10px;">
-            Tip: para “Especiales”, activá “Numeración propia”.
+            Tip: ejemplo: “River” prefijo “RIA” → RIA1, RIA2...
           </div>
         </div>
 
