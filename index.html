@@ -18,7 +18,7 @@
   </header>
 
   <main class="app" id="appRoot">
-    <!-- HOME / LISTA -->
+    <!-- HOME -->
     <section class="view is-active" data-view="home">
       <h1 class="h1">Mis Colecciones</h1>
 
@@ -43,21 +43,63 @@
       <div class="card">
         <div class="field">
           <label>Nombre</label>
-          <input id="newName" class="input" type="text" placeholder="Ej: Adrenalyn WC 2026" />
+          <input id="newName" class="input" type="text" placeholder="Ej: Figuritas Mundial 2026" />
         </div>
 
+        <div class="divider"></div>
+
         <div class="field">
-          <label>Cantidad de ítems (números 1..N)</label>
-          <input id="newCount" class="input" type="number" min="1" max="5000" value="100" />
+          <label>Tipo de álbum</label>
+          <div class="radio-row">
+            <label class="radio">
+              <input type="radio" name="structType" value="simple" checked />
+              <span>Simple (sin secciones)</span>
+            </label>
+
+            <label class="radio">
+              <input type="radio" name="structType" value="sections" />
+              <span>Con secciones (equipos/categorías)</span>
+            </label>
+          </div>
         </div>
+
+        <!-- SIMPLE -->
+        <div id="simpleBlock" class="block">
+          <div class="field">
+            <label>Cantidad total de ítems (1..N)</label>
+            <input id="simpleCount" class="input" type="number" min="1" max="5000" value="100" />
+          </div>
+        </div>
+
+        <!-- SECTIONS -->
+        <div id="sectionsBlock" class="block" style="display:none;">
+          <div class="field">
+            <label>Modo de numeración</label>
+            <select id="numberMode" class="input">
+              <option value="global">Correlativa global (1..Total, sin reiniciar)</option>
+              <option value="perSection">Reinicia por sección (cada sección empieza en 1)</option>
+            </select>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row-between">
+            <h2 class="h2" style="margin:0;">Secciones</h2>
+            <button class="btn" id="btnAddSection" type="button">+ Agregar</button>
+          </div>
+
+          <div id="sectionsEditor" class="sections-editor"></div>
+
+          <div class="muted small" style="margin-top:10px;">
+            Tip: poné “Equipo 1”, “Equipo 2”, etc. y después lo decorás. Lo importante es que quede bien armado.
+          </div>
+        </div>
+
+        <div class="divider"></div>
 
         <div class="row gap">
           <button class="btn primary" data-action="create-save" type="button">Crear</button>
           <button class="btn" data-action="create-cancel" type="button">Cancelar</button>
-        </div>
-
-        <div class="muted small" style="margin-top:10px;">
-          Esta versión crea ítems 1..N (simple y estable). Después sumamos secciones, letras (A1), importaciones, etc.
         </div>
       </div>
     </section>
@@ -80,11 +122,11 @@
         <div class="divider"></div>
 
         <div class="row-between">
-          <h2 class="h2">Ítems</h2>
+          <h2 class="h2">Secciones</h2>
           <button class="btn danger" data-action="reset-collection" type="button">Reset</button>
         </div>
 
-        <div id="itemsGrid" class="items-grid"></div>
+        <div id="sectionsDetail" class="stack"></div>
       </div>
     </section>
   </main>
