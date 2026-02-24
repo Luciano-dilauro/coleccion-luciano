@@ -74,11 +74,14 @@
         <!-- SECTIONS -->
         <div id="sectionsBlock" class="block" style="display:none;">
           <div class="field">
-            <label>Modo de numeración</label>
+            <label>Modo principal de numeración</label>
             <select id="numberMode" class="input">
               <option value="global">Correlativa global (1..Total, sin reiniciar)</option>
               <option value="perSection">Reinicia por sección (cada sección empieza en 1)</option>
             </select>
+            <div class="muted small" style="margin-top:8px;">
+              Podés marcar una sección como “Numeración propia” para que reinicie aunque el modo principal sea global.
+            </div>
           </div>
 
           <div class="divider"></div>
@@ -91,7 +94,7 @@
           <div id="sectionsEditor" class="sections-editor"></div>
 
           <div class="muted small" style="margin-top:10px;">
-            Tip: poné “Equipo 1”, “Equipo 2”, etc. y después lo decorás. Lo importante es que quede bien armado.
+            Tip: para “Especiales”, activá “Numeración propia”.
           </div>
         </div>
 
