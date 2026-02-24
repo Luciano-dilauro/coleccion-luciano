@@ -186,10 +186,10 @@ label{ display:block; font-weight: 800; margin-bottom: 6px; }
   margin-top: 12px;
 }
 
-/* Ahora: nombre + cantidad + “numeración propia” + borrar */
+/* nombre + formato + prefijo + cantidad + numeración propia + borrar */
 .section-row{
   display:grid;
-  grid-template-columns: 1fr 120px 170px 44px;
+  grid-template-columns: 1fr 150px 120px 120px 170px 44px;
   gap: 10px;
   align-items:center;
   padding: 10px;
@@ -243,8 +243,8 @@ label{ display:block; font-weight: 800; margin-bottom: 6px; }
 }
 
 .item{
-  width: 52px;
-  height: 52px;
+  width: 60px;
+  height: 56px;
   border-radius: 16px;
   border: 2px solid rgba(0,0,0,.12);
   background: rgba(0,0,0,.03);
@@ -256,7 +256,7 @@ label{ display:block; font-weight: 800; margin-bottom: 6px; }
 }
 
 .item-code{
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 950;
   line-height: 1.0;
 }
