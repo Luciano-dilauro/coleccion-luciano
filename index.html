@@ -11,12 +11,15 @@
 
 <body>
 
-  <!-- TOPBAR FIJO (no desaparece con scroll) -->
+  <!-- TOPBAR FIJO -->
   <header class="topbar" role="banner">
     <button id="backBtn" class="icon-btn hidden" type="button" aria-label="Volver">←</button>
     <div id="topbarTitle" class="topbar-title">Mis Colecciones</div>
     <div class="topbar-spacer"></div>
   </header>
+
+  <!-- 🔹 ESTE DIV ES EL FIX -->
+  <div class="topbar-offset"></div>
 
   <!-- CONTENIDO -->
   <main class="app" role="main">
@@ -63,7 +66,6 @@
           </div>
         </div>
 
-        <!-- SIMPLE -->
         <div id="simpleBlock">
           <div class="field">
             <label>Cantidad total</label>
@@ -76,7 +78,6 @@
           </div>
         </div>
 
-        <!-- SECTIONS -->
         <div id="sectionsBlock" style="display:none;">
           <div class="field">
             <label>Modo de numeración</label>
@@ -86,7 +87,6 @@
             </select>
           </div>
 
-          <!-- El generador rápido se inyecta acá por app.js -->
           <div id="sectionsEditor" class="stack"></div>
 
           <button id="btnAddSection" class="btn" type="button" style="margin-top:10px;">
@@ -105,7 +105,6 @@
 
     <!-- DETAIL -->
     <section class="view" data-view="detail">
-      <!-- ✅ ESTA tarjeta ahora queda sticky -->
       <div class="card detail-header">
         <div class="row-between">
           <h1 id="detailTitle" class="h1">Colección</h1>
