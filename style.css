@@ -474,3 +474,39 @@ label{ font-weight: 900; }
   60%  { transform: scale(1.06); }
   100% { transform: scale(1.04); }
 }
+/* =============================
+   ANIMACIONES PREMIUM (Opción 1 mejorada)
+============================= */
+
+/* Pop + glow sutil al tocar una figurita */
+.item.is-pop {
+  animation: itemPop 220ms ease-out;
+}
+
+.item.is-pop.have {
+  animation: itemPopHave 240ms ease-out;
+}
+
+/* Glow blue elegante (solo cuando queda en "Tengo") */
+@keyframes itemPop {
+  0%   { transform: scale(1); }
+  55%  { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+@keyframes itemPopHave {
+  0%   { transform: scale(1); box-shadow: none; }
+  55%  { transform: scale(1.04); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18); }
+  100% { transform: scale(1); box-shadow: none; }
+}
+
+/* Celebración al completar sección */
+.section-card.is-done-pulse {
+  animation: sectionDonePulse 420ms ease-out;
+}
+
+@keyframes sectionDonePulse {
+  0%   { transform: scale(1); box-shadow: none; }
+  50%  { transform: scale(1.01); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14); }
+  100% { transform: scale(1); box-shadow: none; }
+}
