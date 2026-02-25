@@ -1,8 +1,11 @@
 /* =============================
-   Colección Lucho - Arquitectura estable (v2.4)
-   - Dashboard (2x2): Colecciones / Carga-Edición / Stats / Ajustes
-   - Back inteligente por vista
-   - Colección nueva arriba (unshift)
+   Colección Lucho - Arquitectura estable (v2.3.1)
+   Cambios:
+   ✅ Dashboard (4 botones)
+   ✅ Mis colecciones: selector desplegable
+   ✅ "Nueva" sale de Mis colecciones -> queda en Carga/Edición
+   ✅ "Editar" sale del detalle -> queda en Carga/Edición
+   ✅ Al crear, la colección queda arriba
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -14,10 +17,15 @@ const $ = (id) => document.getElementById(id);
 const els = {
   backBtn: $("backBtn"),
   topbarTitle: $("topbarTitle"),
-
   views: Array.from(document.querySelectorAll("[data-view]")),
 
-  collectionsList: $("collectionsList"),
+  // dashboard (no necesita ids)
+
+  // collections
+  collectionsSelect: $("collectionsSelect"),
+
+  // manage
+  editSelect: $("editSelect"),
 
   // Create
   newName: $("newName"),
@@ -50,13 +58,6 @@ const els = {
   exportMeta: $("exportMeta"),
   importMeta: $("importMeta"),
   storageMeta: $("storageMeta"),
-
-  // Global Stats
-  gCols: $("gCols"),
-  gTotal: $("gTotal"),
-  gHave: $("gHave"),
-  gMissing: $("gMissing"),
-  gNote: $("gNote"),
 };
 
 const state = {
@@ -78,7 +79,6 @@ function uid(prefix = "id") {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
-
 function formatDateTime(ts) {
   if (!ts) return "—";
   try { return new Date(ts).toLocaleString(); } catch { return "—"; }
@@ -90,37 +90,24 @@ function formatBytes(bytes) {
   while (n >= 1024 && i < u.length - 1) { n/=1024; i++; }
   return `${n.toFixed(i===0?0:1)} ${u[i]}`;
 }
-
 function normalizePrefix(p) {
-  return String(p || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
+  return String(p || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
-
 function parseCodesList(input) {
-  return String(input || "")
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean);
+  return String(input || "").split(",").map(s => s.trim()).filter(Boolean);
 }
-
 function parsePrefixList(input) {
   return String(input || "")
     .split(/[,;\n\r]+/g)
     .map(s => normalizePrefix(s))
     .filter(Boolean);
 }
-
-function normCode(s) {
-  return String(s || "").trim().toUpperCase();
-}
+function normCode(s) { return String(s || "").trim().toUpperCase(); }
 
 function getCurrent() {
   if (!state.currentId) return null;
   return state.data.collections.find(c => c.id === state.currentId) || null;
 }
-
 function computeStats(col) {
   const total = col.items.length;
   let have = 0;
@@ -163,7 +150,7 @@ function load() {
       }
     } else {
       if (!c.sections.length) {
-        c.sections = [{ id: c.sections?.[0]?.id || uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false, specials: [] }];
+        c.sections = [{ id: uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false, specials: [] }];
       }
       if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
     }
@@ -174,7 +161,6 @@ function load() {
     }
   }
 }
-
 function save() {
   localStorage.setItem(LS_KEY, JSON.stringify(state.data));
   localStorage.setItem(META_KEY, JSON.stringify(state.meta));
@@ -185,144 +171,87 @@ function save() {
 ----------------------------- */
 function setView(view) {
   state.view = view;
-  document.body.dataset.view = view;
+  for (const v of els.views) v.classList.toggle("is-active", v.dataset.view === view);
 
-  for (const v of els.views) {
-    v.classList.toggle("is-active", v.dataset.view === view);
-  }
-
-  // topbar + back
   if (view === "dash") {
-    els.topbarTitle.textContent = "Colecciones Lucho";
+    els.topbarTitle.textContent = "Colecciones";
     els.backBtn.classList.add("hidden");
-  } else if (view === "home") {
-    els.topbarTitle.textContent = "Mis colecciones";
-    els.backBtn.classList.remove("hidden");
-  } else if (view === "create") {
-    els.topbarTitle.textContent = "Carga / edición";
-    els.backBtn.classList.remove("hidden");
-  } else if (view === "settings") {
-    els.topbarTitle.textContent = "Ajustes";
-    els.backBtn.classList.remove("hidden");
-  } else if (view === "stats") {
-    els.topbarTitle.textContent = "Estadísticas";
-    els.backBtn.classList.remove("hidden");
-  } else if (view === "edit") {
-    els.topbarTitle.textContent = "Editar";
-    els.backBtn.classList.remove("hidden");
   } else {
     els.backBtn.classList.remove("hidden");
+    if (view === "collections") els.topbarTitle.textContent = "Mis colecciones";
+    if (view === "manage") els.topbarTitle.textContent = "Carga / Edición";
+    if (view === "create") els.topbarTitle.textContent = "Nueva colección";
+    if (view === "editPicker") els.topbarTitle.textContent = "Editar";
+    if (view === "settings") els.topbarTitle.textContent = "Ajustes / Backup";
+    if (view === "stats") els.topbarTitle.textContent = "Estadísticas";
+    if (view === "detail") {
+      const col = getCurrent();
+      els.topbarTitle.textContent = col ? col.name : "Colección";
+    }
+    if (view === "edit") els.topbarTitle.textContent = "Editar";
   }
 
   window.scrollTo({ top: 0, behavior: "auto" });
 }
 
-function goDash() {
-  state.currentId = null;
-  renderSettings();
-  renderGlobalStats();
-  setView("dash");
-}
+function goDash(){ state.currentId = null; setView("dash"); }
+function goCollections(){ renderCollectionsSelects(); setView("collections"); }
+function goManage(){ renderCollectionsSelects(); setView("manage"); }
+function goCreate(){ resetCreateForm(); ensureBulkBuilderUI(); setView("create"); }
+function goSettings(){ renderSettings(); setView("settings"); }
+function goStats(){ setView("stats"); }
 
-function goHome() {
-  state.currentId = null;
-  renderHome();
-  renderSettings();
-  setView("home");
-}
-
-function goCreate() {
-  resetCreateForm();
-  ensureBulkBuilderUI();
-  setView("create");
-}
-
-function goDetail(id) {
+function goDetail(id){
   state.currentId = id;
   renderDetail();
-  const col = getCurrent();
-  if (col) els.topbarTitle.textContent = col.name;
   setView("detail");
 }
 
-function goSettings() {
-  renderSettings();
-  setView("settings");
+function goEditPicker(){
+  renderCollectionsSelects();
+  setView("editPicker");
 }
 
-function goStats() {
-  renderGlobalStats();
-  setView("stats");
-}
-
-function goEdit() {
+function goEdit(){
   renderEdit();
   setView("edit");
 }
 
-/* Back inteligente */
-function goBack() {
-  if (state.view === "edit") return goDetail(state.currentId);
-  if (state.view === "detail") return goHome();
-  if (state.view === "home") return goDash();
-  if (state.view === "create") return goDash();
-  if (state.view === "settings") return goDash();
-  if (state.view === "stats") return goDash();
-  return goDash();
-}
-
 /* -----------------------------
-   Home
+   Selects: Mis colecciones / Editar
 ----------------------------- */
-function renderHome() {
-  els.collectionsList.innerHTML = "";
+function renderCollectionsSelects() {
+  const cols = [...state.data.collections];
 
-  const cols = state.data.collections;
-  if (!cols.length) {
-    const empty = document.createElement("div");
-    empty.className = "muted";
-    empty.textContent = "Todavía no tenés colecciones. Tocá “Nueva”.";
-    els.collectionsList.appendChild(empty);
-    return;
-  }
+  // más nuevas arriba (si no hay createdAt, las deja igual)
+  cols.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
 
-  for (const c of cols) {
-    const st = computeStats(c);
+  const fill = (sel) => {
+    if (!sel) return;
+    sel.innerHTML = "";
+    if (!cols.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "(Sin colecciones)";
+      sel.appendChild(opt);
+      return;
+    }
+    for (const c of cols) {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    }
+  };
 
-    const row = document.createElement("div");
-    row.className = "collection-row";
+  fill(els.collectionsSelect);
+  fill(els.editSelect);
 
-    const left = document.createElement("div");
-    left.style.display = "flex";
-    left.style.flexDirection = "column";
-    left.style.gap = "4px";
+  // si no hay currentId, selecciono la primera
+  if (!state.currentId && cols.length) state.currentId = cols[0].id;
 
-    const name = document.createElement("div");
-    name.style.fontWeight = "950";
-    name.style.fontSize = "16px";
-    name.textContent = c.name;
-
-    const meta = document.createElement("div");
-    meta.className = "muted small";
-    meta.textContent =
-      c.structure === "sections"
-        ? `Con secciones · num: ${c.numberMode === "global" ? "global" : "por sección"}`
-        : "Simple";
-
-    left.appendChild(name);
-    left.appendChild(meta);
-
-    const right = document.createElement("div");
-    right.className = "muted small";
-    right.style.textAlign = "right";
-    right.innerHTML = `Completo <b>${st.pct}%</b><br>Total ${st.total} · Tengo ${st.have}`;
-
-    row.appendChild(left);
-    row.appendChild(right);
-
-    row.addEventListener("click", () => goDetail(c.id));
-    els.collectionsList.appendChild(row);
-  }
+  if (els.collectionsSelect && state.currentId) els.collectionsSelect.value = state.currentId;
+  if (els.editSelect && state.currentId) els.editSelect.value = state.currentId;
 }
 
 /* -----------------------------
@@ -332,7 +261,6 @@ function getStructType() {
   const r = els.structRadios.find(x => x.checked);
   return r ? r.value : "simple";
 }
-
 function syncCreateBlocks() {
   const t = getStructType();
   if (t === "simple") {
@@ -364,7 +292,7 @@ function resetCreateForm() {
 }
 
 /* -----------------------------
-   Generador rápido por lista
+   Bulk builder (se inyecta arriba del editor)
 ----------------------------- */
 function ensureBulkBuilderUI() {
   if (!els.sectionsBlock || !els.sectionsEditor) return;
@@ -373,16 +301,16 @@ function ensureBulkBuilderUI() {
   const wrap = document.createElement("div");
   wrap.id = "bulkBuilder";
   wrap.className = "card";
-  wrap.style.marginBottom = "14px";
+  wrap.style.marginBottom = "12px";
 
   wrap.innerHTML = `
-    <div class="h2" style="margin-bottom:10px;">Generador rápido por lista (con coma)</div>
-    <div class="muted small" style="margin-bottom:10px;">
-      Pegá prefijos separados por coma. Ej: RIA, BAE, ATL
+    <div class="h2" style="margin-bottom:10px; text-align:center;">Generador rápido (coma)</div>
+    <div class="muted small" style="margin-bottom:10px; text-align:center;">
+      Ej: RIA, BAE, ATL
     </div>
 
     <div class="field">
-      <label>Prefijos (con coma)</label>
+      <label>Prefijos (coma)</label>
       <textarea id="bulkPrefixes" class="input" rows="3" placeholder="RIA, BAE, ATL"></textarea>
     </div>
 
@@ -393,7 +321,7 @@ function ensureBulkBuilderUI() {
 
     <label class="inline-check" style="margin-top:8px;">
       <input id="bulkAddSpecialSection" type="checkbox" checked />
-      <span>Agregar sección “Especiales” (numérica con numeración propia)</span>
+      <span>Agregar “Especiales” (numérica con numeración propia)</span>
     </label>
 
     <div class="field" style="margin-top:10px;">
@@ -402,12 +330,11 @@ function ensureBulkBuilderUI() {
     </div>
 
     <div class="row gap" style="margin-top:12px;">
-      <button id="btnBulkGenerate" class="btn primary" type="button">Generar secciones</button>
-      <button id="btnBulkClear" class="btn" type="button">Limpiar lista</button>
+      <button id="btnBulkGenerate" class="btn primary full" type="button">Generar secciones</button>
     </div>
 
-    <div class="muted small" style="margin-top:10px;">
-      Nota: esto reemplaza todas las secciones actuales del editor.
+    <div class="muted small" style="margin-top:10px; text-align:center;">
+      Reemplaza todas las secciones actuales.
     </div>
   `;
 
@@ -418,16 +345,10 @@ function ensureBulkBuilderUI() {
   const bulkAddSpecialSection = $("bulkAddSpecialSection");
   const bulkSpecialCount = $("bulkSpecialCount");
   const btnBulkGenerate = $("btnBulkGenerate");
-  const btnBulkClear = $("btnBulkClear");
-
-  btnBulkClear?.addEventListener("click", () => {
-    if (bulkPrefixes) bulkPrefixes.value = "";
-    bulkPrefixes?.focus();
-  });
 
   btnBulkGenerate?.addEventListener("click", () => {
     const list = parsePrefixList(bulkPrefixes?.value || "");
-    if (!list.length) return alert("Pegá al menos 1 prefijo (separados por coma).");
+    if (!list.length) return alert("Pegá al menos 1 prefijo (coma).");
 
     let perTeam = parseInt(bulkCount?.value || "0", 10);
     if (!Number.isFinite(perTeam) || perTeam <= 0) return alert("Cantidad por equipo inválida.");
@@ -472,7 +393,7 @@ function ensureBulkBuilderUI() {
 function openSpecialsPrompt(currentArr, hint) {
   const current = (currentArr || []).join(", ");
   const txt = prompt(
-    `Especiales (lista separada por coma)\n${hint}\n\nEj: 7, 10, 55  o  RIA1, RIA7\n\nActual:\n${current}`,
+    `Especiales (coma)\n${hint}\n\nEj: 7, 10, 55  o  RIA1, RIA7\n\nActual:\n${current}`,
     current
   );
   if (txt === null) return null;
@@ -481,7 +402,8 @@ function openSpecialsPrompt(currentArr, hint) {
 }
 
 /* -----------------------------
-   Reordenar / DnD
+   Reordenar y filas secciones
+   (igual a tu v2.3)
 ----------------------------- */
 function moveRow(container, row, dir) {
   const rows = Array.from(container.querySelectorAll("[data-section-row]"));
@@ -489,12 +411,10 @@ function moveRow(container, row, dir) {
   if (idx < 0) return;
   const newIdx = idx + dir;
   if (newIdx < 0 || newIdx >= rows.length) return;
-
   const ref = rows[newIdx];
   if (dir === -1) container.insertBefore(row, ref);
   else container.insertBefore(ref, row);
 }
-
 function getSectionRowValues(row) {
   const inputs = row.querySelectorAll("input, select");
   const name = (inputs[0]?.value || "").trim();
@@ -518,14 +438,8 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   row.draggable = true;
   row.style.cursor = "grab";
-  row.addEventListener("dragstart", () => {
-    row.classList.add("dragging");
-    row.style.opacity = "0.6";
-  });
-  row.addEventListener("dragend", () => {
-    row.classList.remove("dragging");
-    row.style.opacity = "";
-  });
+  row.addEventListener("dragstart", () => { row.classList.add("dragging"); row.style.opacity = "0.6"; });
+  row.addEventListener("dragend", () => { row.classList.remove("dragging"); row.style.opacity = ""; });
 
   const inName = document.createElement("input");
   inName.className = "input";
@@ -535,10 +449,7 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   const selFormat = document.createElement("select");
   selFormat.className = "input";
-  selFormat.innerHTML = `
-    <option value="num">Numérico</option>
-    <option value="alfa">Alfanumérico</option>
-  `;
+  selFormat.innerHTML = `<option value="num">Numérico</option><option value="alfa">Alfanumérico</option>`;
   selFormat.value = (format === "alfa") ? "alfa" : "num";
 
   const inPrefix = document.createElement("input");
@@ -566,26 +477,21 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   const actions = document.createElement("div");
   actions.className = "actions";
+  actions.style.gap = "6px";
 
   const upBtn = document.createElement("button");
   upBtn.type = "button";
   upBtn.className = "icon-lite";
   upBtn.title = "Subir sección";
   upBtn.textContent = "↑";
-  upBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    moveRow(container, row, -1);
-  });
+  upBtn.addEventListener("click", (e) => { e.stopPropagation(); moveRow(container, row, -1); });
 
   const downBtn = document.createElement("button");
   downBtn.type = "button";
   downBtn.className = "icon-lite";
   downBtn.title = "Bajar sección";
   downBtn.textContent = "↓";
-  downBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    moveRow(container, row, +1);
-  });
+  downBtn.addEventListener("click", (e) => { e.stopPropagation(); moveRow(container, row, +1); });
 
   const starBtn = document.createElement("button");
   starBtn.type = "button";
@@ -628,9 +534,7 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
     const secName = (inName.value || "Sección").trim();
     const isAlfa = selFormat.value === "alfa";
     const pref = isAlfa ? normalizePrefix(inPrefix.value) : "";
-    const hint = isAlfa
-      ? `Sección "${secName}" (Alfa) · Prefijo: ${pref || "(sin prefijo)"}`
-      : `Sección "${secName}" (Numérica)`;
+    const hint = isAlfa ? `Sección "${secName}" (Alfa) · Prefijo: ${pref || "(sin prefijo)"}` : `Sección "${secName}" (Numérica)`;
 
     let current = [];
     try { current = JSON.parse(row.dataset.specials || "[]"); } catch { current = []; }
@@ -642,21 +546,15 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   dupBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-
     const v = getSectionRowValues(row);
     const copy = { ...v, name: v.name ? `${v.name} (copia)` : "Sección (copia)" };
-
     const newRow = addSectionRow(container, copy);
     container.insertBefore(newRow, row.nextSibling);
-
     enableDnD(container);
     window.scrollTo({ top: window.scrollY + 80, behavior: "smooth" });
   });
 
-  del.addEventListener("click", (e) => {
-    e.stopPropagation();
-    row.remove();
-  });
+  del.addEventListener("click", (e) => { e.stopPropagation(); row.remove(); });
 
   row.appendChild(inName);
   row.appendChild(selFormat);
@@ -667,13 +565,14 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   container.appendChild(row);
   syncRow();
-
   return row;
 }
 
+/* -----------------------------
+   Drag & Drop opcional
+----------------------------- */
 function getDragAfterElement(container, y) {
   const draggableElements = [...container.querySelectorAll("[data-section-row]:not(.dragging)")];
-
   return draggableElements.reduce((closest, child) => {
     const box = child.getBoundingClientRect();
     const offset = y - (box.top + box.height / 2);
@@ -681,7 +580,6 @@ function getDragAfterElement(container, y) {
     return closest;
   }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
 }
-
 function enableDnD(container) {
   if (!container) return;
   if (container.dataset.dndEnabled === "1") return;
@@ -691,7 +589,6 @@ function enableDnD(container) {
     e.preventDefault();
     const dragging = container.querySelector(".dragging");
     if (!dragging) return;
-
     const afterElement = getDragAfterElement(container, e.clientY);
     if (afterElement == null) container.appendChild(dragging);
     else container.insertBefore(dragging, afterElement);
@@ -707,6 +604,9 @@ function enableDnD(container) {
   });
 }
 
+/* -----------------------------
+   Leer secciones desde UI
+----------------------------- */
 function readSections(container) {
   const rows = Array.from(container.querySelectorAll("[data-section-row]"));
   const out = [];
@@ -728,9 +628,7 @@ function readSections(container) {
     if (format === "alfa" && !prefix) return { ok:false, error:`La sección "${name}" es alfanumérica pero no tiene prefijo.` };
 
     out.push({
-      name,
-      format,
-      prefix,
+      name, format, prefix,
       count: clamp(count, 1, 5000),
       ownNumbering: (format === "alfa") ? true : !!ownNumbering,
       specials
@@ -742,7 +640,7 @@ function readSections(container) {
 }
 
 /* -----------------------------
-   Create - botones
+   Botón agregar sección (create)
 ----------------------------- */
 els.btnAddSection?.addEventListener("click", () => {
   addSectionRow(els.sectionsEditor, {
@@ -757,7 +655,7 @@ els.btnAddSection?.addEventListener("click", () => {
 });
 
 /* -----------------------------
-   Crear colección (NUEVA ARRIBA)
+   Crear colección
 ----------------------------- */
 function createCollection() {
   const name = (els.newName.value || "").trim();
@@ -797,6 +695,7 @@ function createCollection() {
       });
     }
 
+    // ✅ nueva arriba
     state.data.collections.unshift({
       id: uid("col"),
       name,
@@ -808,7 +707,9 @@ function createCollection() {
     });
 
     save();
-    goHome();
+    renderCollectionsSelects();
+    setView("manage");
+    alert("Colección creada ✅");
     return;
   }
 
@@ -872,6 +773,7 @@ function createCollection() {
     }
   }
 
+  // ✅ nueva arriba
   state.data.collections.unshift({
     id: uid("col"),
     name,
@@ -883,7 +785,9 @@ function createCollection() {
   });
 
   save();
-  goHome();
+  renderCollectionsSelects();
+  setView("manage");
+  alert("Colección creada ✅");
 }
 
 /* -----------------------------
@@ -891,7 +795,7 @@ function createCollection() {
 ----------------------------- */
 function renderDetail() {
   const col = getCurrent();
-  if (!col) return goHome();
+  if (!col) return goDash();
 
   els.detailTitle.textContent = col.name;
   els.topbarTitle.textContent = col.name;
@@ -986,7 +890,6 @@ function buildItemCell(it) {
   wrap.appendChild(code);
   wrap.appendChild(rep);
   wrap.appendChild(actions);
-
   return wrap;
 }
 
@@ -1001,11 +904,11 @@ function resetCollection() {
 }
 
 /* -----------------------------
-   Edit
+   Edit (igual a tu v2.3)
 ----------------------------- */
 function renderEdit() {
   const col = getCurrent();
-  if (!col) return goHome();
+  if (!col) return goDash();
 
   els.editTitle.textContent = `Editar: ${col.name}`;
   els.editName.value = col.name;
@@ -1045,7 +948,7 @@ els.editAddSection?.addEventListener("click", () => {
 
 function applyEdit() {
   const col = getCurrent();
-  if (!col) return goHome();
+  if (!col) return goDash();
 
   const newName = (els.editName.value || "").trim();
   if (!newName) return alert("Nombre inválido.");
@@ -1053,10 +956,8 @@ function applyEdit() {
 
   if (col.structure !== "sections") {
     save();
-    renderHome();
-    goDetail(col.id);
     alert("Cambios guardados ✅");
-    return;
+    return goDetail(col.id);
   }
 
   const read = readSections(els.editSectionsEditor);
@@ -1135,49 +1036,36 @@ function applyEdit() {
   col.items = newItems;
 
   save();
-  renderHome();
-  goDetail(col.id);
   alert("Cambios guardados ✅");
+  goDetail(col.id);
 }
 
 /* -----------------------------
    Backup
 ----------------------------- */
 function exportBackup() {
-  const payload = {
-    backupVersion: BACKUP_VERSION,
-    exportedAt: Date.now(),
-    app: "ColeccionLuciano",
-    data: state.data
-  };
-
+  const payload = { backupVersion: BACKUP_VERSION, exportedAt: Date.now(), app: "ColeccionLucho", data: state.data };
   const json = JSON.stringify(payload, null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = `backup-coleccion-luciano-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `backup-colecciones-lucho-${new Date().toISOString().slice(0,10)}.json`;
   a.click();
-
   URL.revokeObjectURL(url);
 
   state.meta.lastExportAt = Date.now();
   state.meta.lastExportSize = blob.size;
   save();
-
   renderSettings();
   alert("Backup exportado ✅");
 }
 
 function normalizeImportedPayload(obj) {
   if (!obj || typeof obj !== "object") return null;
-  if (obj.data && obj.data.collections) {
-    return { collections: Array.isArray(obj.data.collections) ? obj.data.collections : [] };
-  }
-  if (obj.collections) {
-    return { collections: Array.isArray(obj.collections) ? obj.collections : [] };
-  }
+  if (obj.data && obj.data.collections) return { collections: Array.isArray(obj.data.collections) ? obj.data.collections : [] };
+  if (obj.collections) return { collections: Array.isArray(obj.collections) ? obj.collections : [] };
   return null;
 }
 
@@ -1212,9 +1100,7 @@ function handleImportFile(file) {
             if (!Array.isArray(s.specials)) s.specials = [];
           }
         } else {
-          if (!c.sections.length) {
-            c.sections = [{ id: uid("sec"), name:"General", format:"num", prefix:"", ownNumbering:false, specials:[] }];
-          }
+          if (!c.sections.length) c.sections = [{ id: uid("sec"), name:"General", format:"num", prefix:"", ownNumbering:false, specials:[] }];
           if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
         }
 
@@ -1228,6 +1114,7 @@ function handleImportFile(file) {
       state.meta.lastImportMode = "replace";
       save();
 
+      renderCollectionsSelects();
       goDash();
       alert("Backup importado ✅ (Reemplazar)");
     } catch {
@@ -1238,14 +1125,8 @@ function handleImportFile(file) {
 }
 
 function renderSettings() {
-  if (els.exportMeta) {
-    els.exportMeta.textContent =
-      `Último: ${formatDateTime(state.meta.lastExportAt)} · Tamaño: ${formatBytes(state.meta.lastExportSize)}`;
-  }
-  if (els.importMeta) {
-    els.importMeta.textContent =
-      `Último: ${formatDateTime(state.meta.lastImportAt)} · Modo: Reemplazar`;
-  }
+  if (els.exportMeta) els.exportMeta.textContent = `Último: ${formatDateTime(state.meta.lastExportAt)} · Tamaño: ${formatBytes(state.meta.lastExportSize)}`;
+  if (els.importMeta) els.importMeta.textContent = `Último: ${formatDateTime(state.meta.lastImportAt)} · Modo: Reemplazar`;
   if (els.storageMeta) {
     const raw = localStorage.getItem(LS_KEY) || "";
     els.storageMeta.textContent = `Datos actuales en el dispositivo: ${formatBytes(raw.length)}`;
@@ -1253,67 +1134,66 @@ function renderSettings() {
 }
 
 /* -----------------------------
-   Global Stats
------------------------------ */
-function renderGlobalStats() {
-  const cols = state.data.collections || [];
-  let total = 0, have = 0;
-
-  for (const c of cols) {
-    total += (c.items?.length || 0);
-    for (const it of (c.items || [])) if (it.have) have++;
-  }
-  const missing = total - have;
-
-  if (els.gCols) els.gCols.textContent = String(cols.length);
-  if (els.gTotal) els.gTotal.textContent = String(total);
-  if (els.gHave) els.gHave.textContent = String(have);
-  if (els.gMissing) els.gMissing.textContent = String(missing);
-
-  if (els.gNote) {
-    els.gNote.textContent = cols.length
-      ? "Tip: cuanto más cargues, más útil se vuelve este resumen."
-      : "Todavía no hay colecciones para medir.";
-  }
-}
-
-/* -----------------------------
-   Eventos
+   Eventos (delegados)
 ----------------------------- */
 document.addEventListener("click", (e) => {
   const btn = e.target?.closest?.("[data-action]");
   if (!btn) return;
-
   const action = btn.getAttribute("data-action");
 
-  // Dashboard
-  if (action === "dash-go-home") return goHome();
-  if (action === "dash-go-create") return goCreate();
-  if (action === "dash-go-stats") return goStats();
-  if (action === "dash-go-settings") return goSettings();
-
-  // General
   if (action === "go-dash") return goDash();
-  if (action === "go-home") return goHome();
-  if (action === "go-create") return goCreate();
+  if (action === "go-collections") return goCollections();
+  if (action === "go-manage") return goManage();
   if (action === "go-settings") return goSettings();
+  if (action === "go-stats") return goStats();
 
-  // Create
-  if (action === "create-cancel") return goDash();
+  if (action === "go-create") return goCreate();
+  if (action === "create-cancel") return goManage();
   if (action === "create-save") return createCollection();
 
-  // Detail/Edit
-  if (action === "open-edit") return goEdit();
-  if (action === "edit-cancel") return goDetail(state.currentId);
+  if (action === "open-selected-collection") {
+    const id = els.collectionsSelect?.value || "";
+    if (!id) return alert("No hay colecciones.");
+    state.currentId = id;
+    return goDetail(id);
+  }
+
+  if (action === "go-edit-picker") return goEditPicker();
+
+  if (action === "open-edit-selected") {
+    const id = els.editSelect?.value || "";
+    if (!id) return alert("No hay colecciones.");
+    state.currentId = id;
+    return goEdit();
+  }
+
+  if (action === "edit-cancel") return goManage();
   if (action === "edit-save") return applyEdit();
 
   if (action === "reset-collection") return resetCollection();
 
-  // Backup
   if (action === "export-backup") return exportBackup();
 });
 
-els.backBtn?.addEventListener("click", () => goBack());
+els.collectionsSelect?.addEventListener("change", () => {
+  state.currentId = els.collectionsSelect.value || null;
+});
+els.editSelect?.addEventListener("change", () => {
+  state.currentId = els.editSelect.value || null;
+});
+
+els.backBtn?.addEventListener("click", () => {
+  // back inteligente
+  if (state.view === "detail") return goCollections();
+  if (state.view === "collections") return goDash();
+  if (state.view === "manage") return goDash();
+  if (state.view === "create") return goManage();
+  if (state.view === "editPicker") return goManage();
+  if (state.view === "edit") return goManage();
+  if (state.view === "settings") return goDash();
+  if (state.view === "stats") return goDash();
+  return goDash();
+});
 
 els.importInput?.addEventListener("change", (e) => {
   const file = e.target.files?.[0];
@@ -1327,12 +1207,12 @@ els.importInput?.addEventListener("change", (e) => {
 ----------------------------- */
 function init() {
   load();
-  renderHome();
   renderSettings();
-  renderGlobalStats();
+  renderCollectionsSelects();
+  setView("dash");
   resetCreateForm();
   ensureBulkBuilderUI();
-  setView("dash"); // ✅ ahora arranca en Dashboard
 }
 
 document.addEventListener("DOMContentLoaded", init);
+// 🔒 Punto seguro
