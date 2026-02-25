@@ -1036,18 +1036,14 @@ document.addEventListener("DOMContentLoaded", init);
 })();
 /* =============================
    FIX Import iOS: usar file.text() + errores visibles
-   (no reemplaza nada: agrega un listener nuevo)
+   v2: NO depende de goHome()
 ============================= */
 (() => {
   const input = document.getElementById("importInput");
   if (!input) return;
 
   async function readFileAsText(file) {
-    // iOS moderno: file.text() es lo más confiable
-    if (file && typeof file.text === "function") {
-      return await file.text();
-    }
-    // Fallback FileReader
+    if (file && typeof file.text === "function") return await file.text();
     return await new Promise((resolve, reject) => {
       const r = new FileReader();
       r.onerror = () => reject(new Error("No se pudo leer el archivo (FileReader error)."));
@@ -1057,8 +1053,7 @@ document.addEventListener("DOMContentLoaded", init);
     });
   }
 
-  function migrateLoadedCollections() {
-    // misma “migración suave” que ya usás en load/import
+  function normalizeCollectionsAfterImport() {
     for (const c of state.data.collections) {
       if (!c.items) c.items = [];
       if (!c.sections) c.sections = [];
@@ -1086,7 +1081,29 @@ document.addEventListener("DOMContentLoaded", init);
     }
   }
 
-  // Listener NUEVO (captura) para que funcione aunque el otro falle
+  function safeRefreshAfterImport() {
+    // 1) Si existe goHome, perfecto
+    if (typeof window.goHome === "function") {
+      window.goHome();
+      return;
+    }
+    // 2) Si existe renderHome + setView (tu app los usa)
+    if (typeof window.renderHome === "function") {
+      try { window.renderHome(); } catch {}
+    }
+    if (typeof window.renderSettings === "function") {
+      try { window.renderSettings(); } catch {}
+    }
+    if (typeof window.setView === "function") {
+      // tu index actual tiene dashboard como "dash"
+      try { window.setView("dash"); return; } catch {}
+      try { window.setView("collections"); return; } catch {}
+      try { window.setView("home"); return; } catch {}
+    }
+    // 3) Último recurso: recargar
+    location.reload();
+  }
+
   input.addEventListener("change", async (e) => {
     try {
       const file = e.target?.files?.[0];
@@ -1097,13 +1114,13 @@ document.addEventListener("DOMContentLoaded", init);
       let raw;
       try {
         raw = JSON.parse(text);
-      } catch (err) {
-        alert("❌ El archivo no es JSON válido.\n\nTip: asegurate de elegir un .json exportado por la app.");
+      } catch {
+        alert("❌ El archivo no es JSON válido.");
         return;
       }
 
-      const normalized = (typeof normalizeImportedPayload === "function")
-        ? normalizeImportedPayload(raw)
+      const normalized = (typeof window.normalizeImportedPayload === "function")
+        ? window.normalizeImportedPayload(raw)
         : (raw?.data?.collections ? { collections: raw.data.collections } : raw?.collections ? { collections: raw.collections } : null);
 
       if (!normalized) {
@@ -1119,20 +1136,17 @@ document.addEventListener("DOMContentLoaded", init);
       if (!ok) return;
 
       state.data.collections = Array.isArray(normalized.collections) ? normalized.collections : [];
-      migrateLoadedCollections();
+      normalizeCollectionsAfterImport();
 
-      // meta
       state.meta.lastImportAt = Date.now();
       state.meta.lastImportMode = "replace";
 
-      // guardar + refrescar UI
       save();
-      goHome();
+      safeRefreshAfterImport();
       alert("✅ Backup importado correctamente.");
     } catch (err) {
       alert("❌ Error al importar el backup.\n\n" + (err?.message || String(err)));
     } finally {
-      // importantísimo en iOS: si elegís el mismo archivo otra vez, si no lo reseteás no dispara change
       try { input.value = ""; } catch {}
     }
   }, true);
