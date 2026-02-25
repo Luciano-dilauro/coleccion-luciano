@@ -1374,3 +1374,118 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+/* =============================
+   EXPORT: Faltantes / Repetidas (por sección)
+   - Botón "Exportar" en detalle
+   - Formato:
+     NombreColección
+     Faltantes (N) / Repetidas (N)
+     Sección: lista
+   - Copia al portapapeles + fallback prompt
+============================= */
+
+(function () {
+  function getCurrentCollectionSafe() {
+    try {
+      return (typeof getCurrent === "function") ? getCurrent() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function groupBySection(col) {
+    const map = new Map();
+    for (const sec of col.sections || []) map.set(sec.id, []);
+    for (const it of col.items || []) {
+      if (!map.has(it.sectionId)) map.set(it.sectionId, []);
+      map.get(it.sectionId).push(it);
+    }
+    return map;
+  }
+
+  function sortSmart(arr) {
+    // Mantiene orden natural: RIA2 antes que RIA10
+    const nat = (a, b) => String(a).localeCompare(String(b), "es", { numeric: true, sensitivity: "base" });
+    return arr.slice().sort(nat);
+  }
+
+  function buildExportText(col, mode) {
+    // mode: "miss" | "rep"
+    const title = col.name || "Colección";
+    const bySec = groupBySection(col);
+
+    let totalCount = 0;
+    const lines = [];
+
+    for (const sec of (col.sections || [])) {
+      const items = bySec.get(sec.id) || [];
+
+      if (mode === "miss") {
+        const missing = items.filter(it => !it.have).map(it => it.label);
+        if (!missing.length) continue;
+        totalCount += missing.length;
+        lines.push(`${sec.name}: ${sortSmart(missing).join(", ")}`);
+      }
+
+      if (mode === "rep") {
+        // repetidas: mostrar SOLO el código repetido (una vez), aunque tenga rep=5
+        const reps = items.filter(it => (it.rep || 0) > 0).map(it => it.label);
+        if (!reps.length) continue;
+        totalCount += reps.length;
+        lines.push(`${sec.name}: ${sortSmart(reps).join(", ")}`);
+      }
+    }
+
+    const headerMode = (mode === "miss") ? "Faltantes" : "Repetidas";
+    const header = `${title}\n${headerMode} (${totalCount})\n`;
+
+    if (!lines.length) {
+      return `${header}\n(ninguna)\n`;
+    }
+
+    return `${header}\n${lines.join("\n")}\n`;
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {}
+    return false;
+  }
+
+  async function exportFlow() {
+    const col = getCurrentCollectionSafe();
+    if (!col) return alert("No hay colección abierta.");
+
+    // selector simple (sin UI extra)
+    const choice = prompt(
+      "Exportar lista:\n\n1 = Faltantes\n2 = Repetidas\n\nEscribí 1 o 2:",
+      "1"
+    );
+    if (choice === null) return;
+
+    const mode = (String(choice).trim() === "2") ? "rep" : "miss";
+    const text = buildExportText(col, mode);
+
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      alert("✅ Copiado al portapapeles.\n\nPegalo donde quieras (WhatsApp, Notas, etc.).");
+      return;
+    }
+
+    // fallback iOS raro / permisos
+    prompt("Copiá el texto:", text);
+  }
+
+  // Hook al sistema de actions existente
+  document.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.("[data-action='export-list']");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    exportFlow();
+  });
+})();
