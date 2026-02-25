@@ -1828,3 +1828,175 @@ document.addEventListener("DOMContentLoaded", init);
 
   obs.observe(document.body, { childList: true, subtree: true });
 })();
+/* =========================
+   PATCH v1.0 – Badge Rep + filtro Repetidas estable
+   Pegar al FINAL de app.js
+========================= */
+
+(function () {
+  // --- Helpers: encontrar "celdas" de figuritas de forma tolerante ---
+  const CELL_SELECTORS = [
+    ".sticker", ".fig", ".tile", ".slot", ".card-sticker",
+    ".sticker-cell", ".fig-cell", ".tile-cell",
+    "[data-sticker]", "[data-fig]", "[data-code]"
+  ];
+
+  function getCells() {
+    const root = document.getElementById("sectionsDetail") || document;
+    const set = new Set();
+    CELL_SELECTORS.forEach(sel => root.querySelectorAll(sel).forEach(n => set.add(n)));
+    // Filtramos cosas que claramente no son celdas (por si matchea de más)
+    return [...set].filter(el => el && el.nodeType === 1 && el.offsetParent !== null);
+  }
+
+  function readRepCount(cell) {
+    // 1) Badge nuevo
+    const b = cell.querySelector(".rep-badge, .repBadge");
+    if (b) {
+      const n = parseInt((b.textContent || "").trim(), 10);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    // 2) Si quedó “Rep: X” en algún lado
+    const txt = (cell.textContent || "");
+    const m = txt.match(/Rep:\s*(\d+)/i);
+    if (m) return parseInt(m[1], 10) || 0;
+
+    // 3) Dataset
+    const d = cell.getAttribute("data-rep");
+    if (d != null) return parseInt(d, 10) || 0;
+
+    return 0;
+  }
+
+  function isHave(cell) {
+    // Intentamos detectar “tengo” con varias pistas típicas
+    if (cell.getAttribute("data-have") === "1") return true;
+    if (cell.getAttribute("aria-pressed") === "true") return true;
+
+    const cls = cell.classList;
+    return (
+      cls.contains("is-have") ||
+      cls.contains("have") ||
+      cls.contains("owned") ||
+      cls.contains("done") ||
+      cls.contains("is-done") ||
+      cls.contains("is-checked") ||
+      cls.contains("checked")
+    );
+  }
+
+  function isMissing(cell) {
+    return !isHave(cell);
+  }
+
+  // --- Badge: evita duplicados y lo crea solo si rep > 0 ---
+  function normalizeBadges() {
+    const cells = getCells();
+    cells.forEach(cell => {
+      const rep = readRepCount(cell);
+
+      // eliminar duplicados: si hay 2 badges, dejamos el primero
+      const badges = cell.querySelectorAll(".rep-badge, .repBadge");
+      if (badges.length > 1) {
+        for (let i = 1; i < badges.length; i++) badges[i].remove();
+      }
+
+      // si rep <= 0: borrar badge si existe
+      if (!rep || rep <= 0) {
+        const ex = cell.querySelector(".rep-badge, .repBadge");
+        if (ex) ex.remove();
+        return;
+      }
+
+      // crear badge si no existe
+      let badge = cell.querySelector(".rep-badge, .repBadge");
+      if (!badge) {
+        badge = document.createElement("div");
+        badge.className = "rep-badge";
+        // Asegura posicionamiento
+        if (getComputedStyle(cell).position === "static") {
+          cell.style.position = "relative";
+        }
+        cell.appendChild(badge);
+      }
+
+      // texto
+      badge.textContent = String(rep);
+    });
+  }
+
+  // --- Filtros: Todas / Faltan / Repetidas ---
+  let currentFilter = "all";
+
+  function setActiveFilterUI(mode) {
+    // soporta ids viejos/nuevos
+    const btnAll = document.getElementById("fAll");
+    const btnMiss = document.getElementById("fMiss");
+    const btnHave = document.getElementById("fHave"); // a veces existe
+    const btnRep =
+      document.getElementById("fRep") ||
+      document.getElementById("fReps") ||
+      document.getElementById("fRepeat") ||
+      document.querySelector('[data-action="filter-rep"]') ||
+      document.querySelector('[data-action="filter-reps"]');
+
+    [btnAll, btnMiss, btnHave, btnRep].forEach(b => {
+      if (b) b.classList.remove("is-active");
+    });
+
+    if (mode === "all" && btnAll) btnAll.classList.add("is-active");
+    if (mode === "miss" && btnMiss) btnMiss.classList.add("is-active");
+    if (mode === "rep" && btnRep) btnRep.classList.add("is-active");
+    // si existe “Tengo” pero no lo usamos, lo dejamos apagado siempre
+  }
+
+  function applyFilter(mode) {
+    currentFilter = mode || "all";
+    setActiveFilterUI(currentFilter);
+
+    const cells = getCells();
+    cells.forEach(cell => {
+      let show = true;
+      if (currentFilter === "miss") show = isMissing(cell);
+      if (currentFilter === "rep") show = readRepCount(cell) > 0;
+
+      cell.style.display = show ? "" : "none";
+    });
+  }
+
+  // --- Click handlers (delegación) ---
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+
+    const a = btn.getAttribute("data-action");
+    if (a === "filter-all") applyFilter("all");
+    if (a === "filter-miss") applyFilter("miss");
+
+    // soportamos ambos nombres por si quedó uno u otro
+    if (a === "filter-rep" || a === "filter-reps" || a === "filter-repeat") {
+      applyFilter("rep");
+    }
+  }, true);
+
+  // --- Reaplicar cuando se re-renderiza el detalle ---
+  function patchNow() {
+    normalizeBadges();
+    applyFilter(currentFilter);
+  }
+
+  // Observa cambios en el detalle para “pegarse” a cualquier render del app
+  const detail = document.getElementById("sectionsDetail");
+  if (detail) {
+    const mo = new MutationObserver(() => {
+      // pequeño debounce
+      clearTimeout(window.__repPatchT);
+      window.__repPatchT = setTimeout(patchNow, 30);
+    });
+    mo.observe(detail, { childList: true, subtree: true });
+  }
+
+  // Primera corrida
+  setTimeout(patchNow, 50);
+})();
