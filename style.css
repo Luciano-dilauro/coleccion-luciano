@@ -447,3 +447,30 @@ label{ font-weight: 900; }
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
+/* =========================
+   Animación premium al marcar "Tengo"
+========================= */
+
+.item {
+  transition: 
+    transform 0.18s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+}
+
+/* efecto cuando pasa a have */
+.item.have {
+  transform: scale(1.04);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+}
+
+/* micro rebote elegante */
+.item.have {
+  animation: popIn 0.25s ease;
+}
+
+@keyframes popIn {
+  0%   { transform: scale(0.95); }
+  60%  { transform: scale(1.06); }
+  100% { transform: scale(1.04); }
+}
