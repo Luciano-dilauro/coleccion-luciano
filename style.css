@@ -1,4 +1,4 @@
-/* =========================
+=========================
    BASE / RESET
 ========================= */
 *{ box-sizing:border-box; }
@@ -14,7 +14,7 @@ body{
 }
 
 /* =========================
-   TOPBAR FIJO (BLUR + OPACO)
+   TOPBAR FIJO (NO DESAPARECE)
 ========================= */
 .topbar{
   position: fixed;
@@ -24,12 +24,8 @@ body{
   height: var(--topbar-h);
   z-index: 9999;
 
-  /* 🔥 Fondo sólido para que NO se vea detrás */
-  background: var(--bg-main);
-
-  /* Blur visual elegante */
+  background: rgba(244,245,247,.92);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 
   display:flex;
   align-items:center;
@@ -62,6 +58,7 @@ body{
 
 /* =========================
    APP WRAP
+   (padding-top para dejar espacio al topbar fijo)
 ========================= */
 .app{
   padding: calc(var(--topbar-h) + 12px) var(--pad) 28px;
@@ -108,24 +105,6 @@ body{
   height:1px;
   background: var(--stroke);
   margin: 14px 0;
-}
-
-/* =========================
-   DETAIL HEADER STICKY
-========================= */
-.detail-header{
-  position: sticky;
-  top: calc(var(--topbar-h) + 12px);
-  z-index: 50;
-
-  /* Fondo sólido */
-  background: var(--bg-panel);
-
-  /* Blur leve elegante */
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-
-  box-shadow: 0 14px 30px rgba(0,0,0,.10);
 }
 
 /* =========================
@@ -179,7 +158,7 @@ body{
 label{ font-weight: 900; }
 
 /* =========================
-   CARD BUTTONS
+   CARD BUTTONS (tarjetas)
 ========================= */
 .card-btn{
   width:100%;
@@ -240,7 +219,7 @@ label{ font-weight: 900; }
 .stat b{ display:block; font-size: 18px; font-weight: 950; margin-top:4px; }
 
 /* =========================
-   ITEMS
+   DETAIL SECTIONS / ITEMS
 ========================= */
 .section-card{
   background: var(--bg-panel);
@@ -307,27 +286,70 @@ label{ font-weight: 900; }
 }
 
 /* =========================
+   SECTIONS EDITOR ROW
+========================= */
+.section-row{
+  display:grid;
+  grid-template-columns: 1.2fr .9fr .8fr .7fr 1.1fr auto;
+  gap: 8px;
+  align-items:center;
+
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  padding: 10px;
+  background: rgba(0,0,0,.02);
+}
+.section-row .actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+}
+
+.icon-lite{
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: var(--bg-panel);
+  font-weight: 950;
+  cursor:pointer;
+}
+.icon-danger{
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: #ff3b30;
+  color:#fff;
+  font-weight: 950;
+  cursor:pointer;
+}
+
+.inline-check{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-weight: 900;
+}
+
+.seg{
+  display:flex;
+  gap: 10px;
+}
+.seg-opt{
+  flex:1;
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,.02);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap: 10px;
+  font-weight: 950;
+}
+
+/* =========================
    HELPERS
 ========================= */
 .hidden{ display:none !important; }
-/* =========================
-   FIX: eliminar hueco entre topbar fijo y header sticky
-========================= */
-
-/* 1) Quitamos el +12px de padding superior del contenido */
-.app{
-  padding-top: var(--topbar-h);
-  background: var(--bg-main); /* asegura que no se vea “detrás” */
-}
-
-/* 2) Hacemos que el header sticky se pegue justo debajo del topbar */
-.detail-header{
-  top: var(--topbar-h);
-  margin-top: 0;
-}
-
-/* 3) (Extra blindaje) Si algún hijo del sticky tiene transparencias */
-.detail-header,
-.detail-header *{
-  background-clip: padding-box;
-}
