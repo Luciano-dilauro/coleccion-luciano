@@ -936,3 +936,101 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+/* =============================
+   FIX iOS Incógnito: localStorage puede fallar
+   - Evita que import/export "no haga nada"
+   - Si storage está bloqueado, igual permite usar la app en memoria
+============================= */
+
+(() => {
+  let warned = false;
+
+  function canUseStorage() {
+    try {
+      const k = "__test__" + Date.now();
+      localStorage.setItem(k, "1");
+      localStorage.removeItem(k);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function warnIfNeeded() {
+    if (warned) return;
+    warned = true;
+    alert(
+      "⚠️ Estás en modo incógnito o el navegador bloquea el almacenamiento.\n\n" +
+      "El backup se puede cargar, pero NO quedará guardado si cerrás la pestaña.\n" +
+      "Para que se guarde, abrí la app en modo normal."
+    );
+  }
+
+  // Re-definimos load/save de forma segura (sin tirar error)
+  const _storageOK = canUseStorage();
+
+  window.__storageOK = _storageOK;
+
+  // Sobrescribe load()
+  window.load = function load() {
+    // Data
+    try {
+      const raw = _storageOK ? localStorage.getItem(LS_KEY) : null;
+      state.data = raw ? JSON.parse(raw) : { collections: [] };
+      if (!state.data.collections) state.data.collections = [];
+    } catch {
+      state.data = { collections: [] };
+      if (!_storageOK) warnIfNeeded();
+    }
+
+    // Meta
+    try {
+      const mraw = _storageOK ? localStorage.getItem(META_KEY) : null;
+      const m = JSON.parse(mraw || "{}");
+      state.meta = { ...state.meta, ...m };
+    } catch {
+      if (!_storageOK) warnIfNeeded();
+    }
+
+    // migración suave (igual que antes)
+    for (const c of state.data.collections) {
+      if (!c.sections) c.sections = [];
+      if (!c.items) c.items = [];
+      if (!c.structure) c.structure = "simple";
+      if (!c.numberMode) c.numberMode = "global";
+
+      if (c.structure === "sections") {
+        for (const s of c.sections) {
+          if (!s.format) s.format = "num";
+          if (typeof s.prefix !== "string") s.prefix = "";
+          if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+          if (!Array.isArray(s.specials)) s.specials = [];
+        }
+      } else {
+        if (!c.sections.length) {
+          c.sections = [{ id: c.sections?.[0]?.id || uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false, specials: [] }];
+        }
+        if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
+      }
+
+      for (const it of c.items) {
+        if (typeof it.special !== "boolean") it.special = false;
+        if (!it.key) it.key = `${it.sectionId}|${it.label}`;
+      }
+    }
+  };
+
+  // Sobrescribe save()
+  window.save = function save() {
+    if (!_storageOK) {
+      warnIfNeeded();
+      return; // seguimos en memoria sin romper
+    }
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(state.data));
+      localStorage.setItem(META_KEY, JSON.stringify(state.meta));
+    } catch {
+      warnIfNeeded();
+    }
+  };
+})();
