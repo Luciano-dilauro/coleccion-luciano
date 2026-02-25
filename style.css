@@ -353,3 +353,7 @@ label{ font-weight: 900; }
    HELPERS
 ========================= */
 .hidden{ display:none !important; }
+/* 🔹 Compensación del topbar fijo */
+.topbar-offset {
+  height: 72px;
+}
