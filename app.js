@@ -2176,3 +2176,23 @@ document.addEventListener("DOMContentLoaded", init);
     b.style.outline = "3px solid #ff3b30";
   });
 })();
+/* === DIAG REAL – detectar clases de las cajas === */
+setTimeout(() => {
+  const possible = document.querySelectorAll("div");
+  const matches = [];
+
+  possible.forEach(el => {
+    const t = (el.innerText || "").trim();
+    if (/^RIA\d+/.test(t)) {
+      matches.push({
+        className: el.className,
+        tag: el.tagName
+      });
+      el.style.outline = "3px solid red";
+    }
+  });
+
+  alert("Candidatos encontrados: " + matches.length + 
+        "\nPrimera clase detectada:\n" + 
+        (matches[0] ? matches[0].className : "NINGUNA"));
+}, 800);
