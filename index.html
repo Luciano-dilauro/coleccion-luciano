@@ -254,7 +254,24 @@
     </section>
 
   </main>
-
-  <script src="app.js?v=25"></script>
+<script>
+  (function () {
+    const _alert = window.alert;
+    window.alert = function (msg) {
+      const s = String(msg || "");
+      // Silenciar SOLO alerts de diagnóstico (DIAG)
+      if (
+        s.includes("Candidatos encontrados") ||
+        s.includes("Primera clase detectada") ||
+        s.includes("DIAG:")
+      ) {
+        console.log("DIAG silenciado:", s);
+        return;
+      }
+      return _alert.call(window, msg);
+    };
+  })();
+</script>
+  <script src="app.js?v=1000"></script>
 </body>
 </html>
