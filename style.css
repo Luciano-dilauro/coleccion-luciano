@@ -460,3 +460,65 @@ label{font-weight:800}
     transform: translateY(0) scale(1);
   }
 }
+/* =============================
+   FORCE MODAL CENTRADO (universal override)
+   Pegar al FINAL de style.css
+============================= */
+
+/* Overlays típicos */
+.modal-overlay,
+.overlay,
+.backdrop,
+.sheet-overlay,
+.dialog-overlay,
+[class*="overlay"],
+[class*="backdrop"]{
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(0,0,0,.35) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  z-index: 9999 !important;
+}
+
+/* Panel / tarjeta del modal (lo que hoy aparece abajo) */
+.modal-card,
+.sheet,
+.bottom-sheet,
+.dialog,
+.modal,
+.sheet-card,
+.dialog-card,
+[class*="sheet"],
+[class*="bottom"],
+[class*="modal"],
+[class*="dialog"]{
+  position: relative !important;
+
+  /* mata “pegado abajo” */
+  bottom: auto !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+
+  /* centrado real */
+  margin: 0 auto !important;
+
+  /* si tenía animación de slide-up */
+  transform: none !important;
+
+  /* tamaño pro */
+  width: min(92vw, 420px) !important;
+  max-width: 420px !important;
+}
+
+/* Si tu modal era “full width” abajo, esto lo suaviza */
+.modal-card,
+.sheet-card,
+.dialog-card{
+  border-radius: 26px !important;
+  box-shadow: 0 30px 60px rgba(0,0,0,.25) !important;
+}
