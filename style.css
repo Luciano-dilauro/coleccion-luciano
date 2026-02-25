@@ -643,3 +643,25 @@ main.app{
 .detail-header [data-action="open-edit"] {
   display: none !important;
 }
+/* =============================
+   FIX posición badge definitiva
+============================= */
+
+.repBadgeCorner{
+  position:absolute;
+  top: -6px;     /* un poco más abajo que antes */
+  right: -6px;   /* más hacia la izquierda */
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background:#e53935;
+  color:#fff;
+  font-weight:900;
+  font-size:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:30;
+  box-shadow:0 6px 14px rgba(0,0,0,.18);
+  pointer-events:none;
+}
