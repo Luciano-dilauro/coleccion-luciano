@@ -166,38 +166,48 @@
       </div>
     </section>
 
-    <!-- DETAIL -->
-    <section class="view" data-view="detail">
-      <div class="card detail-header">
-        <div class="row-between">
-          <h1 id="detailTitle" class="h1">Colección</h1>
-          <div class="row gap">
-            <!-- Editar oculto por CSS (y por diseño ya no se usa acá) -->
-            <button class="btn" type="button" data-action="open-edit">Editar</button>
-
-            <!-- ✅ NUEVO: Exportar -->
-            <button id="btnExport" class="btn primary" type="button" data-action="export-list">Exportar</button>
-
-            <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
-          </div>
-        </div>
-
-        <div class="stats">
-          <div class="stat"><span>Total</span><b id="stTotal">0</b></div>
-          <div class="stat"><span>Tengo</span><b id="stHave">0</b></div>
-          <div class="stat"><span>Faltan</span><b id="stMissing">0</b></div>
-          <div class="stat"><span>%</span><b id="stPct">0%</b></div>
-        </div>
-
-        <div class="seg seg-filters" style="margin-top:12px;">
-          <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
-          <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
-          <button id="fRep" class="seg-btn" type="button" data-action="filter-rep">Repetidas</button>
+   <!-- DETAIL -->
+<section class="view" data-view="detail">
+  <div class="card detail-header">
+    <div class="detail-head">
+      <!-- Tapa del álbum -->
+      <div class="cover" aria-hidden="true">
+        <div class="cover-inner">
+          <div class="cover-title" id="coverTitle">Álbum</div>
+          <div class="cover-sub" id="coverSub">Colección</div>
         </div>
       </div>
 
-      <div id="sectionsDetail" class="stack" style="margin-top:14px;"></div>
-    </section>
+      <!-- Panel derecho -->
+      <div class="detail-side">
+        <div class="row-between" style="margin-bottom:10px;">
+          <div class="detail-mini-title muted" id="detailMiniTitle">—</div>
+
+          <div class="row gap">
+            <button class="btn primary btn-sm" type="button" data-action="export-list">Exportar</button>
+            <button class="btn danger btn-sm" type="button" data-action="reset-collection">Reset</button>
+          </div>
+        </div>
+
+        <div class="stats-text">
+          <div class="st-line"><span>Total</span><b id="stTotal">0</b></div>
+          <div class="st-line"><span>Tengo</span><b id="stHave">0</b></div>
+          <div class="st-line"><span>Faltan</span><b id="stMissing">0</b></div>
+          <div class="st-line"><span>%</span><b id="stPct">0%</b></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="seg seg-filters" style="margin-top:12px;">
+      <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
+      <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
+      <button id="fHave" class="seg-btn" type="button" data-action="filter-rep">Repetidas</button>
+    </div>
+  </div>
+
+  <div id="sectionsDetail" class="stack" style="margin-top:14px;"></div>
+</section>
 
     <!-- EDIT -->
     <section class="view" data-view="edit">
