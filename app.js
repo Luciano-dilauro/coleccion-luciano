@@ -1,260 +1,258 @@
-/* app.js — Colección Luciano (base estable)
-   - Listado de colecciones
-   - Crear colección 1..N (simple)
-   - Vista detalle con items + repeticiones + stats
-   - Filtros: Todas / Faltantes / Tengo
-   - Nuevas colecciones arriba
-*/
+/* ===========================
+   Colección Luciano — app.js (Arquitectura estable)
+   Compatible con index.html con data-view="home/create/detail/edit/settings"
+   - Home: lista + crear + duplicar + eliminar
+   - Crear: simple 1..N (por ahora)
+   - Detalle: stats + filtros (Todas / Faltantes / Tengo) + grid items
+   - Editar: renombrar (base)
+   - Ajustes: export/import (reemplazar)
+=========================== */
 
 (() => {
   "use strict";
 
-  /**********************
-   * Utils
-   **********************/
+  /* ---------- Helpers ---------- */
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  const uid = () =>
-    (crypto?.randomUUID?.() || `id_${Math.random().toString(16).slice(2)}_${Date.now()}`);
+  const uid = () => (crypto?.randomUUID?.() || `id_${Date.now()}_${Math.random().toString(16).slice(2)}`);
 
-  const clampInt = (n, min, max) => {
-    const v = Number.parseInt(n, 10);
-    if (Number.isNaN(v)) return min;
-    return Math.max(min, Math.min(max, v));
-  };
+  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+  const esc = (s) =>
+    String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
 
   const fmtPct = (n) => `${Math.round(n)}%`;
 
-  /**********************
-   * Storage
-   **********************/
-  const STORAGE_KEY = "coleccionLuciano_v1";
-  const DEFAULT_STATE = {
-    version: 1,
-    collections: [], // newest first
-    lastOpenCollectionId: null,
+  /* ---------- Storage ---------- */
+  const LS_KEY = "coleccion_luciano_arch_v3";
+
+  const state = {
+    view: "home",                // home | create | detail | edit | settings
+    filter: "all",               // all | missing | have
+    currentId: null,             // colección actual
+    collections: [],             // [{id,name,createdAt,updatedAt,items:[{key,label,have,rep}]}]
+    lastExportAt: null,
+    lastExportSize: null,
+    lastImportAt: null,
   };
 
-  function loadState() {
+  function load() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return structuredClone(DEFAULT_STATE);
-      const parsed = JSON.parse(raw);
-      // soft-merge
-      return {
-        ...structuredClone(DEFAULT_STATE),
-        ...parsed,
-        collections: Array.isArray(parsed.collections) ? parsed.collections : [],
-      };
-    } catch {
-      return structuredClone(DEFAULT_STATE);
-    }
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+
+      if (Array.isArray(data.collections)) state.collections = data.collections;
+      if (data.currentId) state.currentId = data.currentId;
+      if (data.view) state.view = data.view;
+      if (data.filter) state.filter = data.filter;
+
+      state.lastExportAt = data.lastExportAt ?? null;
+      state.lastExportSize = data.lastExportSize ?? null;
+      state.lastImportAt = data.lastImportAt ?? null;
+    } catch {}
   }
 
-  function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  function save() {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      collections: state.collections,
+      currentId: state.currentId,
+      view: state.view,
+      filter: state.filter,
+      lastExportAt: state.lastExportAt,
+      lastExportSize: state.lastExportSize,
+      lastImportAt: state.lastImportAt,
+    }));
   }
 
-  let state = loadState();
+  /* ---------- DOM (según tu index) ---------- */
+  const topbarTitle = $("#topbarTitle");
+  const backBtn = $("#backBtn");
 
-  /**********************
-   * App Root + Base Layout (si el index no lo trae)
-   **********************/
-  const root =
-    $("#app") ||
-    $("main.app") ||
-    $("main") ||
-    (() => {
-      const d = document.createElement("div");
-      d.id = "app";
-      document.body.appendChild(d);
-      return d;
-    })();
-
-  // Si ya existe un topbar en tu HTML, NO lo tocamos.
-  // Si no existe, creamos uno simple para que siempre funcione.
-  let topbar = $(".topbar");
-  if (!topbar) {
-    topbar = document.createElement("header");
-    topbar.className = "topbar";
-    topbar.innerHTML = `
-      <button id="backBtn" class="icon-btn hidden" type="button" aria-label="Volver">←</button>
-      <div class="topbar-title" id="screenTitle">Mis Colecciones</div>
-      <div class="topbar-spacer"></div>
-    `;
-    document.body.insertBefore(topbar, document.body.firstChild);
-  }
-
-  const backBtn = $("#backBtn") || $(".topbar #backBtn");
-  const screenTitle = $("#screenTitle") || $(".topbar #screenTitle");
-
-  // Vistas (las generamos si no existen)
-  let viewHome = $("#viewHome");
-  let viewNew = $("#viewNew");
-  let viewDetail = $("#viewDetail");
-
-  if (!viewHome || !viewNew || !viewDetail) {
-    root.innerHTML = `
-      <section id="viewHome" class="view is-active"></section>
-      <section id="viewNew" class="view"></section>
-      <section id="viewDetail" class="view"></section>
-    `;
-    viewHome = $("#viewHome");
-    viewNew = $("#viewNew");
-    viewDetail = $("#viewDetail");
-  }
-
-  const VIEWS = {
-    home: viewHome,
-    new: viewNew,
-    detail: viewDetail,
+  const views = {
+    home: document.querySelector('[data-view="home"]'),
+    create: document.querySelector('[data-view="create"]'),
+    detail: document.querySelector('[data-view="detail"]'),
+    edit: document.querySelector('[data-view="edit"]'),
+    settings: document.querySelector('[data-view="settings"]'),
   };
 
-  let currentView = "home";
+  // HOME
+  const collectionsList = $("#collectionsList");
 
-  function setTitle(text) {
-    if (screenTitle) screenTitle.textContent = text;
-    document.title = text;
-  }
+  // CREATE
+  const newName = $("#newName");
+  const simpleCount = $("#simpleCount");
+  const btnAddSection = $("#btnAddSection"); // (por ahora no usamos, pero queda)
 
-  function setBackVisible(on) {
-    if (!backBtn) return;
-    backBtn.classList.toggle("hidden", !on);
+  // DETAIL
+  const detailTitle = $("#detailTitle");
+  const stTotal = $("#stTotal");
+  const stHave = $("#stHave");
+  const stMissing = $("#stMissing");
+  const stPct = $("#stPct");
+  const sectionsDetail = $("#sectionsDetail");
+
+  // EDIT
+  const editTitle = $("#editTitle");
+  const editName = $("#editName");
+  const editSectionsArea = $("#editSectionsArea");
+
+  // SETTINGS
+  const importInput = $("#importInput");
+  const exportMeta = $("#exportMeta");
+  const importMeta = $("#importMeta");
+  const storageMeta = $("#storageMeta");
+
+  /* ---------- View system ---------- */
+  function setTopbar(title, showBack) {
+    if (topbarTitle) topbarTitle.textContent = title;
+    if (backBtn) backBtn.classList.toggle("hidden", !showBack);
   }
 
   function showView(name) {
-    currentView = name;
-    Object.entries(VIEWS).forEach(([k, el]) => {
+    state.view = name;
+    Object.entries(views).forEach(([k, el]) => {
       if (!el) return;
       el.classList.toggle("is-active", k === name);
     });
-    setBackVisible(name !== "home");
+    save();
   }
 
   function goHome() {
-    state.lastOpenCollectionId = null;
-    saveState();
+    setTopbar("Mis Colecciones", false);
     renderHome();
     showView("home");
-    setTitle("Mis Colecciones");
   }
 
-  function goNew() {
-    renderNew();
-    showView("new");
-    setTitle("Nueva colección");
+  function goCreate() {
+    setTopbar("Nueva colección", true);
+    renderCreate();
+    showView("create");
   }
 
-  function goDetail(collectionId) {
-    state.lastOpenCollectionId = collectionId;
-    saveState();
-    renderDetail(collectionId);
+  function goSettings() {
+    setTopbar("Ajustes / Backup", true);
+    renderSettings();
+    showView("settings");
+  }
+
+  function goDetail(id) {
+    state.currentId = id;
+    setTopbar("Colección", true);
+    renderDetail();
     showView("detail");
+  }
+
+  function goEdit() {
+    setTopbar("Editar", true);
+    renderEdit();
+    showView("edit");
   }
 
   if (backBtn) {
     backBtn.addEventListener("click", () => {
-      // volver simple
-      if (currentView === "detail" || currentView === "new") goHome();
-      else goHome();
+      // volver simple: desde detail/edit/create/settings => home
+      goHome();
     });
   }
 
-  /**********************
-   * Rendering: HOME (listado)
-   **********************/
-  function renderHome() {
-    const cols = state.collections;
-
-    viewHome.innerHTML = `
-      <h1 class="h1">Mis Colecciones</h1>
-
-      <div class="card">
-        <div class="row-between" style="gap:12px; align-items:center;">
-          <h2 class="h2" style="margin:0;">Colecciones</h2>
-          <button id="btnNew" class="btn primary" type="button">+ Nueva</button>
-        </div>
-
-        ${
-          cols.length === 0
-            ? `
-              <p class="muted" style="margin:10px 0 0;">
-                Todavía no tenés colecciones. Tocá “+ Nueva”.
-              </p>
-              <p class="muted" style="margin:10px 0 0;">
-                Tip: tocá una colección para entrar.
-              </p>
-            `
-            : `
-              <div class="stack" style="margin-top:12px;">
-                ${cols
-                  .map((c) => {
-                    const stats = computeStats(c);
-                    return `
-                      <button class="list-item" data-open="${c.id}" type="button">
-                        <div class="list-item-main">
-                          <div class="list-item-title">${escapeHtml(c.name)}</div>
-                          <div class="list-item-sub muted">
-                            Total: <b>${stats.total}</b> · Tengo: <b>${stats.have}</b> · Faltan: <b>${stats.missing}</b> · ${fmtPct(stats.pct)}
-                          </div>
-                        </div>
-                        <div class="list-item-actions">
-                          <button class="btn-mini" data-dup="${c.id}" type="button" aria-label="Duplicar">⎘</button>
-                          <button class="btn-mini danger" data-del="${c.id}" type="button" aria-label="Eliminar">🗑</button>
-                        </div>
-                      </button>
-                    `;
-                  })
-                  .join("")}
-              </div>
-            `
-        }
-      </div>
-    `;
-
-    // handlers
-    const btnNew = $("#btnNew", viewHome);
-    btnNew?.addEventListener("click", goNew);
-
-    viewHome.addEventListener("click", onHomeClick);
+  /* ---------- Data helpers ---------- */
+  function getCurrent() {
+    return state.collections.find(c => c.id === state.currentId) || null;
   }
 
-  function onHomeClick(e) {
-    const openBtn = e.target.closest("[data-open]");
-    if (openBtn) {
-      const id = openBtn.getAttribute("data-open");
-      if (id) goDetail(id);
-      return;
+  function computeStats(col) {
+    const total = col.items.length;
+    const have = col.items.reduce((a, it) => a + (it.have ? 1 : 0), 0);
+    const missing = total - have;
+    const pct = total ? (have / total) * 100 : 0;
+    return { total, have, missing, pct };
+  }
+
+  function sortNewestFirst() {
+    state.collections.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
+
+  /* =========================================================
+     HOME
+  ========================================================= */
+  function renderHome() {
+    sortNewestFirst();
+
+    if (!collectionsList) return;
+
+    if (!state.collections.length) {
+      collectionsList.innerHTML = `
+        <div class="muted">Todavía no tenés colecciones.</div>
+        <div class="muted">Tocá “Nueva” para crear una.</div>
+      `;
+    } else {
+      collectionsList.innerHTML = state.collections.map(c => {
+        const st = computeStats(c);
+        return `
+          <div class="collection-row" data-open="${esc(c.id)}">
+            <div style="min-width:0;">
+              <div style="font-weight:950; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${esc(c.name)}
+              </div>
+              <div class="muted small">
+                Total: <b>${st.total}</b> · Tengo: <b>${st.have}</b> · Faltan: <b>${st.missing}</b> · ${fmtPct(st.pct)}
+              </div>
+            </div>
+
+            <div class="row gap" style="flex-shrink:0;">
+              <button class="icon-lite" type="button" data-dup="${esc(c.id)}" title="Duplicar">⎘</button>
+              <button class="icon-danger" type="button" data-del="${esc(c.id)}" title="Eliminar">🗑</button>
+            </div>
+          </div>
+        `;
+      }).join("");
     }
 
-    const dupBtn = e.target.closest("[data-dup]");
-    if (dupBtn) {
-      e.stopPropagation();
-      const id = dupBtn.getAttribute("data-dup");
-      if (!id) return;
-      duplicateCollection(id);
-      renderHome();
-      return;
-    }
+    // acciones home (delegación)
+    collectionsList.onclick = (e) => {
+      const open = e.target.closest("[data-open]")?.getAttribute("data-open");
+      const dup = e.target.closest("[data-dup]")?.getAttribute("data-dup");
+      const del = e.target.closest("[data-del]")?.getAttribute("data-del");
 
-    const delBtn = e.target.closest("[data-del]");
-    if (delBtn) {
-      e.stopPropagation();
-      const id = delBtn.getAttribute("data-del");
-      if (!id) return;
-      const col = state.collections.find((c) => c.id === id);
-      const ok = confirm(`¿Eliminar "${col?.name || "colección"}"? Esto no se puede deshacer.`);
-      if (!ok) return;
-      state.collections = state.collections.filter((c) => c.id !== id);
-      saveState();
-      renderHome();
-      return;
-    }
+      if (dup) {
+        e.stopPropagation();
+        duplicateCollection(dup);
+        renderHome();
+        return;
+      }
+
+      if (del) {
+        e.stopPropagation();
+        const col = state.collections.find(x => x.id === del);
+        const ok = confirm(`¿Eliminar "${col?.name || "colección"}"?\n\nEsta acción NO se puede deshacer.`);
+        if (!ok) return;
+        state.collections = state.collections.filter(x => x.id !== del);
+        if (state.currentId === del) state.currentId = null;
+        save();
+        renderHome();
+        return;
+      }
+
+      if (open) {
+        goDetail(open);
+      }
+    };
+
+    // Botones principales (según tu index: data-action)
+    document.querySelector('[data-action="go-create"]')?.addEventListener("click", goCreate);
+    document.querySelector('[data-action="go-settings"]')?.addEventListener("click", goSettings);
   }
 
   function duplicateCollection(id) {
-    const original = state.collections.find((c) => c.id === id);
+    const original = state.collections.find(c => c.id === id);
     if (!original) return;
 
     const copy = structuredClone(original);
@@ -263,318 +261,303 @@
     copy.createdAt = Date.now();
     copy.updatedAt = Date.now();
 
-    // NUEVA ARRIBA
+    // ✅ copia arriba
     state.collections.unshift(copy);
-    saveState();
+    save();
   }
 
-  /**********************
-   * Rendering: NEW (crear)
-   **********************/
-  function renderNew() {
-    viewNew.innerHTML = `
-      <h1 class="h1">Nueva colección</h1>
+  /* =========================================================
+     CREATE (simple 1..N)
+  ========================================================= */
+  function renderCreate() {
+    // reset inputs
+    if (newName) newName.value = "";
+    if (simpleCount) simpleCount.value = "100";
 
-      <div class="card">
-        <div class="field">
-          <label>Nombre</label>
-          <input id="newName" class="input" type="text" placeholder="Ej: Adrenalyn WC 2026" />
-        </div>
+    // botones create
+    document.querySelector('[data-action="create-cancel"]')?.addEventListener("click", goHome);
 
-        <div class="field">
-          <label>Cantidad de ítems (números 1..N)</label>
-          <input id="newCount" class="input" type="number" min="1" max="5000" value="100" />
-        </div>
-
-        <div class="row gap">
-          <button id="btnCreate" class="btn primary" type="button">Crear</button>
-          <button id="btnCancel" class="btn" type="button">Cancelar</button>
-        </div>
-
-        <p class="muted" style="margin-top:12px;">
-          Esta versión crea ítems 1..N (simple y estable). Después sumamos secciones, letras (A1), importaciones, etc.
-        </p>
-      </div>
-    `;
-
-    $("#btnCancel", viewNew)?.addEventListener("click", goHome);
-
-    $("#btnCreate", viewNew)?.addEventListener("click", () => {
-      const name = ($("#newName", viewNew)?.value || "").trim();
-      const count = clampInt($("#newCount", viewNew)?.value ?? 100, 1, 5000);
+    document.querySelector('[data-action="create-save"]')?.addEventListener("click", () => {
+      const name = (newName?.value || "").trim();
+      const count = clamp(parseInt(simpleCount?.value || "100", 10) || 100, 1, 5000);
 
       if (!name) {
-        alert("Poné un nombre para la colección 🙂");
+        alert("Escribí un nombre para la colección 🙂");
         return;
       }
 
-      const col = createCollectionSimple(name, count);
+      const col = {
+        id: uid(),
+        name,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        items: Array.from({ length: count }, (_, i) => {
+          const n = i + 1;
+          return { key: String(n), label: String(n), have: false, rep: 0 };
+        }),
+      };
 
-      // NUEVA ARRIBA (sin scroll)
+      // ✅ nueva arriba
       state.collections.unshift(col);
-      saveState();
+      state.currentId = col.id;
+      save();
 
       goDetail(col.id);
     });
-  }
 
-  function createCollectionSimple(name, count) {
-    const items = Array.from({ length: count }, (_, i) => {
-      const num = i + 1;
-      return {
-        key: String(num), // clave interna
-        label: String(num), // lo que se muestra
-        have: false,
-        rep: 0,
-      };
-    });
-
-    return {
-      id: uid(),
-      name,
-      type: "simple_1_to_n",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      items,
-      // futuro: sections, patterns, etc.
+    // (por ahora no implementamos secciones aquí, queda para la próxima etapa)
+    if (btnAddSection) btnAddSection.onclick = () => {
+      alert("Secciones avanzadas: lo agregamos en el próximo upgrade 🙂");
     };
   }
 
-  /**********************
-   * Rendering: DETAIL (items + filtros)
-   **********************/
-  const detailUI = {
-    filter: "all", // all | missing | have
-  };
-
-  function renderDetail(collectionId) {
-    const col = state.collections.find((c) => c.id === collectionId);
+  /* =========================================================
+     DETAIL (filtros + items)
+  ========================================================= */
+  function renderDetail() {
+    const col = getCurrent();
     if (!col) {
       goHome();
       return;
     }
 
-    const stats = computeStats(col);
+    if (detailTitle) detailTitle.textContent = col.name;
 
-    viewDetail.innerHTML = `
-      <h1 class="h1">${escapeHtml(col.name)}</h1>
+    const st = computeStats(col);
+    if (stTotal) stTotal.textContent = String(st.total);
+    if (stHave) stHave.textContent = String(st.have);
+    if (stMissing) stMissing.textContent = String(st.missing);
+    if (stPct) stPct.textContent = fmtPct(st.pct);
 
-      <div class="card">
-        <div class="row-between" style="align-items:center; gap:12px;">
-          <h2 class="h2" style="margin:0;">${escapeHtml(col.name)}</h2>
+    // ✅ IMPORTANTE: acá creamos/mostramos SIEMPRE los filtros
+    // Los ponemos arriba del grid de items (dentro de sectionsDetail)
+    if (!sectionsDetail) return;
 
-          <div class="row gap" style="justify-content:flex-end;">
-            <button class="btn" id="btnEditName" type="button">Editar</button>
-            <button class="btn danger" id="btnReset" type="button">Reset</button>
-          </div>
-        </div>
-
-        <div class="stats-row" style="margin-top:12px;">
-          <div class="stat-box"><div class="muted">Total</div><div class="stat-num">${stats.total}</div></div>
-          <div class="stat-box"><div class="muted">Tengo</div><div class="stat-num">${stats.have}</div></div>
-          <div class="stat-box"><div class="muted">Faltan</div><div class="stat-num">${stats.missing}</div></div>
-          <div class="stat-box"><div class="muted">%</div><div class="stat-num">${fmtPct(stats.pct)}</div></div>
-        </div>
-
-        <div class="pill big center" style="margin-top:12px;">Completo: <b>${fmtPct(stats.pct)}</b></div>
-
-        <!-- FILTROS -->
-        <div class="tabs" style="margin-top:14px;">
-          <button class="tab ${detailUI.filter === "all" ? "active" : ""}" data-filter="all" type="button">Todas</button>
-          <button class="tab ${detailUI.filter === "missing" ? "active" : ""}" data-filter="missing" type="button">Faltantes</button>
-          <button class="tab ${detailUI.filter === "have" ? "active" : ""}" data-filter="have" type="button">Tengo</button>
-        </div>
-
-        <div class="divider" style="margin:14px 0;"></div>
-
-        <div class="row-between" style="align-items:center; gap:12px;">
-          <h3 class="h3" style="margin:0;">Ítems</h3>
-          <button class="btn danger" id="btnResetReps" type="button">Reset reps</button>
-        </div>
-
-        <div id="itemsGrid" class="items-grid" style="margin-top:12px;"></div>
+    const filtersHtml = `
+      <div class="tabs" style="margin-bottom:12px;">
+        <button class="tab ${state.filter === "all" ? "active" : ""}" type="button" data-filter="all">Todas</button>
+        <button class="tab ${state.filter === "missing" ? "active" : ""}" type="button" data-filter="missing">Faltantes</button>
+        <button class="tab ${state.filter === "have" ? "active" : ""}" type="button" data-filter="have">Tengo</button>
       </div>
     `;
 
-    $("#btnEditName", viewDetail)?.addEventListener("click", () => {
-      const newName = prompt("Nuevo nombre:", col.name);
-      if (!newName) return;
-      col.name = newName.trim() || col.name;
-      col.updatedAt = Date.now();
-      saveState();
-      renderDetail(col.id);
-      setTitle(col.name);
+    // filtrado
+    const items = col.items.filter(it => {
+      if (state.filter === "have") return it.have === true;
+      if (state.filter === "missing") return it.have !== true;
+      return true;
     });
 
-    $("#btnReset", viewDetail)?.addEventListener("click", () => {
-      const ok = confirm(`¿Resetear TODO en "${col.name}"? (Tengo y repeticiones)`);
+    const gridHtml = `
+      <div class="section-card">
+        <div class="section-title">Figuritas</div>
+        <div class="items-grid">
+          ${items.map(it => `
+            <div class="item ${it.have ? "have" : ""}" data-item="${esc(it.key)}">
+              <div class="item-code">${esc(it.label)}</div>
+              <div class="item-rep">Rep: <b>${it.rep || 0}</b></div>
+              <div class="item-actions">
+                <button class="mini" type="button" data-minus="${esc(it.key)}">−</button>
+                <button class="mini" type="button" data-toggle="${esc(it.key)}">${it.have ? "✓" : "○"}</button>
+                <button class="mini" type="button" data-plus="${esc(it.key)}">+</button>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+
+    sectionsDetail.innerHTML = filtersHtml + gridHtml;
+
+    // botones header (editar/reset)
+    document.querySelector('[data-action="open-edit"]')?.addEventListener("click", goEdit);
+
+    document.querySelector('[data-action="reset-collection"]')?.addEventListener("click", () => {
+      const ok = confirm(`¿Resetear TODO "${col.name}"?\n\nSe desmarcan "Tengo" y se ponen repeticiones en 0.`);
       if (!ok) return;
-      col.items.forEach((it) => {
-        it.have = false;
-        it.rep = 0;
-      });
+      col.items.forEach(it => { it.have = false; it.rep = 0; });
       col.updatedAt = Date.now();
-      saveState();
-      renderDetail(col.id);
+      save();
+      renderDetail();
     });
 
-    $("#btnResetReps", viewDetail)?.addEventListener("click", () => {
-      const ok = confirm("¿Resetear repeticiones a 0? (No toca 'Tengo')");
-      if (!ok) return;
-      col.items.forEach((it) => (it.rep = 0));
-      col.updatedAt = Date.now();
-      saveState();
-      renderDetail(col.id);
-    });
-
-    // filtros
-    viewDetail.addEventListener("click", (e) => {
-      const f = e.target.closest("[data-filter]");
+    // Delegación clicks: filtros + items
+    sectionsDetail.onclick = (e) => {
+      const f = e.target.closest("[data-filter]")?.getAttribute("data-filter");
       if (f) {
-        const v = f.getAttribute("data-filter");
-        if (v === "all" || v === "missing" || v === "have") {
-          detailUI.filter = v;
-          renderDetail(col.id);
-        }
+        state.filter = f;
+        save();
+        renderDetail();
         return;
       }
-    });
 
-    renderItemsGrid(col);
-  }
-
-  function renderItemsGrid(col) {
-    const grid = $("#itemsGrid", viewDetail);
-    if (!grid) return;
-
-    const items = getFilteredItems(col, detailUI.filter);
-
-    grid.innerHTML = items
-      .map((it) => {
-        const isHave = !!it.have;
-        const rep = it.rep || 0;
-        return `
-          <div class="item-card ${isHave ? "is-have" : ""}" data-item="${escapeAttr(it.key)}">
-            <div class="item-top">
-              <div class="item-code">${escapeHtml(it.label)}</div>
-              <button class="item-toggle ${isHave ? "on" : ""}" type="button" data-toggle="${escapeAttr(
-          it.key
-        )}">
-                ${isHave ? "Tengo" : "Falta"}
-              </button>
-            </div>
-
-            <div class="item-mid muted">Rep: <b>${rep}</b></div>
-
-            <div class="item-controls">
-              <button class="btn-mini" type="button" data-minus="${escapeAttr(it.key)}">−</button>
-              <button class="btn-mini" type="button" data-plus="${escapeAttr(it.key)}">+</button>
-            </div>
-          </div>
-        `;
-      })
-      .join("");
-
-    // Delegación de eventos
-    grid.onclick = (e) => {
       const keyToggle = e.target.closest("[data-toggle]")?.getAttribute("data-toggle");
       if (keyToggle) {
-        toggleHave(col, keyToggle);
-        saveState();
-        renderDetail(col.id);
+        const it = col.items.find(x => x.key === keyToggle);
+        if (!it) return;
+        it.have = !it.have;
+        if (!it.have) it.rep = 0; // simple: si ya no lo tengo, rep=0
+        col.updatedAt = Date.now();
+        save();
+        renderDetail();
         return;
       }
 
       const keyPlus = e.target.closest("[data-plus]")?.getAttribute("data-plus");
       if (keyPlus) {
-        changeRep(col, keyPlus, +1);
-        saveState();
-        renderDetail(col.id);
+        const it = col.items.find(x => x.key === keyPlus);
+        if (!it) return;
+        if (!it.have) {
+          alert("Primero marcá esta figurita como 'Tengo'.");
+          return;
+        }
+        it.rep = clamp((it.rep || 0) + 1, 0, 999);
+        col.updatedAt = Date.now();
+        save();
+        renderDetail();
         return;
       }
 
       const keyMinus = e.target.closest("[data-minus]")?.getAttribute("data-minus");
       if (keyMinus) {
-        changeRep(col, keyMinus, -1);
-        saveState();
-        renderDetail(col.id);
+        const it = col.items.find(x => x.key === keyMinus);
+        if (!it) return;
+        it.rep = clamp((it.rep || 0) - 1, 0, 999);
+        col.updatedAt = Date.now();
+        save();
+        renderDetail();
         return;
       }
     };
   }
 
-  function toggleHave(col, key) {
-    const it = col.items.find((x) => x.key === key);
-    if (!it) return;
-    it.have = !it.have;
-    if (!it.have) it.rep = 0; // si dejás de tenerlo, reps a 0 (simple)
-    col.updatedAt = Date.now();
+  /* =========================================================
+     EDIT (base: renombrar)
+  ========================================================= */
+  function renderEdit() {
+    const col = getCurrent();
+    if (!col) { goHome(); return; }
+
+    if (editTitle) editTitle.textContent = `Editar: ${col.name}`;
+    if (editName) editName.value = col.name;
+
+    // por ahora ocultamos edición de secciones
+    if (editSectionsArea) editSectionsArea.style.display = "none";
+
+    document.querySelector('[data-action="edit-cancel"]')?.addEventListener("click", () => goDetail(col.id));
+
+    document.querySelector('[data-action="edit-save"]')?.addEventListener("click", () => {
+      const newN = (editName?.value || "").trim();
+      if (!newN) return alert("Nombre inválido.");
+      col.name = newN;
+      col.updatedAt = Date.now();
+      save();
+      goDetail(col.id);
+    });
   }
 
-  function changeRep(col, key, delta) {
-    const it = col.items.find((x) => x.key === key);
-    if (!it) return;
-
-    // Regla: para sumar rep, primero debe estar marcado como "Tengo"
-    if (!it.have) {
-      alert("Primero marcá este ítem como 'Tengo' tocándolo.");
-      return;
+  /* =========================================================
+     SETTINGS (export / import reemplazar)
+  ========================================================= */
+  function renderSettings() {
+    // Meta datos
+    if (exportMeta) {
+      exportMeta.textContent =
+        `Último: ${state.lastExportAt ? new Date(state.lastExportAt).toLocaleString() : "—"} · Tamaño: ${state.lastExportSize || "—"}`;
+    }
+    if (importMeta) {
+      importMeta.textContent =
+        `Último: ${state.lastImportAt ? new Date(state.lastImportAt).toLocaleString() : "—"} · Modo: Reemplazar`;
+    }
+    if (storageMeta) {
+      // tamaño aproximado del json en KB
+      const bytes = new Blob([JSON.stringify(state.collections)]).size;
+      const kb = Math.round(bytes / 1024);
+      storageMeta.textContent = `Datos actuales en el dispositivo: ~${kb} KB`;
     }
 
-    const next = clampInt((it.rep || 0) + delta, 0, 999);
-    it.rep = next;
-    col.updatedAt = Date.now();
+    document.querySelector('[data-action="go-home"]')?.addEventListener("click", goHome);
+
+    document.querySelector('[data-action="export-backup"]')?.addEventListener("click", exportBackup);
+
+    // importInput ya está en el index
+    if (importInput) {
+      importInput.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const data = JSON.parse(reader.result);
+
+            // modo REEMPLAZAR (sin fusionar)
+            const cols = Array.isArray(data.collections) ? data.collections
+              : Array.isArray(data.albums) ? data.albums
+              : Array.isArray(data.data) ? data.data
+              : [];
+
+            if (!Array.isArray(cols)) throw new Error("Formato inválido");
+
+            state.collections = cols;
+            sortNewestFirst();
+            state.lastImportAt = Date.now();
+
+            // si hay algo, elijo el primero
+            state.currentId = state.collections[0]?.id || null;
+
+            save();
+            alert("Backup importado ✅");
+            renderSettings();
+          } catch {
+            alert("Error al importar backup.");
+          }
+        };
+        reader.readAsText(file);
+      };
+    }
   }
 
-  function getFilteredItems(col, filter) {
-    if (filter === "missing") return col.items.filter((it) => !it.have);
-    if (filter === "have") return col.items.filter((it) => it.have);
-    return col.items;
+  function exportBackup() {
+    const payload = {
+      version: 1,
+      exportedAt: Date.now(),
+      collections: state.collections,
+    };
+
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "backup-coleccion-luciano.json";
+    a.click();
+    URL.revokeObjectURL(url);
+
+    state.lastExportAt = Date.now();
+    state.lastExportSize = `${Math.round(blob.size / 1024)} KB`;
+    save();
+    renderSettings();
   }
 
-  /**********************
-   * Stats
-   **********************/
-  function computeStats(col) {
-    const total = col.items.length;
-    const have = col.items.reduce((acc, it) => acc + (it.have ? 1 : 0), 0);
-    const missing = total - have;
-    const pct = total === 0 ? 0 : (have / total) * 100;
-    return { total, have, missing, pct };
-  }
-
-  /**********************
-   * Small helpers: escape
-   **********************/
-  function escapeHtml(str) {
-    return String(str)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-  function escapeAttr(str) {
-    return escapeHtml(str).replaceAll(" ", "");
-  }
-
-  /**********************
-   * Init
-   **********************/
+  /* =========================================================
+     Init
+  ========================================================= */
   function init() {
-    // Si hay una colección abierta guardada, vuelvo ahí
-    if (state.lastOpenCollectionId) {
-      const exists = state.collections.some((c) => c.id === state.lastOpenCollectionId);
-      if (exists) {
-        goDetail(state.lastOpenCollectionId);
-        return;
-      }
-    }
+    load();
 
-    renderHome();
-    showView("home");
-    setTitle("Mis Colecciones");
+    // Conectores globales de botones del index
+    document.querySelector('[data-action="go-create"]')?.addEventListener("click", goCreate);
+    document.querySelector('[data-action="go-settings"]')?.addEventListener("click", goSettings);
+
+    // arranque
+    if (state.view === "detail" && state.currentId) {
+      goDetail(state.currentId);
+    } else {
+      goHome();
+    }
   }
 
-  init();
+  document.addEventListener("DOMContentLoaded", init);
 })();
