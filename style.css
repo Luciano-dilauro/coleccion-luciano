@@ -457,3 +457,72 @@ main.app{
   border: 2px solid rgba(255,255,255,.9);
 }
 */
+/* =============================
+   PATCH v1.0.x — Badge “cuarto de círculo” + limpiar Rep
+   (pegar al FINAL de style.css)
+============================= */
+
+/* En Mis colecciones: ocultar botón Abrir sí o sí */
+#btnOpenCollection {
+  display: none !important;
+}
+
+/* Caja item: centrar código y ocultar texto Rep */
+.item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;  /* centra vertical */
+  align-items: center;      /* centra horizontal */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Oculta el “Rep: x” viejo */
+.item-rep {
+  display: none !important;
+}
+
+/* Si quedara algún contenedor de acciones viejo */
+.item-actions {
+  display: none !important;
+}
+
+/* Código bien centrado */
+.item-code {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.1;
+  text-align: center;
+}
+
+/* Badge (soporta varios nombres por compatibilidad) */
+.rep-badge,
+.repBadge,
+.badge-rep,
+.badgeRep,
+.item-badge,
+.itemBadge {
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+
+  background: #e53935;      /* rojo */
+  color: #fff;              /* número blanco */
+  font-weight: 900;
+  font-size: 15px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* “Cuarto de círculo” dentro: dejamos el centro en la esquina */
+  transform: translate(50%, -50%);
+
+  box-shadow: 0 8px 18px rgba(0,0,0,.18);
+  pointer-events: none;
+}
