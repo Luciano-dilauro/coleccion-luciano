@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Colecciones Lucho</title>
+  <title>Colección Lucho</title>
 
-  <link rel="stylesheet" href="theme.css?v=1" />
-  <link rel="stylesheet" href="style.css?v=1" />
+  <link rel="stylesheet" href="theme.css?v=24" />
+  <link rel="stylesheet" href="style.css?v=24" />
 </head>
 
 <body>
-  <!-- TOPBAR FIJO -->
+  <!-- TOPBAR -->
   <header class="topbar" role="banner">
     <button id="backBtn" class="icon-btn hidden" type="button" aria-label="Volver">←</button>
-    <div id="topbarTitle" class="topbar-title">Colecciones</div>
+    <div id="topbarTitle" class="topbar-title">Colecciones Lucho</div>
     <div class="topbar-spacer"></div>
   </header>
 
@@ -22,125 +22,94 @@
     <!-- DASHBOARD -->
     <section class="view is-active" data-view="dash">
       <div class="card">
-        <div class="h1 center" style="margin-bottom:12px;">Colecciones Lucho</div>
-
-        <div class="grid-2">
-          <button class="card-btn" type="button" data-action="go-collections">
-            <div class="card-ico">📚</div>
-            <div class="card-txt">
-              <div class="card-title">Mis colecciones</div>
-              <div class="card-sub">Elegir y ver una colección</div>
+        <div class="dash-grid">
+          <button class="dash-btn" type="button" data-action="dash-collections">
+            <div class="dash-ico">📚</div>
+            <div class="dash-txt">
+              <div class="dash-title">Mis colecciones</div>
+              <div class="dash-sub">Ver álbumes</div>
             </div>
           </button>
 
-          <button class="card-btn" type="button" data-action="go-manage">
-            <div class="card-ico">🧩</div>
-            <div class="card-txt">
-              <div class="card-title">Carga / Edición</div>
-              <div class="card-sub">Crear y editar colecciones</div>
+          <button class="dash-btn" type="button" data-action="dash-loadedit">
+            <div class="dash-ico">✍️</div>
+            <div class="dash-txt">
+              <div class="dash-title">Carga / Edición</div>
+              <div class="dash-sub">Crear / editar</div>
             </div>
           </button>
 
-          <button class="card-btn" type="button" data-action="go-stats">
-            <div class="card-ico">📊</div>
-            <div class="card-txt">
-              <div class="card-title">Estadísticas</div>
-              <div class="card-sub">Resumen general</div>
+          <button class="dash-btn" type="button" data-action="dash-stats">
+            <div class="dash-ico">📊</div>
+            <div class="dash-txt">
+              <div class="dash-title">Estadísticas</div>
+              <div class="dash-sub">Próximamente</div>
             </div>
           </button>
 
-          <button class="card-btn" type="button" data-action="go-settings">
-            <div class="card-ico">⚙️</div>
-            <div class="card-txt">
-              <div class="card-title">Ajustes / Backup</div>
-              <div class="card-sub">Exportar / Importar</div>
+          <button class="dash-btn" type="button" data-action="dash-settings">
+            <div class="dash-ico">🧰</div>
+            <div class="dash-txt">
+              <div class="dash-title">Ajustes</div>
+              <div class="dash-sub">Backup</div>
             </div>
           </button>
         </div>
       </div>
     </section>
 
-    <!-- MIS COLECCIONES (limpio: selector) -->
+    <!-- MIS COLECCIONES (selector + abrir) -->
     <section class="view" data-view="collections">
       <div class="card">
-        <div class="h1 center" style="margin-bottom:12px;">Mis colecciones</div>
-
         <div class="field">
-          <label class="center big-label">Seleccionar colección</label>
+          <label>Seleccionar colección</label>
           <select id="collectionsSelect" class="input"></select>
         </div>
 
-        <div class="row gap" style="margin-top:12px;">
-          <button class="btn primary full" type="button" data-action="open-selected-collection">Abrir</button>
+        <div class="row gap" style="margin-top:10px;">
+          <button id="btnOpenCollection" class="btn primary" type="button">Abrir</button>
         </div>
-
-        <div class="divider"></div>
-
-        <button class="btn" type="button" data-action="go-manage">Ir a Carga / Edición</button>
       </div>
     </section>
 
     <!-- CARGA / EDICIÓN -->
-    <section class="view" data-view="manage">
+    <section class="view" data-view="loadedit">
       <div class="card">
-        <div class="h1 center" style="margin-bottom:12px;">Carga / Edición</div>
-
-        <div class="grid-2">
-          <button class="card-btn" type="button" data-action="go-create">
-            <div class="card-ico">➕</div>
-            <div class="card-txt">
-              <div class="card-title">Nueva colección</div>
-              <div class="card-sub">Crear desde cero</div>
+        <div class="hub-grid">
+          <button class="hub-card" type="button" data-action="go-create">
+            <div class="hub-ico">➕</div>
+            <div class="hub-text">
+              <div class="hub-title">Nueva colección</div>
+              <div class="hub-sub">Crear desde cero</div>
             </div>
           </button>
 
-          <button class="card-btn" type="button" data-action="go-edit-picker">
-            <div class="card-ico">✏️</div>
-            <div class="card-txt">
-              <div class="card-title">Editar colección</div>
-              <div class="card-sub">Nombre, secciones, especiales</div>
-            </div>
-          </button>
-
-          <button class="card-btn full" type="button" data-action="go-settings">
-            <div class="card-ico">🗂️</div>
-            <div class="card-txt">
-              <div class="card-title">Backup</div>
-              <div class="card-sub">Exportar / Importar</div>
+          <button class="hub-card" type="button" data-action="open-edit-picker">
+            <div class="hub-ico">✏️</div>
+            <div class="hub-text">
+              <div class="hub-title">Editar colección</div>
+              <div class="hub-sub">Nombre, secciones, especiales</div>
             </div>
           </button>
         </div>
 
-        <div class="divider"></div>
-        <button class="btn" type="button" data-action="go-dash">Volver</button>
-      </div>
-    </section>
-
-    <!-- EDIT PICKER (elegir qué colección editar) -->
-    <section class="view" data-view="editPicker">
-      <div class="card">
-        <div class="h1 center" style="margin-bottom:12px;">Editar colección</div>
-
-        <div class="field">
-          <label class="center big-label">Seleccionar colección</label>
-          <select id="editSelect" class="input"></select>
+        <!-- selector de edición (aparece al tocar “Editar colección”) -->
+        <div id="editPicker" class="card inner hidden" style="margin-top:14px;">
+          <div class="field">
+            <label>Elegí cuál editar</label>
+            <select id="editSelect" class="input"></select>
+          </div>
+          <div class="row gap" style="margin-top:10px;">
+            <button id="btnEditOpen" class="btn primary" type="button">Abrir editor</button>
+          </div>
         </div>
-
-        <div class="row gap" style="margin-top:12px;">
-          <button class="btn primary full" type="button" data-action="open-edit-selected">Editar</button>
-        </div>
-
-        <div class="divider"></div>
-        <button class="btn" type="button" data-action="go-manage">Volver</button>
       </div>
     </section>
 
     <!-- CREATE -->
     <section class="view" data-view="create">
       <div class="card">
-        <div class="h1 center">Nueva colección</div>
-
-        <div class="field" style="margin-top:12px;">
+        <div class="field">
           <label>Nombre</label>
           <input id="newName" class="input" type="text" placeholder="Ej: Mundial 2026" />
         </div>
@@ -184,7 +153,6 @@
             </select>
           </div>
 
-          <!-- Bulk builder lo inyecta app.js -->
           <div id="sectionsEditor" class="stack"></div>
 
           <button id="btnAddSection" class="btn" type="button" style="margin-top:10px;">
@@ -193,7 +161,6 @@
         </div>
 
         <div class="divider"></div>
-
         <div class="row gap">
           <button class="btn" type="button" data-action="create-cancel">Cancelar</button>
           <button class="btn primary" type="button" data-action="create-save">Crear</button>
@@ -207,7 +174,7 @@
         <div class="row-between">
           <h1 id="detailTitle" class="h1">Colección</h1>
           <div class="row gap">
-            <!-- ✅ Editar se sacó de acá -->
+            <button class="btn" type="button" data-action="open-edit">Editar</button>
             <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
           </div>
         </div>
@@ -217,6 +184,13 @@
           <div class="stat"><span>Tengo</span><b id="stHave">0</b></div>
           <div class="stat"><span>Faltan</span><b id="stMissing">0</b></div>
           <div class="stat"><span>%</span><b id="stPct">0%</b></div>
+        </div>
+
+        <!-- FILTROS -->
+        <div class="seg seg-filters" style="margin-top:12px;">
+          <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
+          <button id="fHave" class="seg-btn" type="button" data-action="filter-have">Tengo</button>
+          <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
         </div>
       </div>
 
@@ -252,22 +226,9 @@
       </div>
     </section>
 
-    <!-- STATS -->
-    <section class="view" data-view="stats">
-      <div class="card">
-        <div class="h1 center">Estadísticas</div>
-        <div id="globalStats" class="muted" style="margin-top:12px;">(Próximo paso)</div>
-
-        <div class="divider"></div>
-        <button class="btn" type="button" data-action="go-dash">Volver</button>
-      </div>
-    </section>
-
     <!-- SETTINGS -->
     <section class="view" data-view="settings">
       <div class="card">
-        <div class="h1 center">Ajustes / Backup</div>
-
         <div class="grid-2" style="margin-top:10px;">
           <button class="card-btn" type="button" data-action="export-backup">
             <div class="card-ico">⬆️</div>
@@ -289,14 +250,11 @@
 
         <div class="divider"></div>
         <div id="storageMeta" class="muted">Datos actuales en el dispositivo: —</div>
-
-        <div class="divider"></div>
-        <button class="btn" type="button" data-action="go-dash">Volver</button>
       </div>
     </section>
 
   </main>
 
-  <script src="app.js?v=1"></script>
+  <script src="app.js?v=24"></script>
 </body>
 </html>
