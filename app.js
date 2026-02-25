@@ -1151,3 +1151,71 @@ document.addEventListener("DOMContentLoaded", init);
     }
   }, true);
 })();
+/* =============================
+   FIX Export iOS: descarga robusta + fallback + binding directo
+============================= */
+(() => {
+  function safeExportBackup() {
+    try {
+      const payload = {
+        backupVersion: BACKUP_VERSION,
+        exportedAt: Date.now(),
+        app: "ColeccionLuciano",
+        data: state.data
+      };
+
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      const filename = `backup-coleccion-lucho-${new Date().toISOString().slice(0,10)}.json`;
+
+      // ✅ Método 1 (recomendado): <a> en DOM + click
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      a.style.display = "none";
+      document.body.appendChild(a);
+
+      // Algunos Safari/iOS necesitan este pequeño delay
+      setTimeout(() => {
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          a.remove();
+        }, 300);
+      }, 0);
+
+      // meta
+      state.meta.lastExportAt = Date.now();
+      state.meta.lastExportSize = blob.size;
+      save();
+      if (typeof window.renderSettings === "function") {
+        try { window.renderSettings(); } catch {}
+      }
+
+      // No alert acá, porque a veces corta el flujo en iOS
+      // pero si querés, lo activamos.
+    } catch (err) {
+      alert("❌ No se pudo exportar.\n\n" + (err?.message || String(err)));
+    }
+  }
+
+  // 1) Reemplazamos/creamos exportBackup global (por si el botón llama a esta)
+  window.exportBackup = safeExportBackup;
+
+  // 2) Binding directo al botón (por si el event delegation se rompió)
+  const btn = document.querySelector('[data-action="export-backup"]');
+  if (btn) {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      safeExportBackup();
+    }, true);
+  }
+
+  // 3) Fallback extra: si el usuario está en iOS y no descargó nada,
+  // puede que Safari lo bloquee. Le damos una opción manual desde un confirm.
+  // (Lo dejamos “silencioso” por ahora para no molestar. Si querés, lo activamos.)
+})();
