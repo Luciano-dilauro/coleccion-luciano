@@ -357,3 +357,49 @@ label{ font-weight: 900; }
 .topbar-offset {
   height: 72px;
 }
+/* ============================
+   FIX STICKY: Topbar + Detail
+   (pegar al FINAL de style.css)
+============================ */
+
+/* safe-area iOS */
+:root{
+  --safe-top: env(safe-area-inset-top, 0px);
+  /* si tu topbar mide distinto, ajustamos este número */
+  --topbar-base: 72px;
+  --topbar-total: calc(var(--topbar-base) + var(--safe-top));
+}
+
+/* Topbar fijo real (por si tu CSS ya lo tiene, esto lo refuerza sin romper) */
+.topbar{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  padding-top: var(--safe-top);
+}
+
+/* espacio para que el contenido arranque debajo del topbar */
+.topbar-offset{
+  height: var(--topbar-total);
+}
+
+/* ✅ La tarjeta de detalle queda fija debajo del topbar */
+.detail-header{
+  position: sticky;
+  top: var(--topbar-total);
+  z-index: 600;
+  background: var(--bg-panel);
+}
+
+/* pequeño “sellado” visual para que no se vea nada detrás al pegarse */
+.detail-header::before{
+  content:"";
+  position:absolute;
+  left:-18px;
+  right:-18px;
+  top:-14px;
+  height:14px;
+  background: var(--bg-main);
+}
