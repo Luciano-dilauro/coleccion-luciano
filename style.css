@@ -310,3 +310,24 @@ label{ font-weight: 900; }
    HELPERS
 ========================= */
 .hidden{ display:none !important; }
+/* =========================
+   FIX: eliminar hueco entre topbar fijo y header sticky
+========================= */
+
+/* 1) Quitamos el +12px de padding superior del contenido */
+.app{
+  padding-top: var(--topbar-h);
+  background: var(--bg-main); /* asegura que no se vea “detrás” */
+}
+
+/* 2) Hacemos que el header sticky se pegue justo debajo del topbar */
+.detail-header{
+  top: var(--topbar-h);
+  margin-top: 0;
+}
+
+/* 3) (Extra blindaje) Si algún hijo del sticky tiene transparencias */
+.detail-header,
+.detail-header *{
+  background-clip: padding-box;
+}
