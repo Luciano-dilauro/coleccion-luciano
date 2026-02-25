@@ -1,22 +1,29 @@
 :root{
+  /* Fondo */
   --bg-main:#F4F5F7;
   --bg-panel:#FFFFFF;
 
+  /* Texto */
   --text-main: rgba(0,0,0,.88);
   --text-muted: rgba(0,0,0,.55);
 
+  /* Bordes y sombras */
   --stroke: rgba(0,0,0,.08);
   --shadow: 0 10px 30px rgba(0,0,0,.08);
 
+  /* Color principal */
   --accent:#2D7DF6;
   --accent-soft: rgba(45,125,246,.16);
 
-  --special-border: rgba(184,134,11,.75);
+  /* Especiales (dorado) */
+  --special-border: rgba(184,134,11,.65);
   --special-bg: rgba(184,134,11,.14);
 
+  /* Radios */
   --r-card: 26px;
   --r-pill: 999px;
 
+  /* Layout */
   --container-pad: 18px;
-  --topbar-h: 72px;
+  --topbar-h: 70px;
 }
