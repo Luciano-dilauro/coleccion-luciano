@@ -1,13 +1,8 @@
 /* =============================
-   Colección Luciano - Arquitectura estable (v2.4)
-   - Especiales por lista (por sección o simple)
-   - Crear / Editar secciones + especiales sin perder progreso
-   - Backup: solo REEMPLAZAR
-   - Reordenar secciones: botones ↑ ↓ (y drag & drop opcional)
-   - Generador rápido por lista (coma)
-   - NUEVO (v2.4):
-     ✅ Nueva colección queda arriba
-     ✅ Filtro en detalle: Todas / Faltantes / Tengo
+   Colección Lucho - Arquitectura estable (v2.4)
+   - Dashboard (2x2): Colecciones / Carga-Edición / Stats / Ajustes
+   - Back inteligente por vista
+   - Colección nueva arriba (unshift)
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -42,9 +37,6 @@ const els = {
   stMissing: $("stMissing"),
   stPct: $("stPct"),
   sectionsDetail: $("sectionsDetail"),
-  fAll: $("fAll"),
-  fMissing: $("fMissing"),
-  fHave: $("fHave"),
 
   // Edit
   editTitle: $("editTitle"),
@@ -58,12 +50,18 @@ const els = {
   exportMeta: $("exportMeta"),
   importMeta: $("importMeta"),
   storageMeta: $("storageMeta"),
+
+  // Global Stats
+  gCols: $("gCols"),
+  gTotal: $("gTotal"),
+  gHave: $("gHave"),
+  gMissing: $("gMissing"),
+  gNote: $("gNote"),
 };
 
 const state = {
-  view: "home",
+  view: "dash",
   currentId: null,
-  detailFilter: "all", // all | missing | have
   data: { collections: [] },
   meta: {
     lastExportAt: null,
@@ -187,16 +185,27 @@ function save() {
 ----------------------------- */
 function setView(view) {
   state.view = view;
-  for (const v of els.views) v.classList.toggle("is-active", v.dataset.view === view);
+  document.body.dataset.view = view;
 
-  if (view === "home") {
-    els.topbarTitle.textContent = "Mis Colecciones";
+  for (const v of els.views) {
+    v.classList.toggle("is-active", v.dataset.view === view);
+  }
+
+  // topbar + back
+  if (view === "dash") {
+    els.topbarTitle.textContent = "Colecciones Lucho";
     els.backBtn.classList.add("hidden");
+  } else if (view === "home") {
+    els.topbarTitle.textContent = "Mis colecciones";
+    els.backBtn.classList.remove("hidden");
   } else if (view === "create") {
-    els.topbarTitle.textContent = "Nueva colección";
+    els.topbarTitle.textContent = "Carga / edición";
     els.backBtn.classList.remove("hidden");
   } else if (view === "settings") {
-    els.topbarTitle.textContent = "Ajustes / Backup";
+    els.topbarTitle.textContent = "Ajustes";
+    els.backBtn.classList.remove("hidden");
+  } else if (view === "stats") {
+    els.topbarTitle.textContent = "Estadísticas";
     els.backBtn.classList.remove("hidden");
   } else if (view === "edit") {
     els.topbarTitle.textContent = "Editar";
@@ -206,6 +215,13 @@ function setView(view) {
   }
 
   window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function goDash() {
+  state.currentId = null;
+  renderSettings();
+  renderGlobalStats();
+  setView("dash");
 }
 
 function goHome() {
@@ -223,7 +239,6 @@ function goCreate() {
 
 function goDetail(id) {
   state.currentId = id;
-  state.detailFilter = "all"; // default
   renderDetail();
   const col = getCurrent();
   if (col) els.topbarTitle.textContent = col.name;
@@ -235,9 +250,25 @@ function goSettings() {
   setView("settings");
 }
 
+function goStats() {
+  renderGlobalStats();
+  setView("stats");
+}
+
 function goEdit() {
   renderEdit();
   setView("edit");
+}
+
+/* Back inteligente */
+function goBack() {
+  if (state.view === "edit") return goDetail(state.currentId);
+  if (state.view === "detail") return goHome();
+  if (state.view === "home") return goDash();
+  if (state.view === "create") return goDash();
+  if (state.view === "settings") return goDash();
+  if (state.view === "stats") return goDash();
+  return goDash();
 }
 
 /* -----------------------------
@@ -333,7 +364,7 @@ function resetCreateForm() {
 }
 
 /* -----------------------------
-   Generador rápido por lista (coma)
+   Generador rápido por lista
 ----------------------------- */
 function ensureBulkBuilderUI() {
   if (!els.sectionsBlock || !els.sectionsEditor) return;
@@ -450,13 +481,12 @@ function openSpecialsPrompt(currentArr, hint) {
 }
 
 /* -----------------------------
-   Reordenar filas
+   Reordenar / DnD
 ----------------------------- */
 function moveRow(container, row, dir) {
   const rows = Array.from(container.querySelectorAll("[data-section-row]"));
   const idx = rows.indexOf(row);
   if (idx < 0) return;
-
   const newIdx = idx + dir;
   if (newIdx < 0 || newIdx >= rows.length) return;
 
@@ -480,9 +510,6 @@ function getSectionRowValues(row) {
   return { name, format, prefix, count: Number.isFinite(count) ? count : 1, ownNumbering, specials };
 }
 
-/* -----------------------------
-   Secciones: fila
------------------------------ */
 function addSectionRow(container, { name="", format="num", prefix="", count=10, ownNumbering=false, specials=[] } = {}) {
   const row = document.createElement("div");
   row.className = "section-row";
@@ -539,7 +566,6 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   const actions = document.createElement("div");
   actions.className = "actions";
-  actions.style.gap = "6px";
 
   const upBtn = document.createElement("button");
   upBtn.type = "button";
@@ -611,7 +637,6 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
     const next = openSpecialsPrompt(current, hint);
     if (next === null) return;
-
     row.dataset.specials = JSON.stringify(next);
   });
 
@@ -646,20 +671,14 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
   return row;
 }
 
-/* -----------------------------
-   Drag & Drop opcional
------------------------------ */
 function getDragAfterElement(container, y) {
   const draggableElements = [...container.querySelectorAll("[data-section-row]:not(.dragging)")];
 
   return draggableElements.reduce((closest, child) => {
     const box = child.getBoundingClientRect();
     const offset = y - (box.top + box.height / 2);
-    if (offset < 0 && offset > closest.offset) {
-      return { offset, element: child };
-    } else {
-      return closest;
-    }
+    if (offset < 0 && offset > closest.offset) return { offset, element: child };
+    return closest;
   }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
 }
 
@@ -688,9 +707,6 @@ function enableDnD(container) {
   });
 }
 
-/* -----------------------------
-   Leer secciones desde UI
------------------------------ */
 function readSections(container) {
   const rows = Array.from(container.querySelectorAll("[data-section-row]"));
   const out = [];
@@ -741,7 +757,7 @@ els.btnAddSection?.addEventListener("click", () => {
 });
 
 /* -----------------------------
-   Crear colección
+   Crear colección (NUEVA ARRIBA)
 ----------------------------- */
 function createCollection() {
   const name = (els.newName.value || "").trim();
@@ -781,7 +797,6 @@ function createCollection() {
       });
     }
 
-    // ✅ NUEVO: unshift -> queda arriba
     state.data.collections.unshift({
       id: uid("col"),
       name,
@@ -857,7 +872,6 @@ function createCollection() {
     }
   }
 
-  // ✅ NUEVO: unshift -> queda arriba
   state.data.collections.unshift({
     id: uid("col"),
     name,
@@ -870,20 +884,6 @@ function createCollection() {
 
   save();
   goHome();
-}
-
-/* -----------------------------
-   Detail - filtros
------------------------------ */
-function setDetailFilter(f) {
-  state.detailFilter = f;
-
-  // UI active
-  els.fAll?.classList.toggle("active", f === "all");
-  els.fMissing?.classList.toggle("active", f === "missing");
-  els.fHave?.classList.toggle("active", f === "have");
-
-  renderDetail();
 }
 
 /* -----------------------------
@@ -902,9 +902,6 @@ function renderDetail() {
   els.stMissing.textContent = String(st.missing);
   els.stPct.textContent = `${st.pct}%`;
 
-  // Mantener UI del filtro
-  setActiveFilterUI();
-
   els.sectionsDetail.innerHTML = "";
 
   const bySec = new Map();
@@ -915,18 +912,6 @@ function renderDetail() {
   }
 
   for (const sec of col.sections) {
-    const items = bySec.get(sec.id) || [];
-
-    // Filtrado por ítem
-    const filtered = items.filter(it => {
-      if (state.detailFilter === "have") return !!it.have;
-      if (state.detailFilter === "missing") return !it.have;
-      return true;
-    });
-
-    // Si no hay nada para mostrar en esta sección, la escondo (pero solo si el filtro no es all)
-    if (state.detailFilter !== "all" && filtered.length === 0) continue;
-
     const card = document.createElement("div");
     card.className = "section-card";
 
@@ -937,19 +922,13 @@ function renderDetail() {
     const grid = document.createElement("div");
     grid.className = "items-grid";
 
-    for (const it of filtered) grid.appendChild(buildItemCell(it));
+    const items = bySec.get(sec.id) || [];
+    for (const it of items) grid.appendChild(buildItemCell(it));
 
     card.appendChild(title);
     card.appendChild(grid);
     els.sectionsDetail.appendChild(card);
   }
-}
-
-function setActiveFilterUI() {
-  const f = state.detailFilter || "all";
-  els.fAll?.classList.toggle("active", f === "all");
-  els.fMissing?.classList.toggle("active", f === "missing");
-  els.fHave?.classList.toggle("active", f === "have");
 }
 
 function buildItemCell(it) {
@@ -1162,7 +1141,7 @@ function applyEdit() {
 }
 
 /* -----------------------------
-   Backup (solo REEMPLAZAR)
+   Backup
 ----------------------------- */
 function exportBackup() {
   const payload = {
@@ -1249,7 +1228,7 @@ function handleImportFile(file) {
       state.meta.lastImportMode = "replace";
       save();
 
-      goHome();
+      goDash();
       alert("Backup importado ✅ (Reemplazar)");
     } catch {
       alert("Error al importar el backup.");
@@ -1274,6 +1253,31 @@ function renderSettings() {
 }
 
 /* -----------------------------
+   Global Stats
+----------------------------- */
+function renderGlobalStats() {
+  const cols = state.data.collections || [];
+  let total = 0, have = 0;
+
+  for (const c of cols) {
+    total += (c.items?.length || 0);
+    for (const it of (c.items || [])) if (it.have) have++;
+  }
+  const missing = total - have;
+
+  if (els.gCols) els.gCols.textContent = String(cols.length);
+  if (els.gTotal) els.gTotal.textContent = String(total);
+  if (els.gHave) els.gHave.textContent = String(have);
+  if (els.gMissing) els.gMissing.textContent = String(missing);
+
+  if (els.gNote) {
+    els.gNote.textContent = cols.length
+      ? "Tip: cuanto más cargues, más útil se vuelve este resumen."
+      : "Todavía no hay colecciones para medir.";
+  }
+}
+
+/* -----------------------------
    Eventos
 ----------------------------- */
 document.addEventListener("click", (e) => {
@@ -1282,29 +1286,34 @@ document.addEventListener("click", (e) => {
 
   const action = btn.getAttribute("data-action");
 
+  // Dashboard
+  if (action === "dash-go-home") return goHome();
+  if (action === "dash-go-create") return goCreate();
+  if (action === "dash-go-stats") return goStats();
+  if (action === "dash-go-settings") return goSettings();
+
+  // General
+  if (action === "go-dash") return goDash();
   if (action === "go-home") return goHome();
   if (action === "go-create") return goCreate();
-  if (action === "create-cancel") return goHome();
-  if (action === "create-save") return createCollection();
-
   if (action === "go-settings") return goSettings();
 
+  // Create
+  if (action === "create-cancel") return goDash();
+  if (action === "create-save") return createCollection();
+
+  // Detail/Edit
   if (action === "open-edit") return goEdit();
   if (action === "edit-cancel") return goDetail(state.currentId);
   if (action === "edit-save") return applyEdit();
 
   if (action === "reset-collection") return resetCollection();
 
+  // Backup
   if (action === "export-backup") return exportBackup();
-
-  // ✅ NUEVO: filtro detalle
-  if (action === "detail-filter") {
-    const f = btn.getAttribute("data-filter") || "all";
-    return setDetailFilter(f);
-  }
 });
 
-els.backBtn?.addEventListener("click", () => goHome());
+els.backBtn?.addEventListener("click", () => goBack());
 
 els.importInput?.addEventListener("change", (e) => {
   const file = e.target.files?.[0];
@@ -1320,10 +1329,10 @@ function init() {
   load();
   renderHome();
   renderSettings();
-  setView("home");
+  renderGlobalStats();
   resetCreateForm();
   ensureBulkBuilderUI();
+  setView("dash"); // ✅ ahora arranca en Dashboard
 }
 
 document.addEventListener("DOMContentLoaded", init);
-// 🔒 Punto seguro post-restauración estable
