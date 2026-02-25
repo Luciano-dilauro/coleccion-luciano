@@ -637,3 +637,138 @@ label{font-weight:800}
     min-height: 140px;
   }
 }
+/* =========================
+   DETAIL HERO (compacto + elegante)
+========================= */
+
+.detail-hero{
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 14px;
+}
+
+.detail-hero__left{
+  display: flex;
+  justify-content: center;
+}
+
+.album-cover{
+  width: 128px;
+  height: 92px;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,.06);
+  background: linear-gradient(135deg, rgba(60,130,255,.10), rgba(255,80,80,.08));
+  box-shadow: 0 10px 24px rgba(0,0,0,.06);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.album-cover__title{
+  font-weight: 900;
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+.album-cover__sub{
+  margin-top: 6px;
+  opacity: .65;
+  font-weight: 700;
+}
+
+.detail-hero__right{
+  min-width: 0;
+}
+
+.detail-hero__top{
+  gap: 10px;
+}
+
+.detail-hero__title{
+  margin: 0;
+  line-height: 1.05;
+  font-size: 32px; /* si lo querés un poco más chico: 28px */
+}
+
+.detail-hero__actions .btn{
+  padding: 10px 14px;
+  border-radius: 999px;
+}
+
+/* Stats compactos (texto) */
+.stats-compact{
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.stats-compact__row{
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 2px 0;
+  opacity: .95;
+}
+
+.stats-compact__row span{
+  opacity: .7;
+  font-weight: 700;
+}
+
+.stats-compact__row b{
+  font-size: 22px;
+}
+
+/* Barra % mini */
+.pct-mini{
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.pct-mini__bar{
+  height: 10px;               /* angosta */
+  border-radius: 999px;
+  background: rgba(0,0,0,.06);
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.05);
+}
+
+.pct-mini__fill{
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(60,130,255,.55);
+  width: 0%;
+}
+
+.pct-mini__label{
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  opacity: .9;
+}
+
+.pct-mini__label span{
+  opacity: .7;
+  font-weight: 800;
+}
+
+.pct-mini__label b{
+  font-size: 22px;
+}
+
+/* Mobile: que no explote */
+@media (max-width: 420px){
+  .detail-hero{
+    grid-template-columns: 120px 1fr;
+  }
+  .detail-hero__title{
+    font-size: 28px;
+  }
+  .detail-hero__actions .btn{
+    padding: 9px 12px;
+  }
+}
