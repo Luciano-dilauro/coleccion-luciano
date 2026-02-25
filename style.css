@@ -665,3 +665,48 @@ main.app{
   box-shadow:0 6px 14px rgba(0,0,0,.18);
   pointer-events:none;
 }
+/* =============================
+   PATCH vX — Badge fijo a la caja + Especiales celeste cuando tengo
+============================= */
+
+/* MUY importante: el badge debe posicionarse respecto de la caja */
+.item, .tile, .sticker, .stickerItem, .sticker-box{
+  position: relative;
+  overflow: visible; /* que pueda “salirse” */
+}
+
+/* Badge */
+.repBadgeCorner{
+  position:absolute;
+  top:-10px;     /* un poquito más abajo */
+  right:-10px;   /* un poco más a la izquierda */
+  width:34px;
+  height:34px;
+  border-radius:999px;
+  background:#e53935;
+  color:#fff;
+  font-weight:900;
+  font-size:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:50;
+  box-shadow:0 6px 14px rgba(0,0,0,.18);
+  pointer-events:none;
+}
+
+/* Ocultar cualquier texto "Rep:" si todavía existe en DOM */
+.item * , .tile * , .sticker * , .stickerItem * , .sticker-box *{
+  /* no tocamos texto general */
+}
+.item .rep, .tile .rep, .sticker .rep, .stickerItem .rep, .sticker-box .rep{
+  display:none !important;
+}
+
+/* ✅ Fix: si es ESPECIAL y además está marcada (tengo), el interior debe ser celeste */
+.special.have,
+.item.special.have,
+.tile.special.have,
+.sticker-box.special.have{
+  background: var(--haveBg, #dbe9ff) !important;
+}
