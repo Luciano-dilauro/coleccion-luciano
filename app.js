@@ -1,563 +1,755 @@
-/* ===========================
-   Colección Luciano — app.js (Arquitectura estable)
-   Compatible con index.html con data-view="home/create/detail/edit/settings"
-   - Home: lista + crear + duplicar + eliminar
-   - Crear: simple 1..N (por ahora)
-   - Detalle: stats + filtros (Todas / Faltantes / Tengo) + grid items
-   - Editar: renombrar (base)
-   - Ajustes: export/import (reemplazar)
-=========================== */
+/* app.js — Colección Luciano (Arquitectura blindada)
+   - Migración automática desde claves viejas de localStorage
+   - Persistencia estable con schema version
+   - Backup export/import (REEMPLAZAR)
+   - UI simple y robusta (SPA)
+*/
 
 (() => {
   "use strict";
 
-  /* ---------- Helpers ---------- */
+  /********************
+   * CONFIG / STORAGE *
+   ********************/
+  const APP_NAME = "Colección Luciano";
+  const SCHEMA_VERSION = 1;
+
+  // Clave nueva (estable). No la cambies más.
+  const LS_KEY_NEW = "coleccion-luciano:data:v1";
+
+  // Claves posibles viejas (probables). Agregá acá si recordás alguna.
+  const LS_KEYS_OLD = [
+    "coleccion_luciano_arch_v3",
+    "coleccion_luciano",
+    "coleccionLuciano",
+    "mis_colecciones",
+    "app_colecciones",
+    "albums_app",
+    "colecciones_data",
+    "data",
+  ];
+
+  const now = () => Date.now();
+  const uid = () => Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+
+  function safeJSONParse(str) {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return null;
+    }
+  }
+
+  function readLS(key) {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const data = safeJSONParse(raw);
+    return data;
+  }
+
+  function writeLS(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+  }
+
+  function isValidState(obj) {
+    if (!obj || typeof obj !== "object") return false;
+    if (!Array.isArray(obj.collections)) return false;
+    return true;
+  }
+
+  function normalizeState(state) {
+    // Estado mínimo y estable
+    const out = {
+      schema: SCHEMA_VERSION,
+      updatedAt: now(),
+      collections: [],
+    };
+
+    if (isValidState(state)) {
+      out.schema = Number.isFinite(state.schema) ? state.schema : SCHEMA_VERSION;
+      out.updatedAt = Number.isFinite(state.updatedAt) ? state.updatedAt : now();
+      out.collections = Array.isArray(state.collections) ? state.collections : [];
+    } else if (Array.isArray(state)) {
+      // por si alguna vez guardamos el array directo
+      out.collections = state;
+    }
+
+    // Normalizar colecciones
+    out.collections = out.collections
+      .filter(Boolean)
+      .map((c) => normalizeCollection(c))
+      .filter((c) => c && c.id && c.name);
+
+    // Orden: más nueva arriba (createdAt/updatedAt)
+    out.collections.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+
+    return out;
+  }
+
+  function normalizeCollection(c) {
+    if (!c || typeof c !== "object") return null;
+    const createdAt = Number.isFinite(c.createdAt) ? c.createdAt : now();
+    const updatedAt = Number.isFinite(c.updatedAt) ? c.updatedAt : createdAt;
+
+    const col = {
+      id: c.id || uid(),
+      name: String(c.name || "").trim(),
+      createdAt,
+      updatedAt,
+      // modelo simple: 1 sección default con items 1..N
+      sections: Array.isArray(c.sections) && c.sections.length ? c.sections.map(normalizeSection) : [],
+    };
+
+    // compatibilidad: si existía "items" suelto
+    if (!col.sections.length && Array.isArray(c.items)) {
+      col.sections = [normalizeSection({ id: uid(), name: "Items", items: c.items })];
+    }
+
+    // si sigue vacío, creamos sección default vacía (no rompe)
+    if (!col.sections.length) {
+      col.sections = [normalizeSection({ id: uid(), name: "Items", items: [] })];
+    }
+
+    return col;
+  }
+
+  function normalizeSection(s) {
+    const sec = {
+      id: (s && s.id) || uid(),
+      name: String((s && s.name) || "Items"),
+      items: Array.isArray(s && s.items) ? s.items.map(normalizeItem).filter(Boolean) : [],
+    };
+    return sec;
+  }
+
+  function normalizeItem(it) {
+    if (!it) return null;
+
+    // soporta varios formatos viejos
+    const code = String(it.code ?? it.id ?? it.n ?? it.num ?? "").trim();
+    if (!code) return null;
+
+    const have = Boolean(it.have ?? it.tengo ?? it.has ?? false);
+    const rep = clampInt(it.rep ?? it.reps ?? it.repetidas ?? 0, 0, 999);
+
+    return { code, have, rep };
+  }
+
+  function clampInt(v, min, max) {
+    const n = parseInt(v, 10);
+    if (!Number.isFinite(n)) return min;
+    return Math.max(min, Math.min(max, n));
+  }
+
+  function mergeCollectionsUnique(listA, listB) {
+    // Merge por id (prioridad: más nuevo). Si no hay ids coherentes, fallback por name.
+    const map = new Map();
+
+    function put(c) {
+      const key = c.id || ("name:" + c.name.toLowerCase());
+      const prev = map.get(key);
+      if (!prev) {
+        map.set(key, c);
+        return;
+      }
+      const prevTs = prev.updatedAt || prev.createdAt || 0;
+      const curTs = c.updatedAt || c.createdAt || 0;
+      if (curTs >= prevTs) map.set(key, c);
+    }
+
+    [...listA, ...listB].forEach(put);
+    return Array.from(map.values());
+  }
+
+  function migrateIfNeeded() {
+    // 1) Si ya existe la nueva, la usamos.
+    const current = readLS(LS_KEY_NEW);
+    if (isValidState(current)) return normalizeState(current);
+
+    // 2) Buscar en claves viejas (y también en la nueva aunque inválida).
+    const candidates = [];
+
+    const tryKeys = [LS_KEY_NEW, ...LS_KEYS_OLD];
+    for (const k of tryKeys) {
+      const d = readLS(k);
+      if (!d) continue;
+      const normalized = normalizeState(d);
+      if (normalized.collections.length) {
+        candidates.push({ key: k, state: normalized });
+      }
+    }
+
+    // 3) Si no hay nada, crear vacío.
+    if (!candidates.length) {
+      const empty = normalizeState({ collections: [] });
+      writeLS(LS_KEY_NEW, empty);
+      return empty;
+    }
+
+    // 4) Si hay varios, merge conservador (únicos) sin borrar nada.
+    let merged = candidates[0].state;
+    for (let i = 1; i < candidates.length; i++) {
+      merged = {
+        schema: SCHEMA_VERSION,
+        updatedAt: now(),
+        collections: mergeCollectionsUnique(merged.collections, candidates[i].state.collections),
+      };
+    }
+
+    merged = normalizeState(merged);
+    writeLS(LS_KEY_NEW, merged);
+
+    return merged;
+  }
+
+  let STATE = migrateIfNeeded();
+
+  function saveState() {
+    STATE.updatedAt = now();
+    // ordenar: más reciente arriba
+    STATE.collections.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+    writeLS(LS_KEY_NEW, STATE);
+  }
+
+  /*************
+   * UI / SPA  *
+   *************/
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  const uid = () => (crypto?.randomUUID?.() || `id_${Date.now()}_${Math.random().toString(16).slice(2)}`);
-
-  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-
-  const esc = (s) =>
-    String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-
-  const fmtPct = (n) => `${Math.round(n)}%`;
-
-  /* ---------- Storage ---------- */
-  const LS_KEY = "coleccion_luciano_arch_v3";
-
-  const state = {
-    view: "home",                // home | create | detail | edit | settings
-    filter: "all",               // all | missing | have
-    currentId: null,             // colección actual
-    collections: [],             // [{id,name,createdAt,updatedAt,items:[{key,label,have,rep}]}]
-    lastExportAt: null,
-    lastExportSize: null,
-    lastImportAt: null,
-  };
-
-  function load() {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (!raw) return;
-      const data = JSON.parse(raw);
-
-      if (Array.isArray(data.collections)) state.collections = data.collections;
-      if (data.currentId) state.currentId = data.currentId;
-      if (data.view) state.view = data.view;
-      if (data.filter) state.filter = data.filter;
-
-      state.lastExportAt = data.lastExportAt ?? null;
-      state.lastExportSize = data.lastExportSize ?? null;
-      state.lastImportAt = data.lastImportAt ?? null;
-    } catch {}
+  function h(tag, attrs = {}, children = []) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === "class") el.className = v;
+      else if (k === "text") el.textContent = v;
+      else if (k === "html") el.innerHTML = v;
+      else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, String(v));
+    }
+    for (const ch of (children || [])) {
+      if (ch == null) continue;
+      el.appendChild(typeof ch === "string" ? document.createTextNode(ch) : ch);
+    }
+    return el;
   }
 
-  function save() {
-    localStorage.setItem(LS_KEY, JSON.stringify({
-      collections: state.collections,
-      currentId: state.currentId,
-      view: state.view,
-      filter: state.filter,
-      lastExportAt: state.lastExportAt,
-      lastExportSize: state.lastExportSize,
-      lastImportAt: state.lastImportAt,
-    }));
+  function ensureBaseShell() {
+    // Si tu index ya tiene estructura, igual esto no rompe: solo crea un contenedor principal.
+    document.title = APP_NAME;
+
+    let app = $("#app");
+    if (!app) {
+      app = h("div", { id: "app" });
+      document.body.appendChild(app);
+    }
+
+    // Topbar fijo (simple). Si tu CSS ya tiene topbar, esto convive.
+    let top = $("#topbar");
+    if (!top) {
+      top = h("header", { id: "topbar", class: "topbar" }, [
+        h("button", { id: "backBtn", class: "icon-btn hidden", type: "button", "aria-label": "Volver", text: "←" }),
+        h("div", { id: "topTitle", class: "topbar-title", text: APP_NAME }),
+        h("div", { class: "topbar-spacer" }),
+      ]);
+      document.body.insertBefore(top, document.body.firstChild);
+    }
+
+    // hook back
+    $("#backBtn").addEventListener("click", () => goBack());
   }
 
-  /* ---------- DOM (según tu index) ---------- */
-  const topbarTitle = $("#topbarTitle");
-  const backBtn = $("#backBtn");
-
-  const views = {
-    home: document.querySelector('[data-view="home"]'),
-    create: document.querySelector('[data-view="create"]'),
-    detail: document.querySelector('[data-view="detail"]'),
-    edit: document.querySelector('[data-view="edit"]'),
-    settings: document.querySelector('[data-view="settings"]'),
-  };
-
-  // HOME
-  const collectionsList = $("#collectionsList");
-
-  // CREATE
-  const newName = $("#newName");
-  const simpleCount = $("#simpleCount");
-  const btnAddSection = $("#btnAddSection"); // (por ahora no usamos, pero queda)
-
-  // DETAIL
-  const detailTitle = $("#detailTitle");
-  const stTotal = $("#stTotal");
-  const stHave = $("#stHave");
-  const stMissing = $("#stMissing");
-  const stPct = $("#stPct");
-  const sectionsDetail = $("#sectionsDetail");
-
-  // EDIT
-  const editTitle = $("#editTitle");
-  const editName = $("#editName");
-  const editSectionsArea = $("#editSectionsArea");
-
-  // SETTINGS
-  const importInput = $("#importInput");
-  const exportMeta = $("#exportMeta");
-  const importMeta = $("#importMeta");
-  const storageMeta = $("#storageMeta");
-
-  /* ---------- View system ---------- */
-  function setTopbar(title, showBack) {
-    if (topbarTitle) topbarTitle.textContent = title;
-    if (backBtn) backBtn.classList.toggle("hidden", !showBack);
+  function setTop(title, canBack) {
+    $("#topTitle").textContent = title;
+    $("#backBtn").classList.toggle("hidden", !canBack);
   }
 
-  function showView(name) {
-    state.view = name;
-    Object.entries(views).forEach(([k, el]) => {
-      if (!el) return;
-      el.classList.toggle("is-active", k === name);
-    });
-    save();
+  // Router simple con historial
+  const ROUTE_STACK = [];
+  function nav(route) {
+    ROUTE_STACK.push(route);
+    render();
+    // scroll to top (evita “cosas raras”)
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
-  function goHome() {
-    setTopbar("Mis Colecciones", false);
-    renderHome();
-    showView("home");
+  function goBack() {
+    if (ROUTE_STACK.length > 1) ROUTE_STACK.pop();
+    render();
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
-  function goCreate() {
-    setTopbar("Nueva colección", true);
-    renderCreate();
-    showView("create");
+  function currentRoute() {
+    if (!ROUTE_STACK.length) return { name: "home" };
+    return ROUTE_STACK[ROUTE_STACK.length - 1];
   }
 
-  function goSettings() {
-    setTopbar("Ajustes / Backup", true);
-    renderSettings();
-    showView("settings");
+  /****************
+   * BUSINESS LOGIC
+   ****************/
+  function createCollection(name, nItems) {
+    const cleanName = String(name || "").trim();
+    if (!cleanName) throw new Error("Nombre inválido");
+
+    const N = clampInt(nItems, 1, 5000);
+
+    const items = [];
+    for (let i = 1; i <= N; i++) {
+      items.push({ code: String(i), have: false, rep: 0 });
+    }
+
+    const col = {
+      id: uid(),
+      name: cleanName,
+      createdAt: now(),
+      updatedAt: now(),
+      sections: [
+        {
+          id: uid(),
+          name: "Items",
+          items,
+        },
+      ],
+    };
+
+    STATE.collections.unshift(col); // nueva arriba
+    saveState();
+    return col;
   }
 
-  function goDetail(id) {
-    state.currentId = id;
-    setTopbar("Colección", true);
-    renderDetail();
-    showView("detail");
+  function getCollection(id) {
+    return STATE.collections.find((c) => c.id === id) || null;
   }
 
-  function goEdit() {
-    setTopbar("Editar", true);
-    renderEdit();
-    showView("edit");
+  function updateCollection(col) {
+    col.updatedAt = now();
+    saveState();
   }
 
-  if (backBtn) {
-    backBtn.addEventListener("click", () => {
-      // volver simple: desde detail/edit/create/settings => home
-      goHome();
-    });
+  function deleteCollection(id) {
+    STATE.collections = STATE.collections.filter((c) => c.id !== id);
+    saveState();
   }
 
-  /* ---------- Data helpers ---------- */
-  function getCurrent() {
-    return state.collections.find(c => c.id === state.currentId) || null;
+  function resetCollection(col) {
+    for (const sec of col.sections) {
+      for (const it of sec.items) {
+        it.have = false;
+        it.rep = 0;
+      }
+    }
+    updateCollection(col);
   }
 
-  function computeStats(col) {
-    const total = col.items.length;
-    const have = col.items.reduce((a, it) => a + (it.have ? 1 : 0), 0);
-    const missing = total - have;
-    const pct = total ? (have / total) * 100 : 0;
+  function statsForCollection(col) {
+    let total = 0, have = 0, missing = 0;
+    for (const sec of col.sections) {
+      for (const it of sec.items) {
+        total++;
+        if (it.have) have++;
+      }
+    }
+    missing = total - have;
+    const pct = total ? Math.round((have * 100) / total) : 0;
     return { total, have, missing, pct };
   }
 
-  function sortNewestFirst() {
-    state.collections.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  }
-
-  /* =========================================================
-     HOME
-  ========================================================= */
-  function renderHome() {
-    sortNewestFirst();
-
-    if (!collectionsList) return;
-
-    if (!state.collections.length) {
-      collectionsList.innerHTML = `
-        <div class="muted">Todavía no tenés colecciones.</div>
-        <div class="muted">Tocá “Nueva” para crear una.</div>
-      `;
-    } else {
-      collectionsList.innerHTML = state.collections.map(c => {
-        const st = computeStats(c);
-        return `
-          <div class="collection-row" data-open="${esc(c.id)}">
-            <div style="min-width:0;">
-              <div style="font-weight:950; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                ${esc(c.name)}
-              </div>
-              <div class="muted small">
-                Total: <b>${st.total}</b> · Tengo: <b>${st.have}</b> · Faltan: <b>${st.missing}</b> · ${fmtPct(st.pct)}
-              </div>
-            </div>
-
-            <div class="row gap" style="flex-shrink:0;">
-              <button class="icon-lite" type="button" data-dup="${esc(c.id)}" title="Duplicar">⎘</button>
-              <button class="icon-danger" type="button" data-del="${esc(c.id)}" title="Eliminar">🗑</button>
-            </div>
-          </div>
-        `;
-      }).join("");
-    }
-
-    // acciones home (delegación)
-    collectionsList.onclick = (e) => {
-      const open = e.target.closest("[data-open]")?.getAttribute("data-open");
-      const dup = e.target.closest("[data-dup]")?.getAttribute("data-dup");
-      const del = e.target.closest("[data-del]")?.getAttribute("data-del");
-
-      if (dup) {
-        e.stopPropagation();
-        duplicateCollection(dup);
-        renderHome();
-        return;
-      }
-
-      if (del) {
-        e.stopPropagation();
-        const col = state.collections.find(x => x.id === del);
-        const ok = confirm(`¿Eliminar "${col?.name || "colección"}"?\n\nEsta acción NO se puede deshacer.`);
-        if (!ok) return;
-        state.collections = state.collections.filter(x => x.id !== del);
-        if (state.currentId === del) state.currentId = null;
-        save();
-        renderHome();
-        return;
-      }
-
-      if (open) {
-        goDetail(open);
-      }
+  /*************
+   * BACKUP I/O *
+   *************/
+  function exportBackup() {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      app: APP_NAME,
+      schema: SCHEMA_VERSION,
+      data: STATE,
     };
 
-    // Botones principales (según tu index: data-action)
-    document.querySelector('[data-action="go-create"]')?.addEventListener("click", goCreate);
-    document.querySelector('[data-action="go-settings"]')?.addEventListener("click", goSettings);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = h("a", { href: url, download: "coleccion-luciano-backup.json" });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
-  function duplicateCollection(id) {
-    const original = state.collections.find(c => c.id === id);
-    if (!original) return;
+  async function importBackupReplace(file) {
+    const text = await file.text();
+    const parsed = safeJSONParse(text);
 
-    const copy = structuredClone(original);
-    copy.id = uid();
-    copy.name = `${copy.name} (copia)`;
-    copy.createdAt = Date.now();
-    copy.updatedAt = Date.now();
+    // formatos aceptados
+    let incoming = null;
+    if (parsed && parsed.data && isValidState(parsed.data)) incoming = parsed.data;
+    else if (isValidState(parsed)) incoming = parsed;
+    else if (parsed && Array.isArray(parsed.collections)) incoming = parsed;
 
-    // ✅ copia arriba
-    state.collections.unshift(copy);
-    save();
+    if (!incoming) throw new Error("Backup inválido");
+
+    const normalized = normalizeState(incoming);
+
+    // REEMPLAZAR (sin merge)
+    STATE = normalized;
+    saveState();
   }
 
-  /* =========================================================
-     CREATE (simple 1..N)
-  ========================================================= */
-  function renderCreate() {
-    // reset inputs
-    if (newName) newName.value = "";
-    if (simpleCount) simpleCount.value = "100";
-
-    // botones create
-    document.querySelector('[data-action="create-cancel"]')?.addEventListener("click", goHome);
-
-    document.querySelector('[data-action="create-save"]')?.addEventListener("click", () => {
-      const name = (newName?.value || "").trim();
-      const count = clamp(parseInt(simpleCount?.value || "100", 10) || 100, 1, 5000);
-
-      if (!name) {
-        alert("Escribí un nombre para la colección 🙂");
-        return;
-      }
-
-      const col = {
-        id: uid(),
-        name,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        items: Array.from({ length: count }, (_, i) => {
-          const n = i + 1;
-          return { key: String(n), label: String(n), have: false, rep: 0 };
-        }),
-      };
-
-      // ✅ nueva arriba
-      state.collections.unshift(col);
-      state.currentId = col.id;
-      save();
-
-      goDetail(col.id);
-    });
-
-    // (por ahora no implementamos secciones aquí, queda para la próxima etapa)
-    if (btnAddSection) btnAddSection.onclick = () => {
-      alert("Secciones avanzadas: lo agregamos en el próximo upgrade 🙂");
-    };
+  /*************
+   * RENDERING  *
+   *************/
+  function clearApp() {
+    const app = $("#app");
+    app.innerHTML = "";
+    return app;
   }
 
-  /* =========================================================
-     DETAIL (filtros + items)
-  ========================================================= */
-  function renderDetail() {
-    const col = getCurrent();
-    if (!col) {
-      goHome();
+  function render() {
+    ensureBaseShell();
+
+    const route = currentRoute();
+    const app = clearApp();
+
+    if (route.name === "home") {
+      setTop("Mis Colecciones", false);
+      app.appendChild(renderHome());
       return;
     }
 
-    if (detailTitle) detailTitle.textContent = col.name;
+    if (route.name === "new") {
+      setTop("Nueva colección", true);
+      app.appendChild(renderNewCollection());
+      return;
+    }
 
-    const st = computeStats(col);
-    if (stTotal) stTotal.textContent = String(st.total);
-    if (stHave) stHave.textContent = String(st.have);
-    if (stMissing) stMissing.textContent = String(st.missing);
-    if (stPct) stPct.textContent = fmtPct(st.pct);
+    if (route.name === "settings") {
+      setTop("Ajustes / Backup", true);
+      app.appendChild(renderSettings());
+      return;
+    }
 
-    // ✅ IMPORTANTE: acá creamos/mostramos SIEMPRE los filtros
-    // Los ponemos arriba del grid de items (dentro de sectionsDetail)
-    if (!sectionsDetail) return;
-
-    const filtersHtml = `
-      <div class="tabs" style="margin-bottom:12px;">
-        <button class="tab ${state.filter === "all" ? "active" : ""}" type="button" data-filter="all">Todas</button>
-        <button class="tab ${state.filter === "missing" ? "active" : ""}" type="button" data-filter="missing">Faltantes</button>
-        <button class="tab ${state.filter === "have" ? "active" : ""}" type="button" data-filter="have">Tengo</button>
-      </div>
-    `;
-
-    // filtrado
-    const items = col.items.filter(it => {
-      if (state.filter === "have") return it.have === true;
-      if (state.filter === "missing") return it.have !== true;
-      return true;
-    });
-
-    const gridHtml = `
-      <div class="section-card">
-        <div class="section-title">Figuritas</div>
-        <div class="items-grid">
-          ${items.map(it => `
-            <div class="item ${it.have ? "have" : ""}" data-item="${esc(it.key)}">
-              <div class="item-code">${esc(it.label)}</div>
-              <div class="item-rep">Rep: <b>${it.rep || 0}</b></div>
-              <div class="item-actions">
-                <button class="mini" type="button" data-minus="${esc(it.key)}">−</button>
-                <button class="mini" type="button" data-toggle="${esc(it.key)}">${it.have ? "✓" : "○"}</button>
-                <button class="mini" type="button" data-plus="${esc(it.key)}">+</button>
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    `;
-
-    sectionsDetail.innerHTML = filtersHtml + gridHtml;
-
-    // botones header (editar/reset)
-    document.querySelector('[data-action="open-edit"]')?.addEventListener("click", goEdit);
-
-    document.querySelector('[data-action="reset-collection"]')?.addEventListener("click", () => {
-      const ok = confirm(`¿Resetear TODO "${col.name}"?\n\nSe desmarcan "Tengo" y se ponen repeticiones en 0.`);
-      if (!ok) return;
-      col.items.forEach(it => { it.have = false; it.rep = 0; });
-      col.updatedAt = Date.now();
-      save();
-      renderDetail();
-    });
-
-    // Delegación clicks: filtros + items
-    sectionsDetail.onclick = (e) => {
-      const f = e.target.closest("[data-filter]")?.getAttribute("data-filter");
-      if (f) {
-        state.filter = f;
-        save();
-        renderDetail();
+    if (route.name === "collection") {
+      const col = getCollection(route.id);
+      if (!col) {
+        alert("No encontré esa colección (quizá fue eliminada).");
+        ROUTE_STACK.length = 0;
+        nav({ name: "home" });
         return;
       }
+      setTop(col.name, true);
+      app.appendChild(renderCollection(col));
+      return;
+    }
 
-      const keyToggle = e.target.closest("[data-toggle]")?.getAttribute("data-toggle");
-      if (keyToggle) {
-        const it = col.items.find(x => x.key === keyToggle);
-        if (!it) return;
-        it.have = !it.have;
-        if (!it.have) it.rep = 0; // simple: si ya no lo tengo, rep=0
-        col.updatedAt = Date.now();
-        save();
-        renderDetail();
-        return;
-      }
-
-      const keyPlus = e.target.closest("[data-plus]")?.getAttribute("data-plus");
-      if (keyPlus) {
-        const it = col.items.find(x => x.key === keyPlus);
-        if (!it) return;
-        if (!it.have) {
-          alert("Primero marcá esta figurita como 'Tengo'.");
-          return;
-        }
-        it.rep = clamp((it.rep || 0) + 1, 0, 999);
-        col.updatedAt = Date.now();
-        save();
-        renderDetail();
-        return;
-      }
-
-      const keyMinus = e.target.closest("[data-minus]")?.getAttribute("data-minus");
-      if (keyMinus) {
-        const it = col.items.find(x => x.key === keyMinus);
-        if (!it) return;
-        it.rep = clamp((it.rep || 0) - 1, 0, 999);
-        col.updatedAt = Date.now();
-        save();
-        renderDetail();
-        return;
-      }
-    };
+    // fallback
+    ROUTE_STACK.length = 0;
+    nav({ name: "home" });
   }
 
-  /* =========================================================
-     EDIT (base: renombrar)
-  ========================================================= */
-  function renderEdit() {
-    const col = getCurrent();
-    if (!col) { goHome(); return; }
-
-    if (editTitle) editTitle.textContent = `Editar: ${col.name}`;
-    if (editName) editName.value = col.name;
-
-    // por ahora ocultamos edición de secciones
-    if (editSectionsArea) editSectionsArea.style.display = "none";
-
-    document.querySelector('[data-action="edit-cancel"]')?.addEventListener("click", () => goDetail(col.id));
-
-    document.querySelector('[data-action="edit-save"]')?.addEventListener("click", () => {
-      const newN = (editName?.value || "").trim();
-      if (!newN) return alert("Nombre inválido.");
-      col.name = newN;
-      col.updatedAt = Date.now();
-      save();
-      goDetail(col.id);
-    });
+  function card(children = [], extraClass = "") {
+    return h("div", { class: `card ${extraClass}`.trim() }, children);
   }
 
-  /* =========================================================
-     SETTINGS (export / import reemplazar)
-  ========================================================= */
-  function renderSettings() {
-    // Meta datos
-    if (exportMeta) {
-      exportMeta.textContent =
-        `Último: ${state.lastExportAt ? new Date(state.lastExportAt).toLocaleString() : "—"} · Tamaño: ${state.lastExportSize || "—"}`;
+  function btn(text, onClick, cls = "btn") {
+    return h("button", { type: "button", class: cls, onClick, text });
+  }
+
+  function renderHome() {
+    const wrap = h("div", { class: "container" });
+
+    const headerCard = card([
+      h("div", { class: "row-between" }, [
+        h("h2", { class: "h2", text: "Mis Colecciones" }),
+        btn("Nueva", () => nav({ name: "new" }), "btn primary"),
+      ]),
+      h("p", { class: "muted", text: STATE.collections.length ? "Tocá una colección para entrar." : "Todavía no tenés colecciones. Tocá “Nueva” para crear una." }),
+      h("div", { class: "divider" }),
+      btn("Ajustes / Backup", () => nav({ name: "settings" }), "btn"),
+    ]);
+
+    wrap.appendChild(headerCard);
+
+    if (STATE.collections.length) {
+      const list = h("div", { class: "stack" });
+      for (const col of STATE.collections) {
+        const st = statsForCollection(col);
+        const item = card([
+          h("div", { class: "row-between" }, [
+            h("div", {}, [
+              h("div", { class: "title-lg", text: col.name }),
+              h("div", { class: "muted", text: `Total ${st.total} • Tengo ${st.have} • Faltan ${st.missing} • ${st.pct}%` }),
+            ]),
+            btn("Abrir", () => nav({ name: "collection", id: col.id }), "btn primary"),
+          ]),
+        ], "list-item");
+        list.appendChild(item);
+      }
+      wrap.appendChild(list);
     }
-    if (importMeta) {
-      importMeta.textContent =
-        `Último: ${state.lastImportAt ? new Date(state.lastImportAt).toLocaleString() : "—"} · Modo: Reemplazar`;
-    }
-    if (storageMeta) {
-      // tamaño aproximado del json en KB
-      const bytes = new Blob([JSON.stringify(state.collections)]).size;
-      const kb = Math.round(bytes / 1024);
-      storageMeta.textContent = `Datos actuales en el dispositivo: ~${kb} KB`;
-    }
 
-    document.querySelector('[data-action="go-home"]')?.addEventListener("click", goHome);
+    return wrap;
+  }
 
-    document.querySelector('[data-action="export-backup"]')?.addEventListener("click", exportBackup);
+  function renderNewCollection() {
+    const wrap = h("div", { class: "container" });
 
-    // importInput ya está en el index
-    if (importInput) {
-      importInput.onchange = (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const nameInput = h("input", { class: "input", type: "text", placeholder: "Ej: Adrenalyn WC 2026" });
+    const nInput = h("input", { class: "input", type: "number", min: "1", max: "5000", value: "100" });
 
-        const reader = new FileReader();
-        reader.onload = () => {
+    const form = card([
+      h("h2", { class: "h2", text: "Nueva colección" }),
+      h("label", { class: "label", text: "Nombre" }),
+      nameInput,
+      h("div", { style: "height:12px" }),
+      h("label", { class: "label", text: "Cantidad de ítems (números 1..N)" }),
+      nInput,
+      h("div", { style: "height:14px" }),
+      h("div", { class: "row gap" }, [
+        btn("Crear", () => {
+          const name = nameInput.value;
+          const n = nInput.value;
           try {
-            const data = JSON.parse(reader.result);
-
-            // modo REEMPLAZAR (sin fusionar)
-            const cols = Array.isArray(data.collections) ? data.collections
-              : Array.isArray(data.albums) ? data.albums
-              : Array.isArray(data.data) ? data.data
-              : [];
-
-            if (!Array.isArray(cols)) throw new Error("Formato inválido");
-
-            state.collections = cols;
-            sortNewestFirst();
-            state.lastImportAt = Date.now();
-
-            // si hay algo, elijo el primero
-            state.currentId = state.collections[0]?.id || null;
-
-            save();
-            alert("Backup importado ✅");
-            renderSettings();
-          } catch {
-            alert("Error al importar backup.");
+            const col = createCollection(name, n);
+            nav({ name: "collection", id: col.id });
+          } catch (e) {
+            alert(e.message || "No se pudo crear.");
           }
-        };
-        reader.readAsText(file);
-      };
+        }, "btn primary"),
+        btn("Cancelar", () => goBack(), "btn"),
+      ]),
+      h("p", { class: "muted", text: "Esta versión crea ítems 1..N (simple y estable). Luego sumamos secciones, alfanuméricos, importaciones, etc." }),
+    ]);
+
+    wrap.appendChild(form);
+    return wrap;
+  }
+
+  function renderSettings() {
+    const wrap = h("div", { class: "container" });
+
+    const fileInput = h("input", { type: "file", accept: "application/json", class: "input" });
+
+    const c = card([
+      h("h2", { class: "h2", text: "Ajustes / Backup" }),
+      h("div", { class: "row gap" }, [
+        btn("Exportar backup", () => exportBackup(), "btn primary"),
+        btn("Importar (reemplazar)", async () => {
+          const f = fileInput.files && fileInput.files[0];
+          if (!f) return alert("Elegí un archivo .json primero.");
+          const ok = confirm("Esto REEMPLAZA tus datos actuales por el backup. ¿Continuar?");
+          if (!ok) return;
+          try {
+            await importBackupReplace(f);
+            alert("Backup importado correctamente.");
+            nav({ name: "home" });
+          } catch (e) {
+            alert(e.message || "No se pudo importar.");
+          }
+        }, "btn"),
+      ]),
+      h("div", { style: "height:10px" }),
+      fileInput,
+      h("div", { class: "divider" }),
+      btn("Volver", () => goBack(), "btn"),
+      h("p", { class: "muted", text: "Nota: quitamos “fusionar” para evitar duplicaciones y confusión." }),
+    ]);
+
+    wrap.appendChild(c);
+    return wrap;
+  }
+
+  function renderCollection(col) {
+    const wrap = h("div", { class: "container" });
+    const st = statsForCollection(col);
+
+    // Header card
+    const header = card([
+      h("div", { class: "row-between" }, [
+        h("div", { class: "title-xl", text: col.name }),
+        h("div", { class: "row gap" }, [
+          btn("Editar", () => {
+            const nuevo = prompt("Nuevo nombre:", col.name);
+            if (nuevo == null) return;
+            const n = String(nuevo).trim();
+            if (!n) return alert("Nombre inválido.");
+            col.name = n;
+            updateCollection(col);
+            render();
+          }, "btn"),
+          btn("Reset", () => {
+            const ok = confirm("¿Resetear (Tengo=OFF, Rep=0) toda la colección?");
+            if (!ok) return;
+            resetCollection(col);
+            render();
+          }, "btn danger"),
+        ]),
+      ]),
+      h("div", { class: "stats-row" }, [
+        statBox("Total", st.total),
+        statBox("Tengo", st.have),
+        statBox("Faltan", st.missing),
+        statBox("%", st.pct + "%"),
+      ]),
+      h("div", { class: "divider" }),
+      h("div", { class: "row-between" }, [
+        btn("Eliminar", () => {
+          const ok = confirm("Eliminar colección definitivamente. ¿Seguro?");
+          if (!ok) return;
+          deleteCollection(col.id);
+          nav({ name: "home" });
+        }, "btn danger"),
+        btn("Duplicar", () => {
+          const clone = deepClone(col);
+          clone.id = uid();
+          clone.name = col.name + " (copia)";
+          clone.createdAt = now();
+          clone.updatedAt = now();
+          STATE.collections.unshift(clone);
+          saveState();
+          nav({ name: "collection", id: clone.id });
+        }, "btn primary"),
+      ]),
+    ]);
+
+    wrap.appendChild(header);
+
+    // Items (simple: sección única o múltiples)
+    for (const sec of col.sections) {
+      const secCard = card([
+        h("div", { class: "row-between" }, [
+          h("div", { class: "title-lg", text: sec.name }),
+          h("div", { class: "muted", text: `Ítems: ${sec.items.length}` }),
+        ]),
+        h("div", { class: "grid-items" }, sec.items.map((it) => itemCard(col, it))),
+      ]);
+
+      wrap.appendChild(secCard);
     }
+
+    return wrap;
   }
 
-  function exportBackup() {
-    const payload = {
-      version: 1,
-      exportedAt: Date.now(),
-      collections: state.collections,
-    };
-
-    const json = JSON.stringify(payload, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "backup-coleccion-luciano.json";
-    a.click();
-    URL.revokeObjectURL(url);
-
-    state.lastExportAt = Date.now();
-    state.lastExportSize = `${Math.round(blob.size / 1024)} KB`;
-    save();
-    renderSettings();
+  function statBox(label, value) {
+    return h("div", { class: "statbox" }, [
+      h("div", { class: "statlabel", text: label }),
+      h("div", { class: "statvalue", text: String(value) }),
+    ]);
   }
 
-  /* =========================================================
-     Init
-  ========================================================= */
-  function init() {
-    load();
+  function itemCard(col, it) {
+    const isHave = it.have;
+    const rep = it.rep;
 
-    // Conectores globales de botones del index
-    document.querySelector('[data-action="go-create"]')?.addEventListener("click", goCreate);
-    document.querySelector('[data-action="go-settings"]')?.addEventListener("click", goSettings);
+    const cardEl = h("div", { class: `item ${isHave ? "have" : ""}`.trim() }, [
+      h("div", { class: "itemcode", text: it.code }),
+      h("div", { class: "itemrep", text: `Rep: ${rep}` }),
+      h("div", { class: "itemcontrols" }, [
+        h("button", {
+          type: "button",
+          class: "mini",
+          text: "−",
+          onClick: () => {
+            if (!it.have) return alert("Primero marcá este ítem como 'Tengo' tocándolo.");
+            it.rep = clampInt(it.rep - 1, 0, 999);
+            updateCollection(col);
+            render();
+          },
+        }),
+        h("button", {
+          type: "button",
+          class: "mini",
+          text: "+",
+          onClick: () => {
+            if (!it.have) return alert("Primero marcá este ítem como 'Tengo' tocándolo.");
+            it.rep = clampInt(it.rep + 1, 0, 999);
+            updateCollection(col);
+            render();
+          },
+        }),
+      ]),
+    ]);
 
-    // arranque
-    if (state.view === "detail" && state.currentId) {
-      goDetail(state.currentId);
-    } else {
-      goHome();
-    }
+    // Tap para alternar "Tengo"
+    cardEl.addEventListener("click", (e) => {
+      // evitar que el click en botones dispare toggle
+      const t = e.target;
+      if (t && t.closest && t.closest("button")) return;
+
+      it.have = !it.have;
+      if (!it.have) it.rep = 0; // coherencia
+      updateCollection(col);
+      render();
+    });
+
+    return cardEl;
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  function deepClone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  /******************
+   * MIN CSS FALLBACK
+   ******************/
+  function injectFallbackCSS() {
+    // Si ya tenés style.css, esto solo ayuda a que el app.js sea usable igual.
+    if ($("#_fallback_css")) return;
+
+    const css = `
+      :root{--bg:#F4F5F7;--panel:#fff;--stroke:rgba(0,0,0,.08);--shadow:0 10px 30px rgba(0,0,0,.08);--accent:#2D7DF6;}
+      body{margin:0;background:var(--bg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:rgba(0,0,0,.88)}
+      .topbar{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--stroke);height:86px;display:flex;align-items:flex-end;padding:10px 18px 12px;gap:12px}
+      .topbar-title{flex:1;text-align:center;font-size:38px;line-height:1.05;font-weight:900;letter-spacing:-.02em}
+      .topbar-spacer{width:44px;height:44px}
+      .icon-btn{width:44px;height:44px;border-radius:999px;border:1px solid var(--stroke);background:var(--panel);box-shadow:0 6px 16px rgba(0,0,0,.06);font-size:20px;font-weight:900}
+      .hidden{display:none !important}
+      .container{padding:18px 18px 30px}
+      .card{background:var(--panel);border:1px solid var(--stroke);border-radius:26px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
+      .h2{margin:0 0 10px;font-size:34px;font-weight:900;letter-spacing:-.02em}
+      .muted{color:rgba(0,0,0,.55);font-weight:800}
+      .row{display:flex;align-items:center}
+      .row-between{display:flex;align-items:center;justify-content:space-between;gap:12px}
+      .gap{gap:10px}
+      .divider{height:1px;background:rgba(0,0,0,.08);margin:14px 0}
+      .btn{border:1px solid var(--stroke);background:var(--panel);border-radius:999px;padding:12px 16px;font-weight:900;font-size:18px}
+      .btn.primary{background:rgba(45,125,246,.16);border-color:rgba(45,125,246,.35);color:var(--accent)}
+      .btn.danger{background:rgba(231,76,60,.16);border-color:rgba(231,76,60,.35);color:#c0392b}
+      .input{width:100%;border:1px solid var(--stroke);border-radius:16px;padding:12px 14px;font-size:18px;outline:none;background:var(--panel)}
+      .stack{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+      .title-xl{font-size:44px;font-weight:950;letter-spacing:-.02em}
+      .title-lg{font-size:30px;font-weight:950;letter-spacing:-.02em}
+      .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+      .statbox{border:1px solid rgba(0,0,0,.06);background:rgba(0,0,0,.02);border-radius:20px;padding:14px;text-align:center}
+      .statlabel{font-weight:900;color:rgba(0,0,0,.55)}
+      .statvalue{font-weight:950;font-size:28px}
+      .grid-items{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+      .item{border:1px solid rgba(0,0,0,.06);background:rgba(0,0,0,.02);border-radius:22px;padding:14px;box-shadow:none}
+      .item.have{background:rgba(45,125,246,.10);border-color:rgba(45,125,246,.30)}
+      .itemcode{font-size:26px;font-weight:950}
+      .itemrep{margin-top:6px;color:rgba(0,0,0,.55);font-weight:900}
+      .itemcontrols{display:flex;gap:10px;margin-top:10px}
+      .mini{width:46px;height:46px;border-radius:999px;border:1px solid var(--stroke);background:var(--panel);font-size:26px;font-weight:950;color:var(--accent)}
+      @media (max-width:420px){.grid-items{grid-template-columns:repeat(2,1fr)}}
+    `;
+
+    const style = document.createElement("style");
+    style.id = "_fallback_css";
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  /************
+   * STARTUP  *
+   ************/
+  function start() {
+    injectFallbackCSS();
+    // ruta inicial
+    if (!ROUTE_STACK.length) ROUTE_STACK.push({ name: "home" });
+    render();
+  }
+
+  // Boot
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
 })();
