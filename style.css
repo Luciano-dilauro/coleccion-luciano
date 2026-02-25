@@ -14,7 +14,7 @@ body{
 }
 
 /* =========================
-   TOPBAR FIJO (NO DESAPARECE)
+   TOPBAR FIJO (BLUR + OPACO)
 ========================= */
 .topbar{
   position: fixed;
@@ -24,8 +24,12 @@ body{
   height: var(--topbar-h);
   z-index: 9999;
 
-  background: rgba(244,245,247,.92);
+  /* 🔥 Fondo sólido para que NO se vea detrás */
+  background: var(--bg-main);
+
+  /* Blur visual elegante */
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 
   display:flex;
   align-items:center;
@@ -107,18 +111,20 @@ body{
 }
 
 /* =========================
-   ✅ DETAIL HEADER STICKY
-   (fija la tarjeta de info del álbum)
+   DETAIL HEADER STICKY
 ========================= */
 .detail-header{
   position: sticky;
   top: calc(var(--topbar-h) + 12px);
   z-index: 50;
 
-  /* para que no “transparente” cuando pasa por encima */
+  /* Fondo sólido */
   background: var(--bg-panel);
 
-  /* sutil efecto de “pegado” */
+  /* Blur leve elegante */
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+
   box-shadow: 0 14px 30px rgba(0,0,0,.10);
 }
 
@@ -173,7 +179,7 @@ body{
 label{ font-weight: 900; }
 
 /* =========================
-   CARD BUTTONS (tarjetas)
+   CARD BUTTONS
 ========================= */
 .card-btn{
   width:100%;
@@ -234,7 +240,7 @@ label{ font-weight: 900; }
 .stat b{ display:block; font-size: 18px; font-weight: 950; margin-top:4px; }
 
 /* =========================
-   DETAIL SECTIONS / ITEMS
+   ITEMS
 ========================= */
 .section-card{
   background: var(--bg-panel);
@@ -298,70 +304,6 @@ label{ font-weight: 900; }
   background: var(--bg-panel);
   font-weight: 950;
   cursor:pointer;
-}
-
-/* =========================
-   SECTIONS EDITOR ROW
-========================= */
-.section-row{
-  display:grid;
-  grid-template-columns: 1.2fr .9fr .8fr .7fr 1.1fr auto;
-  gap: 8px;
-  align-items:center;
-
-  border: 1px solid var(--stroke);
-  border-radius: 18px;
-  padding: 10px;
-  background: rgba(0,0,0,.02);
-}
-.section-row .actions{
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-}
-
-.icon-lite{
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: var(--bg-panel);
-  font-weight: 950;
-  cursor:pointer;
-}
-.icon-danger{
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  border: 1px solid rgba(0,0,0,.08);
-  background: #ff3b30;
-  color:#fff;
-  font-weight: 950;
-  cursor:pointer;
-}
-
-.inline-check{
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  font-weight: 900;
-}
-
-.seg{
-  display:flex;
-  gap: 10px;
-}
-.seg-opt{
-  flex:1;
-  border: 1px solid var(--stroke);
-  border-radius: 16px;
-  padding: 10px 12px;
-  background: rgba(0,0,0,.02);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap: 10px;
-  font-weight: 950;
 }
 
 /* =========================
