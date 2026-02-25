@@ -425,3 +425,38 @@ label{font-weight:800}
   width:100%;
   margin-top: 10px;
 }
+/* =============================
+   MODAL CENTRADO (override)
+============================= */
+
+.modal-overlay{
+  position: fixed !important;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999;
+}
+
+.modal-card{
+  width: 90%;
+  max-width: 420px;
+  border-radius: 26px;
+  box-shadow: 0 30px 60px rgba(0,0,0,.25);
+  animation: modalPop .25s ease;
+}
+
+/* Animación suave */
+@keyframes modalPop{
+  from{
+    opacity:0;
+    transform: translateY(20px) scale(.95);
+  }
+  to{
+    opacity:1;
+    transform: translateY(0) scale(1);
+  }
+}
