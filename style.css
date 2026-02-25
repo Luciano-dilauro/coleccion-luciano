@@ -373,3 +373,7 @@ label{font-weight:800}
   .items-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
   .dash-grid,.hub-grid{grid-template-columns:1fr}
 }
+/* Export button next to Reset (visual only) */
+.detail-header .row-between .row.gap{
+  flex-wrap: nowrap;
+}
