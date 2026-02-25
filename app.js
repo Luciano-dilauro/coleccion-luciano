@@ -1,10 +1,18 @@
 /* =============================
-   Colección Luciano - Arquitectura estable (v2.3 + patches)
-   - Tap: si no tengo -> marco tengo
-          si tengo -> suma repetida (rep++)
-   - Long press: si rep>0 -> rep--
-                 si rep==0 y tengo -> confirma y desmarca (have=false)
-   - Backup: REEMPLAZAR
+   Colección Lucho — App estable (v3.0)
+   - Tap:
+      * si NO tengo -> tengo=true (rep=0)
+      * si tengo -> rep++
+   - Long press:
+      * si rep>0 -> rep--
+      * si rep==0 y tengo -> confirm y tengo=false
+   - Filtros:
+      * Todas
+      * Faltan (have=false)
+      * Repetidas (rep>0)
+   - Backup:
+      * Export JSON
+      * Import (REEMPLAZAR)
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -16,14 +24,10 @@ const $ = (id) => document.getElementById(id);
 const els = {
   backBtn: $("backBtn"),
   topbarTitle: $("topbarTitle"),
-
   views: Array.from(document.querySelectorAll("[data-view]")),
 
-  collectionsList: $("collectionsList"),
-
-  // Dash / pickers (si existen en tu index actual)
+  // Pickers
   collectionsSelect: $("collectionsSelect"),
-  btnOpenCollection: $("btnOpenCollection"),
   editPicker: $("editPicker"),
   editSelect: $("editSelect"),
   btnEditOpen: $("btnEditOpen"),
@@ -46,11 +50,9 @@ const els = {
   stMissing: $("stMissing"),
   stPct: $("stPct"),
   sectionsDetail: $("sectionsDetail"),
-
-  // Filters (si existen)
   fAll: $("fAll"),
-  fHave: $("fHave"),
   fMiss: $("fMiss"),
+  fRep: $("fRep"),
 
   // Edit
   editTitle: $("editTitle"),
@@ -69,6 +71,7 @@ const els = {
 const state = {
   view: "dash",
   currentId: null,
+  filter: "all", // all | miss | rep
   data: { collections: [] },
   meta: {
     lastExportAt: null,
@@ -76,8 +79,6 @@ const state = {
     lastImportAt: null,
     lastImportMode: "replace",
   },
-  // filtro dentro de una colección (si tu UI lo usa)
-  filter: "all", // all | have | miss
 };
 
 /* -----------------------------
@@ -100,18 +101,19 @@ function formatBytes(bytes) {
   return `${n.toFixed(i===0?0:1)} ${u[i]}`;
 }
 
+function parseCodesList(input) {
+  return String(input || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(s => String(s).trim().toUpperCase());
+}
+
 function normalizePrefix(p) {
   return String(p || "")
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
-}
-
-function parseCodesList(input) {
-  return String(input || "")
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean);
 }
 function parsePrefixList(input) {
   return String(input || "")
@@ -154,7 +156,7 @@ function load() {
     state.meta = { ...state.meta, ...m };
   } catch {}
 
-  // migración suave
+  // saneo/migración suave
   for (const c of state.data.collections) {
     if (!c.sections) c.sections = [];
     if (!c.items) c.items = [];
@@ -170,7 +172,7 @@ function load() {
       }
     } else {
       if (!c.sections.length) {
-        c.sections = [{ id: c.sections?.[0]?.id || uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false, specials: [] }];
+        c.sections = [{ id: uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false, specials: [] }];
       }
       if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
     }
@@ -196,24 +198,23 @@ function setView(view) {
   state.view = view;
   for (const v of els.views) v.classList.toggle("is-active", v.dataset.view === view);
 
-  // título + back
   if (view === "dash") {
-    els.topbarTitle && (els.topbarTitle.textContent = "Colecciones Lucho");
+    if (els.topbarTitle) els.topbarTitle.textContent = "Colecciones Lucho";
     els.backBtn?.classList.add("hidden");
   } else if (view === "collections") {
-    els.topbarTitle && (els.topbarTitle.textContent = "Mis colecciones");
+    if (els.topbarTitle) els.topbarTitle.textContent = "Mis colecciones";
     els.backBtn?.classList.remove("hidden");
   } else if (view === "loadedit") {
-    els.topbarTitle && (els.topbarTitle.textContent = "Carga / Edición");
+    if (els.topbarTitle) els.topbarTitle.textContent = "Carga / Edición";
     els.backBtn?.classList.remove("hidden");
   } else if (view === "create") {
-    els.topbarTitle && (els.topbarTitle.textContent = "Nueva colección");
+    if (els.topbarTitle) els.topbarTitle.textContent = "Nueva colección";
     els.backBtn?.classList.remove("hidden");
   } else if (view === "settings") {
-    els.topbarTitle && (els.topbarTitle.textContent = "Ajustes");
+    if (els.topbarTitle) els.topbarTitle.textContent = "Ajustes";
     els.backBtn?.classList.remove("hidden");
   } else if (view === "edit") {
-    els.topbarTitle && (els.topbarTitle.textContent = "Editar");
+    if (els.topbarTitle) els.topbarTitle.textContent = "Editar";
     els.backBtn?.classList.remove("hidden");
   } else if (view === "detail") {
     els.backBtn?.classList.remove("hidden");
@@ -225,8 +226,7 @@ function setView(view) {
 function goDash() {
   state.currentId = null;
   setView("dash");
-  // refrescos
-  renderCollectionsSelects?.();
+  renderCollectionsSelects();
 }
 function goCollections() {
   renderCollectionsSelects();
@@ -234,7 +234,6 @@ function goCollections() {
 }
 function goLoadEdit() {
   renderCollectionsSelects();
-  // oculto picker si existe
   if (els.editPicker) els.editPicker.classList.add("hidden");
   setView("loadedit");
 }
@@ -288,6 +287,20 @@ function renderCollectionsSelects() {
   fill(els.editSelect);
 }
 
+/* Auto-abrir colección al seleccionar */
+function wireAutoOpenCollections() {
+  const sel = els.collectionsSelect;
+  if (!sel) return;
+  if (sel.dataset.wired === "1") return;
+  sel.dataset.wired = "1";
+
+  sel.addEventListener("change", () => {
+    const id = sel.value;
+    if (!id) return;
+    setTimeout(() => goDetail(id), 80); // iOS: deja cerrar el select
+  });
+}
+
 /* -----------------------------
    Create UI
 ----------------------------- */
@@ -327,7 +340,7 @@ function resetCreateForm() {
 }
 
 /* -----------------------------
-   Generador rápido por lista (coma)
+   Generador rápido por lista
 ----------------------------- */
 function ensureBulkBuilderUI() {
   if (!els.sectionsBlock || !els.sectionsEditor) return;
@@ -430,7 +443,7 @@ function ensureBulkBuilderUI() {
 }
 
 /* -----------------------------
-   Especiales prompt
+   Secciones editor (create/edit)
 ----------------------------- */
 function openSpecialsPrompt(currentArr, hint) {
   const current = (currentArr || []).join(", ");
@@ -443,9 +456,6 @@ function openSpecialsPrompt(currentArr, hint) {
   return Array.from(new Set(list));
 }
 
-/* -----------------------------
-   Reordenar filas
------------------------------ */
 function moveRow(container, row, dir) {
   const rows = Array.from(container.querySelectorAll("[data-section-row]"));
   const idx = rows.indexOf(row);
@@ -474,9 +484,6 @@ function getSectionRowValues(row) {
   return { name, format, prefix, count: Number.isFinite(count) ? count : 1, ownNumbering, specials };
 }
 
-/* -----------------------------
-   Secciones: fila
------------------------------ */
 function addSectionRow(container, { name="", format="num", prefix="", count=10, ownNumbering=false, specials=[] } = {}) {
   const row = document.createElement("div");
   row.className = "section-row";
@@ -605,7 +612,6 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
     const next = openSpecialsPrompt(current, hint);
     if (next === null) return;
-
     row.dataset.specials = JSON.stringify(next);
   });
 
@@ -616,7 +622,6 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
     const newRow = addSectionRow(container, copy);
     container.insertBefore(newRow, row.nextSibling);
     enableDnD(container);
-    window.scrollTo({ top: window.scrollY + 80, behavior: "smooth" });
   });
 
   del.addEventListener("click", (e) => {
@@ -633,13 +638,10 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   container.appendChild(row);
   syncRow();
-
   return row;
 }
 
-/* -----------------------------
-   Drag & Drop
------------------------------ */
+/* Drag & Drop */
 function getDragAfterElement(container, y) {
   const draggableElements = [...container.querySelectorAll("[data-section-row]:not(.dragging)")];
   return draggableElements.reduce((closest, child) => {
@@ -675,9 +677,6 @@ function enableDnD(container) {
   });
 }
 
-/* -----------------------------
-   Leer secciones
------------------------------ */
 function readSections(container) {
   const rows = Array.from(container.querySelectorAll("[data-section-row]"));
   const out = [];
@@ -712,9 +711,7 @@ function readSections(container) {
   return { ok:true, sections: out, rows };
 }
 
-/* -----------------------------
-   Create - botones
------------------------------ */
+/* Create add section */
 els.btnAddSection?.addEventListener("click", () => {
   addSectionRow(els.sectionsEditor, {
     name: `Sección ${els.sectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
@@ -728,18 +725,13 @@ els.btnAddSection?.addEventListener("click", () => {
 });
 
 /* -----------------------------
-   Crear colección
+   Crear colección (nueva arriba)
 ----------------------------- */
 function createCollection() {
   const name = (els.newName?.value || "").trim();
   if (!name) return alert("Escribí un nombre.");
 
   const structure = getStructType();
-
-  const insertAtTop = (colObj) => {
-    // ✅ nueva colección arriba
-    state.data.collections.unshift(colObj);
-  };
 
   if (structure === "simple") {
     let count = parseInt(els.simpleCount?.value || "0", 10);
@@ -773,7 +765,7 @@ function createCollection() {
       });
     }
 
-    insertAtTop({
+    state.data.collections.unshift({
       id: uid("col"),
       name,
       createdAt: Date.now(),
@@ -849,7 +841,7 @@ function createCollection() {
     }
   }
 
-  insertAtTop({
+  state.data.collections.unshift({
     id: uid("col"),
     name,
     createdAt: Date.now(),
@@ -865,24 +857,39 @@ function createCollection() {
 }
 
 /* -----------------------------
-   Detail
+   Detail render + filtros
 ----------------------------- */
+function setFilter(mode) {
+  state.filter = mode;
+  if (els.fAll) els.fAll.classList.toggle("is-active", mode === "all");
+  if (els.fMiss) els.fMiss.classList.toggle("is-active", mode === "miss");
+  if (els.fRep) els.fRep.classList.toggle("is-active", mode === "rep");
+  renderDetail();
+}
+
+function itemVisible(it) {
+  if (state.filter === "miss") return !it.have;
+  if (state.filter === "rep") return (it.rep || 0) > 0;
+  return true;
+}
+
 function renderDetail() {
   const col = getCurrent();
   if (!col) return goCollections();
 
-  els.detailTitle && (els.detailTitle.textContent = col.name);
-  els.topbarTitle && (els.topbarTitle.textContent = col.name);
+  if (els.detailTitle) els.detailTitle.textContent = col.name;
+  if (els.topbarTitle) els.topbarTitle.textContent = col.name;
 
   const st = computeStats(col);
-  els.stTotal && (els.stTotal.textContent = String(st.total));
-  els.stHave && (els.stHave.textContent = String(st.have));
-  els.stMissing && (els.stMissing.textContent = String(st.missing));
-  els.stPct && (els.stPct.textContent = `${st.pct}%`);
+  if (els.stTotal) els.stTotal.textContent = String(st.total);
+  if (els.stHave) els.stHave.textContent = String(st.have);
+  if (els.stMissing) els.stMissing.textContent = String(st.missing);
+  if (els.stPct) els.stPct.textContent = `${st.pct}%`;
 
   if (!els.sectionsDetail) return;
   els.sectionsDetail.innerHTML = "";
 
+  // agrupar items por sección
   const bySec = new Map();
   for (const sec of col.sections) bySec.set(sec.id, []);
   for (const it of col.items) {
@@ -891,6 +898,8 @@ function renderDetail() {
   }
 
   for (const sec of col.sections) {
+    const items = (bySec.get(sec.id) || []).filter(itemVisible);
+
     const card = document.createElement("div");
     card.className = "section-card";
 
@@ -901,32 +910,25 @@ function renderDetail() {
     const grid = document.createElement("div");
     grid.className = "items-grid";
 
-    const items = bySec.get(sec.id) || [];
-
-    // filtro
-    const visibleItems = items.filter(it => {
-      if (state.filter === "have") return !!it.have;
-      if (state.filter === "miss") return !it.have;
-      return true;
-    });
-
-    for (const it of visibleItems) grid.appendChild(buildItemCell(it));
+    for (const it of items) {
+      grid.appendChild(buildItemCell(it));
+    }
 
     card.appendChild(title);
     card.appendChild(grid);
     els.sectionsDetail.appendChild(card);
   }
 
-  // UI de filtros si existen
-  if (els.fAll && els.fHave && els.fMiss) {
+  // sync UI filtros
+  if (els.fAll && els.fMiss && els.fRep) {
     els.fAll.classList.toggle("is-active", state.filter === "all");
-    els.fHave.classList.toggle("is-active", state.filter === "have");
     els.fMiss.classList.toggle("is-active", state.filter === "miss");
+    els.fRep.classList.toggle("is-active", state.filter === "rep");
   }
 }
 
 /* -----------------------------
-   ✅ ITEM: Tap / Long-press (FIX incluido)
+   Item cell (tap / long-press)
 ----------------------------- */
 function buildItemCell(it) {
   const wrap = document.createElement("div");
@@ -936,11 +938,21 @@ function buildItemCell(it) {
   code.className = "item-code";
   code.textContent = it.label;
 
-  const rep = document.createElement("div");
-  rep.className = "item-rep";
-  rep.textContent = `Rep: ${it.rep || 0}`;
+  // Badge estable: solo si rep > 0
+  const repCount = it.rep || 0;
+  if (repCount > 0) {
+    const badge = document.createElement("div");
+    badge.className = "rep-badge";
+    badge.textContent = repCount > 99 ? "99+" : String(repCount);
+    wrap.appendChild(badge);
+  }
 
-  // Long-press setup
+  // (mantenemos el nodo por compatibilidad, pero oculto por CSS)
+  const repHidden = document.createElement("div");
+  repHidden.className = "item-rep";
+  repHidden.textContent = `Rep: ${repCount}`;
+
+  // Long-press
   let pressTimer = null;
   let longPressed = false;
 
@@ -954,7 +966,7 @@ function buildItemCell(it) {
   const doLongPress = () => {
     longPressed = true;
 
-    // 1) Si tiene repetidas, resto una
+    // si tiene repetidas -> resto
     if ((it.rep || 0) > 0) {
       it.rep = clamp((it.rep || 0) - 1, 0, 999);
       save();
@@ -962,12 +974,10 @@ function buildItemCell(it) {
       return;
     }
 
-    // 2) Si NO tiene repetidas pero está marcada como tengo => confirmo y desmarco
+    // si no tiene repetidas pero está marcada -> confirmar desmarcar
     if (it.have) {
       const ok = confirm("⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?");
       if (!ok) return;
-
-      // ✅ FIX: desmarcar de verdad
       it.have = false;
       it.rep = 0;
       save();
@@ -975,24 +985,19 @@ function buildItemCell(it) {
     }
   };
 
-  // START: tocás
-  const onPressStart = (e) => {
+  const onPressStart = () => {
     longPressed = false;
     clearPress();
     pressTimer = setTimeout(doLongPress, 520);
   };
 
-  // END: levantás
   const onPressEnd = () => {
-    // si fue long press, no ejecuto tap normal
-    if (pressTimer) clearPress();
+    clearPress();
   };
 
-  // Tap normal
   const onTap = () => {
     if (longPressed) return;
 
-    // Tap: si no tengo -> marco tengo
     if (!it.have) {
       it.have = true;
       it.rep = 0;
@@ -1001,15 +1006,14 @@ function buildItemCell(it) {
       return;
     }
 
-    // Tap: si ya tengo -> suma repetida
     it.rep = clamp((it.rep || 0) + 1, 0, 999);
     save();
     renderDetail();
   };
 
-  // Pointer/touch/mouse (robusto)
+  // Touch + mouse
   wrap.addEventListener("touchstart", onPressStart, { passive: true });
-  wrap.addEventListener("touchend", (e) => { onPressEnd(); onTap(); });
+  wrap.addEventListener("touchend", () => { onPressEnd(); onTap(); });
   wrap.addEventListener("touchcancel", onPressEnd);
 
   wrap.addEventListener("mousedown", onPressStart);
@@ -1017,15 +1021,14 @@ function buildItemCell(it) {
   wrap.addEventListener("mouseleave", onPressEnd);
 
   wrap.appendChild(code);
-  wrap.appendChild(rep);
-
+  wrap.appendChild(repHidden);
   return wrap;
 }
 
 function resetCollection() {
   const col = getCurrent();
   if (!col) return;
-  const ok = confirm(`Resetear "${col.name}"?\n\nSe borran Tengo y Rep de todos los ítems.`);
+  const ok = confirm(`Resetear "${col.name}"?\n\nSe borran Tengo y Repetidas de todos los ítems.`);
   if (!ok) return;
   for (const it of col.items) { it.have = false; it.rep = 0; }
   save();
@@ -1033,14 +1036,14 @@ function resetCollection() {
 }
 
 /* -----------------------------
-   Edit
+   Edit (se mantiene)
 ----------------------------- */
 function renderEdit() {
   const col = getCurrent();
   if (!col) return goCollections();
 
-  els.editTitle && (els.editTitle.textContent = `Editar: ${col.name}`);
-  els.editName && (els.editName.value = col.name);
+  if (els.editTitle) els.editTitle.textContent = `Editar: ${col.name}`;
+  if (els.editName) els.editName.value = col.name;
 
   const isSections = col.structure === "sections";
   if (els.editSectionsArea) els.editSectionsArea.style.display = isSections ? "block" : "none";
@@ -1172,13 +1175,13 @@ function applyEdit() {
 }
 
 /* -----------------------------
-   Backup (REEMPLAZAR)
+   Backup
 ----------------------------- */
 function exportBackup() {
   const payload = {
     backupVersion: BACKUP_VERSION,
     exportedAt: Date.now(),
-    app: "ColeccionLuciano",
+    app: "ColeccionLucho",
     data: state.data
   };
 
@@ -1188,7 +1191,7 @@ function exportBackup() {
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = `backup-coleccion-luciano-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `backup-coleccion-lucho-${new Date().toISOString().slice(0,10)}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -1198,7 +1201,6 @@ function exportBackup() {
   state.meta.lastExportAt = Date.now();
   state.meta.lastExportSize = blob.size;
   save();
-
   renderSettings();
   alert("Backup exportado ✅");
 }
@@ -1231,7 +1233,7 @@ function handleImportFile(file) {
 
       state.data.collections = normalized.collections || [];
 
-      // saneo
+      // saneo mínimo
       for (const c of state.data.collections) {
         if (!c.items) c.items = [];
         if (!c.sections) c.sections = [];
@@ -1290,7 +1292,7 @@ function renderSettings() {
 }
 
 /* -----------------------------
-   Eventos (delegados)
+   Eventos
 ----------------------------- */
 document.addEventListener("click", (e) => {
   const btn = e.target?.closest?.("[data-action]");
@@ -1320,9 +1322,9 @@ document.addEventListener("click", (e) => {
   if (action === "export-backup") return exportBackup();
 
   // filtros
-  if (action === "filter-all") { state.filter = "all"; return renderDetail(); }
-  if (action === "filter-have") { state.filter = "have"; return renderDetail(); }
-  if (action === "filter-miss") { state.filter = "miss"; return renderDetail(); }
+  if (action === "filter-all") return setFilter("all");
+  if (action === "filter-miss") return setFilter("miss");
+  if (action === "filter-rep") return setFilter("rep");
 
   // load/edit picker
   if (action === "open-edit-picker") {
@@ -1333,7 +1335,6 @@ document.addEventListener("click", (e) => {
 });
 
 els.backBtn?.addEventListener("click", () => {
-  // regla simple de back
   if (state.view === "detail") return goCollections();
   if (state.view === "collections") return setView("dash");
   if (state.view === "loadedit") return setView("dash");
@@ -1341,13 +1342,6 @@ els.backBtn?.addEventListener("click", () => {
   if (state.view === "create") return goLoadEdit();
   if (state.view === "edit") return goDetail(state.currentId);
   return setView("dash");
-});
-
-// abrir colección desde selector
-els.btnOpenCollection?.addEventListener("click", () => {
-  const id = els.collectionsSelect?.value;
-  if (!id) return;
-  goDetail(id);
 });
 
 // abrir editor desde picker
@@ -1358,7 +1352,7 @@ els.btnEditOpen?.addEventListener("click", () => {
   goEdit();
 });
 
-// import input
+// import
 els.importInput?.addEventListener("change", (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -1373,826 +1367,10 @@ function init() {
   load();
   renderCollectionsSelects();
   renderSettings();
-  setView("dash");
   resetCreateForm();
   ensureBulkBuilderUI();
+  wireAutoOpenCollections();
+  setView("dash");
 }
 
 document.addEventListener("DOMContentLoaded", init);
-/* ===== PATCH Badge Repetidas v1 ===== */
-
-(function enhanceRepBadges(){
-
-  const originalRenderDetail = renderDetail;
-
-  renderDetail = function(){
-    originalRenderDetail();
-
-    document.querySelectorAll(".item").forEach(itemEl => {
-
-      const repText = itemEl.querySelector(".item-rep");
-      if(!repText) return;
-
-      const match = repText.textContent.match(/\d+/);
-      if(!match) return;
-
-      const repValue = parseInt(match[0], 10);
-      if(repValue <= 0) return;
-
-      // evitar duplicar badge
-      if(itemEl.querySelector(".rep-badge")) return;
-
-      const badge = document.createElement("div");
-      badge.className = "rep-badge";
-      badge.textContent = repValue > 99 ? "99+" : repValue;
-
-      itemEl.appendChild(badge);
-    });
-  };
-
-})();
-/* =============================
-   PATCH v1.0.x — Auto-abrir colección + UI badge/rep cleanup
-   (pegar al FINAL de app.js)
-============================= */
-(function () {
-  // helper seguro
-  const $id = (id) => document.getElementById(id);
-
-  function tryOpenCollectionById(colId) {
-    if (!colId) return;
-
-    // Intentos (según cómo esté tu app.js hoy)
-    try {
-      if (typeof window.goDetail === "function") return window.goDetail(colId);
-    } catch {}
-
-    try {
-      if (typeof window.openCollection === "function") return window.openCollection(colId);
-    } catch {}
-
-    // Fallback best-effort
-    try {
-      if (window.state) window.state.currentId = colId;
-      if (typeof window.renderDetail === "function") window.renderDetail();
-      if (typeof window.setView === "function") window.setView("detail");
-    } catch {}
-  }
-
-  function wireCollectionsAutoOpen() {
-    const sel = $id("collectionsSelect");
-    if (!sel) return;
-
-    // Ocultar botón "Abrir" si existe
-    const btn = $id("btnOpenCollection");
-    if (btn) {
-      btn.style.display = "none";
-      btn.classList?.add("hidden");
-    }
-
-    if (sel.dataset.autoOpenWired === "1") return;
-    sel.dataset.autoOpenWired = "1";
-
-    // Abrir apenas selecciona
-    sel.addEventListener("change", () => {
-      const colId = sel.value;
-      // pequeño delay para dejar que cierre el select en iOS
-      setTimeout(() => tryOpenCollectionById(colId), 80);
-    });
-
-    // Por si alguien toca el botón igual (o queda un handler viejo)
-    if (btn) btn.onclick = () => tryOpenCollectionById(sel.value);
-  }
-
-  // Mantenerlo “vivo” aunque la vista se re-renderice
-  function keepAlive() {
-    wireCollectionsAutoOpen();
-    // reintenta un par de veces por si la UI carga luego
-    setTimeout(wireCollectionsAutoOpen, 300);
-    setTimeout(wireCollectionsAutoOpen, 900);
-  }
-
-  // Al cargar
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", keepAlive);
-  } else {
-    keepAlive();
-  }
-
-  // Si cambian vistas dinámicamente, lo volvemos a enganchar
-  const obs = new MutationObserver(() => wireCollectionsAutoOpen());
-  obs.observe(document.body, { childList: true, subtree: true });
-})();
-/* =============================
-   PATCH — Badge esquina + eliminar "Rep: x" + centrar código
-   (pegar al FINAL de app.js)
-============================= */
-(function () {
-  const BADGE_CLASS = "repBadgeCorner";
-  const CENTER_CLASS = "tileCentered";
-
-  // Busca un texto tipo "Rep: 2" en algún nodo hijo y devuelve {node, n}
-  function findRepNode(root) {
-    // Recorremos elementos que tengan texto (rápido y seguro)
-    const els = root.querySelectorAll("*");
-    for (const el of els) {
-      const t = (el.textContent || "").trim();
-      const m = t.match(/^Rep:\s*(\d+)\s*$/i);
-      if (m) return { node: el, n: parseInt(m[1], 10) || 0 };
-    }
-    return null;
-  }
-
-  // A veces el "Rep:" viene pegado en el mismo elemento con más texto.
-  // Buscamos el patrón dentro del texto y lo limpiamos.
-  function stripInlineRep(root) {
-    const els = root.querySelectorAll("*");
-    for (const el of els) {
-      const t = (el.textContent || "");
-      if (/Rep:\s*\d+/i.test(t) && t.length > 8) {
-        // solo limpiamos si hay más texto además de "Rep: N"
-        el.textContent = t.replace(/Rep:\s*\d+/gi, "").replace(/\s{2,}/g, " ").trim();
-        // no retornamos, porque podría haber varios
-      }
-    }
-  }
-
-  function upsertBadge(tile, n) {
-    // quitar badge si no corresponde
-    let badge = tile.querySelector("." + BADGE_CLASS);
-
-    if (!n || n <= 0) {
-      if (badge) badge.remove();
-      return;
-    }
-
-    if (!badge) {
-      badge = document.createElement("div");
-      badge.className = BADGE_CLASS;
-      tile.appendChild(badge);
-    }
-    badge.textContent = String(n);
-  }
-
-  function centerCode(tile) {
-    tile.classList.add(CENTER_CLASS);
-  }
-
-  function patchTile(tile) {
-    if (!tile || tile.nodeType !== 1) return;
-
-    // 1) centrar contenido
-    centerCode(tile);
-
-    // 2) encontrar "Rep: N" como elemento SOLO "Rep: N"
-    const found = findRepNode(tile);
-    if (found) {
-      const n = found.n;
-      found.node.remove();      // elimina el "Rep: x"
-      upsertBadge(tile, n);     // crea/actualiza el badge
-      return;
-    }
-
-    // 3) si no lo encontramos como elemento aislado, limpiamos inline (por si viene mezclado)
-    stripInlineRep(tile);
-
-    // 4) si existe un badge viejo (por versiones anteriores), lo convertimos a nuestro estilo
-    // (si ya hay algún badge con número, lo dejamos y aplicamos clase nueva)
-    const anyBadge = tile.querySelector(".rep-badge,.repBadge,.badge-rep,.badgeRep,.item-badge,.itemBadge");
-    if (anyBadge && !tile.querySelector("." + BADGE_CLASS)) {
-      const num = parseInt((anyBadge.textContent || "").trim(), 10);
-      anyBadge.remove();
-      upsertBadge(tile, isNaN(num) ? 0 : num);
-    }
-  }
-
-  function patchAllVisible() {
-    // cubrimos varios nombres posibles de “caja” sin depender del HTML exacto
-    const tiles = document.querySelectorAll(
-      ".item, .tile, .fig, .sticker, .stickerItem, .sticker-box, .card-item, [data-sticker], [data-item]"
-    );
-    tiles.forEach(patchTile);
-  }
-
-  // Ejecutar al cargar + cada vez que se renderiza algo nuevo
-  function boot() {
-    patchAllVisible();
-
-    const target = document.getElementById("sectionsDetail") || document.body;
-    const mo = new MutationObserver(() => {
-      // pequeño debounce
-      clearTimeout(window.__repPatchT);
-      window.__repPatchT = setTimeout(patchAllVisible, 50);
-    });
-    mo.observe(target, { childList: true, subtree: true });
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
-})();
-/* =============================
-   PATCH vFilters: Repetidas
-   - Cambia “Tengo” -> “Repetidas”
-   - Repetidas = muestra solo cajas con badge
-   - No rompe “Todas” ni “Faltan”
-============================= */
-(function () {
-  function $(sel) { return document.querySelector(sel); }
-  function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
-
-  function getFilterButtons() {
-    const fAll = $("#fAll");
-    const fMiss = $("#fMiss");
-    const fHave = $("#fHave"); // lo usamos como Repetidas
-    return { fAll, fMiss, fHave };
-  }
-
-  function getTiles() {
-    // Seleccionamos “cajas” de forma amplia (por si cambian clases internas)
-    return $all(".item, .tile, .sticker, .stickerItem, .sticker-box").filter(el => el.closest("#sectionsDetail"));
-  }
-
-  function setActive(btn) {
-    const { fAll, fMiss, fHave } = getFilterButtons();
-    [fAll, fMiss, fHave].forEach(b => b && b.classList.remove("is-active"));
-    btn && btn.classList.add("is-active");
-  }
-
-  function applyRepFilter() {
-    const tiles = getTiles();
-    tiles.forEach(t => {
-      const hasBadge = !!t.querySelector(".repBadgeCorner, .rep-badge");
-      t.style.display = hasBadge ? "" : "none";
-    });
-  }
-
-  function clearCustomFilter() {
-    const tiles = getTiles();
-    tiles.forEach(t => (t.style.display = ""));
-  }
-
-  function wireRepetidas() {
-    const { fAll, fMiss, fHave } = getFilterButtons();
-    if (!fHave) return;
-
-    // 1) etiqueta
-    fHave.textContent = "Repetidas";
-
-    // 2) rewire: clonamos para borrar listeners anteriores sin tocar tu código
-    const newBtn = fHave.cloneNode(true);
-    fHave.parentNode.replaceChild(newBtn, fHave);
-
-    newBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // activamos repetidas
-      setActive(newBtn);
-      clearCustomFilter();
-      applyRepFilter();
-
-      // guardamos estado para re-aplicar si se re-renderiza
-      window.__filterMode = "rep";
-    }, true);
-
-    // “Todas” y “Faltan” vuelven a mostrar todo y dejan que tu lógica haga lo suyo
-    if (fAll) fAll.addEventListener("click", () => {
-      window.__filterMode = "all";
-      clearCustomFilter();
-    }, true);
-
-    if (fMiss) fMiss.addEventListener("click", () => {
-      window.__filterMode = "miss";
-      clearCustomFilter();
-    }, true);
-  }
-
-  function observeRerenders() {
-    const host = document.getElementById("sectionsDetail");
-    if (!host) return;
-
-    const obs = new MutationObserver(() => {
-      if (window.__filterMode === "rep") {
-        // si está en repetidas y se re-renderizó, reaplicamos
-        applyRepFilter();
-      }
-    });
-
-    obs.observe(host, { childList: true, subtree: true });
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    wireRepetidas();
-    observeRerenders();
-  });
-})();
-/* =============================
-   FIX FINAL Badge + Pintado Especial
-============================= */
-(function(){
-
-  function cleanOldBadges(tile){
-    const old = tile.querySelectorAll(
-      ".repBadgeCorner, .rep-badge, .badge-rep, .badgeRep, .item-badge, .itemBadge"
-    );
-    old.forEach(b => b.remove());
-  }
-
-  function applyBadgeSystem(){
-    const tiles = document.querySelectorAll(
-      ".item, .tile, .sticker, .stickerItem, .sticker-box"
-    );
-
-    tiles.forEach(tile => {
-
-      // restaurar pintado celeste si tiene clase have
-      if(tile.classList.contains("have")){
-        tile.style.background = "";
-        tile.style.borderColor = "";
-      }
-
-      // buscar número repetidas desde dataset o atributo interno
-      const repText = tile.textContent.match(/Rep:\s*(\d+)/i);
-      const repValue = repText ? parseInt(repText[1],10) : 0;
-
-      // eliminar cualquier badge previo
-      cleanOldBadges(tile);
-
-      if(repValue > 0){
-        const badge = document.createElement("div");
-        badge.className = "repBadgeCorner";
-        badge.textContent = repValue;
-        tile.appendChild(badge);
-      }
-    });
-  }
-
-  // Ejecutar al cargar
-  document.addEventListener("DOMContentLoaded", () => {
-    applyBadgeSystem();
-  });
-
-  // Reaplicar cuando se re-renderiza detalle
-  const obs = new MutationObserver(() => {
-    clearTimeout(window.__badgeFixT);
-    window.__badgeFixT = setTimeout(applyBadgeSystem, 50);
-  });
-
-  obs.observe(document.body, {childList:true, subtree:true});
-
-})();
-/* =============================
-   PATCH vX — Badge estable + sin duplicados (global)
-   - Elimina todos los badges existentes (de cualquier parche anterior)
-   - Fuerza 1 badge por caja
-   - Evita re-entradas (no se vuelve loco con renders/observers)
-============================= */
-(function () {
-  let running = false;
-
-  function removeAllBadges() {
-    document.querySelectorAll(".repBadgeCorner").forEach(el => el.remove());
-  }
-
-  function getRepCount(tile) {
-    // 1) Si alguna parte del código ya dejó un dato, lo usamos
-    const ds = tile.dataset && (tile.dataset.rep || tile.dataset.reps || tile.dataset.dup || tile.dataset.dups);
-    if (ds != null && ds !== "") {
-      const n = parseInt(ds, 10);
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    // 2) Si existe algún elemento "rep" en el DOM, lo leemos (aunque esté oculto)
-    const repEl =
-      tile.querySelector("[data-rep],[data-reps],.rep,.reps,.dup,.dups,.repetidas,.repetidasCount") ||
-      null;
-
-    if (repEl) {
-      const m = (repEl.textContent || "").match(/(\d+)/);
-      if (m) return parseInt(m[1], 10) || 0;
-    }
-
-    // 3) Último recurso: buscar "Rep:" en el texto (NO toma números de RIA12)
-    const t = (tile.textContent || "");
-    const m = t.match(/Rep:\s*(\d+)/i);
-    return m ? (parseInt(m[1], 10) || 0) : 0;
-  }
-
-  function ensureBadge(tile, rep) {
-    // borrar badge previo SOLO dentro de la caja (por si quedó alguno)
-    tile.querySelectorAll(".repBadgeCorner").forEach(el => el.remove());
-
-    if (rep > 0) {
-      const b = document.createElement("div");
-      b.className = "repBadgeCorner";
-      b.textContent = String(rep);
-      tile.appendChild(b);
-    }
-  }
-
-  function applyBadges() {
-    if (running) return;
-    running = true;
-
-    try {
-      // limpieza global: evita "11111"
-      removeAllBadges();
-
-      // seleccionar cajas (amplio, pero seguro)
-      const tiles = document.querySelectorAll(".item, .tile, .sticker, .stickerItem, .sticker-box");
-
-      tiles.forEach(tile => {
-        const rep = getRepCount(tile);
-        ensureBadge(tile, rep);
-      });
-    } finally {
-      running = false;
-    }
-  }
-
-  // 1) al cargar
-  document.addEventListener("DOMContentLoaded", () => {
-    applyBadges();
-    // segundo pase por si renderiza después
-    setTimeout(applyBadges, 120);
-  });
-
-  // 2) cuando se vuelve a renderizar (detalle / filtros / taps)
-  const obs = new MutationObserver(() => {
-    clearTimeout(window.__badgeStableT);
-    window.__badgeStableT = setTimeout(applyBadges, 60);
-  });
-
-  obs.observe(document.body, { childList: true, subtree: true });
-})();
-/* =========================
-   PATCH v1.0 – Badge Rep + filtro Repetidas estable
-   Pegar al FINAL de app.js
-========================= */
-
-(function () {
-  // --- Helpers: encontrar "celdas" de figuritas de forma tolerante ---
-  const CELL_SELECTORS = [
-    ".sticker", ".fig", ".tile", ".slot", ".card-sticker",
-    ".sticker-cell", ".fig-cell", ".tile-cell",
-    "[data-sticker]", "[data-fig]", "[data-code]"
-  ];
-
-  function getCells() {
-    const root = document.getElementById("sectionsDetail") || document;
-    const set = new Set();
-    CELL_SELECTORS.forEach(sel => root.querySelectorAll(sel).forEach(n => set.add(n)));
-    // Filtramos cosas que claramente no son celdas (por si matchea de más)
-    return [...set].filter(el => el && el.nodeType === 1 && el.offsetParent !== null);
-  }
-
-  function readRepCount(cell) {
-    // 1) Badge nuevo
-    const b = cell.querySelector(".rep-badge, .repBadge");
-    if (b) {
-      const n = parseInt((b.textContent || "").trim(), 10);
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    // 2) Si quedó “Rep: X” en algún lado
-    const txt = (cell.textContent || "");
-    const m = txt.match(/Rep:\s*(\d+)/i);
-    if (m) return parseInt(m[1], 10) || 0;
-
-    // 3) Dataset
-    const d = cell.getAttribute("data-rep");
-    if (d != null) return parseInt(d, 10) || 0;
-
-    return 0;
-  }
-
-  function isHave(cell) {
-    // Intentamos detectar “tengo” con varias pistas típicas
-    if (cell.getAttribute("data-have") === "1") return true;
-    if (cell.getAttribute("aria-pressed") === "true") return true;
-
-    const cls = cell.classList;
-    return (
-      cls.contains("is-have") ||
-      cls.contains("have") ||
-      cls.contains("owned") ||
-      cls.contains("done") ||
-      cls.contains("is-done") ||
-      cls.contains("is-checked") ||
-      cls.contains("checked")
-    );
-  }
-
-  function isMissing(cell) {
-    return !isHave(cell);
-  }
-
-  // --- Badge: evita duplicados y lo crea solo si rep > 0 ---
-  function normalizeBadges() {
-    const cells = getCells();
-    cells.forEach(cell => {
-      const rep = readRepCount(cell);
-
-      // eliminar duplicados: si hay 2 badges, dejamos el primero
-      const badges = cell.querySelectorAll(".rep-badge, .repBadge");
-      if (badges.length > 1) {
-        for (let i = 1; i < badges.length; i++) badges[i].remove();
-      }
-
-      // si rep <= 0: borrar badge si existe
-      if (!rep || rep <= 0) {
-        const ex = cell.querySelector(".rep-badge, .repBadge");
-        if (ex) ex.remove();
-        return;
-      }
-
-      // crear badge si no existe
-      let badge = cell.querySelector(".rep-badge, .repBadge");
-      if (!badge) {
-        badge = document.createElement("div");
-        badge.className = "rep-badge";
-        // Asegura posicionamiento
-        if (getComputedStyle(cell).position === "static") {
-          cell.style.position = "relative";
-        }
-        cell.appendChild(badge);
-      }
-
-      // texto
-      badge.textContent = String(rep);
-    });
-  }
-
-  // --- Filtros: Todas / Faltan / Repetidas ---
-  let currentFilter = "all";
-
-  function setActiveFilterUI(mode) {
-    // soporta ids viejos/nuevos
-    const btnAll = document.getElementById("fAll");
-    const btnMiss = document.getElementById("fMiss");
-    const btnHave = document.getElementById("fHave"); // a veces existe
-    const btnRep =
-      document.getElementById("fRep") ||
-      document.getElementById("fReps") ||
-      document.getElementById("fRepeat") ||
-      document.querySelector('[data-action="filter-rep"]') ||
-      document.querySelector('[data-action="filter-reps"]');
-
-    [btnAll, btnMiss, btnHave, btnRep].forEach(b => {
-      if (b) b.classList.remove("is-active");
-    });
-
-    if (mode === "all" && btnAll) btnAll.classList.add("is-active");
-    if (mode === "miss" && btnMiss) btnMiss.classList.add("is-active");
-    if (mode === "rep" && btnRep) btnRep.classList.add("is-active");
-    // si existe “Tengo” pero no lo usamos, lo dejamos apagado siempre
-  }
-
-  function applyFilter(mode) {
-    currentFilter = mode || "all";
-    setActiveFilterUI(currentFilter);
-
-    const cells = getCells();
-    cells.forEach(cell => {
-      let show = true;
-      if (currentFilter === "miss") show = isMissing(cell);
-      if (currentFilter === "rep") show = readRepCount(cell) > 0;
-
-      cell.style.display = show ? "" : "none";
-    });
-  }
-
-  // --- Click handlers (delegación) ---
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-action]");
-    if (!btn) return;
-
-    const a = btn.getAttribute("data-action");
-    if (a === "filter-all") applyFilter("all");
-    if (a === "filter-miss") applyFilter("miss");
-
-    // soportamos ambos nombres por si quedó uno u otro
-    if (a === "filter-rep" || a === "filter-reps" || a === "filter-repeat") {
-      applyFilter("rep");
-    }
-  }, true);
-
-  // --- Reaplicar cuando se re-renderiza el detalle ---
-  function patchNow() {
-    normalizeBadges();
-    applyFilter(currentFilter);
-  }
-
-  // Observa cambios en el detalle para “pegarse” a cualquier render del app
-  const detail = document.getElementById("sectionsDetail");
-  if (detail) {
-    const mo = new MutationObserver(() => {
-      // pequeño debounce
-      clearTimeout(window.__repPatchT);
-      window.__repPatchT = setTimeout(patchNow, 30);
-    });
-    mo.observe(detail, { childList: true, subtree: true });
-  }
-
-  // Primera corrida
-  setTimeout(patchNow, 50);
-})();
-/* =========================
-   HOTFIX – Badge “loco” + filtro Repetidas real
-   Pegar AL FINAL de app.js (debajo de todo)
-========================= */
-
-(function () {
-  // --- Selectores tolerantes para “celdas” ---
-  const CELL_SELECTORS = [
-    ".sticker", ".fig", ".tile", ".slot", ".card-sticker",
-    ".sticker-cell", ".fig-cell", ".tile-cell",
-    "[data-sticker]", "[data-fig]", "[data-code]"
-  ];
-
-  function getCells() {
-    const root = document.getElementById("sectionsDetail") || document;
-    const set = new Set();
-    CELL_SELECTORS.forEach(sel => root.querySelectorAll(sel).forEach(n => set.add(n)));
-    return [...set].filter(el => el && el.nodeType === 1);
-  }
-
-  // Elimina badges existentes (de cualquier versión) para que no contaminen lecturas
-  function removeAllBadges(cell) {
-    cell.querySelectorAll(".rep-badge, .repBadge, .badge-rep, .rep-bubble, .repBubble").forEach(n => n.remove());
-  }
-
-  // Lee repeticiones desde “fuente limpia”:
-  // 1) data-rep si existe
-  // 2) texto oculto "Rep: X" (aunque esté display:none igual vive en el DOM)
-  function readRepClean(cell) {
-    const d = cell.getAttribute("data-rep");
-    if (d != null && d !== "") {
-      const n = parseInt(d, 10);
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    // Clonamos y sacamos badges/ruido antes de leer texto
-    const clone = cell.cloneNode(true);
-    clone.querySelectorAll(".rep-badge, .repBadge, .badge-rep, .rep-bubble, .repBubble").forEach(n => n.remove());
-    const txt = (clone.textContent || "").replace(/\s+/g, " ").trim();
-
-    const m = txt.match(/Rep:\s*(\d+)/i);
-    if (m) return parseInt(m[1], 10) || 0;
-
-    return 0;
-  }
-
-  function isHave(cell) {
-    if (cell.getAttribute("data-have") === "1") return true;
-    if (cell.getAttribute("aria-pressed") === "true") return true;
-    const c = cell.classList;
-    return c.contains("is-have") || c.contains("have") || c.contains("owned") || c.contains("done") || c.contains("checked");
-  }
-
-  // Crea/actualiza 1 solo badge por celda, con número correcto
-  function normalizeBadges() {
-    const cells = getCells();
-
-    cells.forEach(cell => {
-      // Primero borramos cualquier badge previo (de cualquier parche)
-      removeAllBadges(cell);
-
-      const rep = readRepClean(cell);
-
-      // Si no hay repetidas, no mostramos badge
-      if (!rep || rep <= 0) return;
-
-      // Creamos badge “oficial”
-      const badge = document.createElement("div");
-      badge.className = "rep-badge";
-      badge.textContent = String(rep);
-
-      // Asegurar stacking/posicion
-      const pos = getComputedStyle(cell).position;
-      if (pos === "static") cell.style.position = "relative";
-      cell.appendChild(badge);
-    });
-  }
-
-  // --- Filtros robustos ---
-  let currentFilter = "all";
-
-  function setActiveFilterUI(mode) {
-    const wrap = document.querySelector(".seg-filters") || document;
-    const buttons = wrap.querySelectorAll(".seg-btn, [data-action^='filter-']");
-    buttons.forEach(b => b.classList.remove("is-active"));
-
-    const map = {
-      all: wrap.querySelector("[data-action='filter-all']") || document.getElementById("fAll"),
-      miss: wrap.querySelector("[data-action='filter-miss']") || document.getElementById("fMiss"),
-      rep: wrap.querySelector("[data-action='filter-rep']") ||
-           wrap.querySelector("[data-action='filter-reps']") ||
-           document.getElementById("fRep") ||
-           document.getElementById("fReps")
-    };
-
-    const btn = map[mode];
-    if (btn) btn.classList.add("is-active");
-  }
-
-  function applyFilter(mode) {
-    currentFilter = mode || "all";
-    setActiveFilterUI(currentFilter);
-
-    const cells = getCells();
-
-    cells.forEach(cell => {
-      let show = true;
-      if (currentFilter === "miss") show = !isHave(cell);
-      if (currentFilter === "rep") show = readRepClean(cell) > 0;
-      cell.style.display = show ? "" : "none";
-    });
-  }
-
-  // Captura clicks primero y frena handlers viejos que estén rompiendo estado/pintado
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-action]");
-    if (!btn) return;
-
-    const a = btn.getAttribute("data-action");
-    const isFilter = (a === "filter-all" || a === "filter-miss" || a === "filter-rep" || a === "filter-reps" || a === "filter-repeat");
-    if (!isFilter) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-
-    // Antes de filtrar, normalizamos badges (para que rep sea correcto)
-    normalizeBadges();
-
-    if (a === "filter-all") applyFilter("all");
-    if (a === "filter-miss") applyFilter("miss");
-    if (a === "filter-rep" || a === "filter-reps" || a === "filter-repeat") applyFilter("rep");
-  }, true); // capture=true
-
-  // Re-enganche: si el detalle se re-renderiza, rearmamos badges y re-aplicamos filtro
-  function patchNow() {
-    normalizeBadges();
-    applyFilter(currentFilter);
-  }
-
-  const detail = document.getElementById("sectionsDetail");
-  if (detail) {
-    const mo = new MutationObserver(() => {
-      clearTimeout(window.__hotfixRepT);
-      window.__hotfixRepT = setTimeout(patchNow, 40);
-    });
-    mo.observe(detail, { childList: true, subtree: true });
-  }
-
-  setTimeout(patchNow, 60);
-})();
-/* === DIAG: ¿cuántas cajas detecto? (pegar al final) === */
-(function () {
-  const root = document.getElementById("sectionsDetail");
-  if (!root) return;
-
-  // heurística: candidatos = elementos dentro del grid que parecen “caja”
-  const candidates = [...root.querySelectorAll("*")].filter(el => {
-    if (!(el instanceof HTMLElement)) return false;
-    const t = (el.innerText || "").trim();
-    if (!t) return false;
-    // si contiene algo como RIA1 / BAE12 / etc
-    return /^[A-Z]{2,}\d{1,4}\b/.test(t);
-  });
-
-  // reducimos a “caja” probable (padre más cercano con borde/radius)
-  const boxes = candidates.map(el => el.closest("div,button,article,li,span")).filter(Boolean);
-  const unique = [...new Set(boxes)];
-
-  alert("DIAG: sectionsDetail OK ✅\nCajas detectadas: " + unique.length);
-
-  // marco las primeras 3 para ver si son las correctas
-  unique.slice(0, 3).forEach(b => {
-    b.style.outline = "3px solid #ff3b30";
-  });
-})();
-/* === DIAG REAL – detectar clases de las cajas === */
-setTimeout(() => {
-  const possible = document.querySelectorAll("div");
-  const matches = [];
-
-  possible.forEach(el => {
-    const t = (el.innerText || "").trim();
-    if (/^RIA\d+/.test(t)) {
-      matches.push({
-        className: el.className,
-        tag: el.tagName
-      });
-      el.style.outline = "3px solid red";
-    }
-  });
-
-  alert("Candidatos encontrados: " + matches.length + 
-        "\nPrimera clase detectada:\n" + 
-        (matches[0] ? matches[0].className : "NINGUNA"));
-}, 800);
