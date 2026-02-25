@@ -1034,3 +1034,106 @@ document.addEventListener("DOMContentLoaded", init);
     }
   };
 })();
+/* =============================
+   FIX Import iOS: usar file.text() + errores visibles
+   (no reemplaza nada: agrega un listener nuevo)
+============================= */
+(() => {
+  const input = document.getElementById("importInput");
+  if (!input) return;
+
+  async function readFileAsText(file) {
+    // iOS moderno: file.text() es lo más confiable
+    if (file && typeof file.text === "function") {
+      return await file.text();
+    }
+    // Fallback FileReader
+    return await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onerror = () => reject(new Error("No se pudo leer el archivo (FileReader error)."));
+      r.onabort = () => reject(new Error("Lectura cancelada."));
+      r.onload = () => resolve(String(r.result || ""));
+      r.readAsText(file);
+    });
+  }
+
+  function migrateLoadedCollections() {
+    // misma “migración suave” que ya usás en load/import
+    for (const c of state.data.collections) {
+      if (!c.items) c.items = [];
+      if (!c.sections) c.sections = [];
+      if (!c.structure) c.structure = "simple";
+      if (!c.numberMode) c.numberMode = "global";
+
+      if (c.structure === "sections") {
+        for (const s of c.sections) {
+          if (!s.format) s.format = "num";
+          if (typeof s.prefix !== "string") s.prefix = "";
+          if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+          if (!Array.isArray(s.specials)) s.specials = [];
+        }
+      } else {
+        if (!c.sections.length) {
+          c.sections = [{ id: uid("sec"), name:"General", format:"num", prefix:"", ownNumbering:false, specials:[] }];
+        }
+        if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
+      }
+
+      for (const it of c.items) {
+        if (typeof it.special !== "boolean") it.special = false;
+        if (!it.key) it.key = `${it.sectionId}|${it.label}`;
+      }
+    }
+  }
+
+  // Listener NUEVO (captura) para que funcione aunque el otro falle
+  input.addEventListener("change", async (e) => {
+    try {
+      const file = e.target?.files?.[0];
+      if (!file) return;
+
+      const text = await readFileAsText(file);
+
+      let raw;
+      try {
+        raw = JSON.parse(text);
+      } catch (err) {
+        alert("❌ El archivo no es JSON válido.\n\nTip: asegurate de elegir un .json exportado por la app.");
+        return;
+      }
+
+      const normalized = (typeof normalizeImportedPayload === "function")
+        ? normalizeImportedPayload(raw)
+        : (raw?.data?.collections ? { collections: raw.data.collections } : raw?.collections ? { collections: raw.collections } : null);
+
+      if (!normalized) {
+        alert("❌ Este archivo no parece un backup válido de la app.");
+        return;
+      }
+
+      const ok = confirm(
+        "Importar backup (REEMPLAZAR):\n\n" +
+        "Esto borrará TODO lo actual y cargará el contenido del backup.\n\n" +
+        "¿Continuar?"
+      );
+      if (!ok) return;
+
+      state.data.collections = Array.isArray(normalized.collections) ? normalized.collections : [];
+      migrateLoadedCollections();
+
+      // meta
+      state.meta.lastImportAt = Date.now();
+      state.meta.lastImportMode = "replace";
+
+      // guardar + refrescar UI
+      save();
+      goHome();
+      alert("✅ Backup importado correctamente.");
+    } catch (err) {
+      alert("❌ Error al importar el backup.\n\n" + (err?.message || String(err)));
+    } finally {
+      // importantísimo en iOS: si elegís el mismo archivo otra vez, si no lo reseteás no dispara change
+      try { input.value = ""; } catch {}
+    }
+  }, true);
+})();
