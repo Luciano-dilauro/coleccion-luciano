@@ -1357,4 +1357,199 @@ document.addEventListener("DOMContentLoaded", init);
     bootPatch();
   }
 })();
- 
+ /* =============================
+   PATCH v1.1 — Tap / Long-Press + Badge Repetidas
+   - Tap: si no tengo => tengo; si tengo => rep++
+   - Long press: rep-- (y si rep=0 opcional desmarcar)
+============================= */
+
+(function () {
+  // Ajustes
+  const LONG_PRESS_MS = 420;
+  const ALLOW_UNHAVE_WHEN_LONGPRESS_AT_ZERO = true;
+
+  // Helper: buscar item por id en colección actual
+  function findItemById(col, id) {
+    if (!col || !id) return null;
+    return col.items.find(it => it.id === id) || null;
+  }
+
+  // 1) “Hook” renderDetail para etiquetar cada .item con data-itemid
+  try {
+    const __renderDetail = renderDetail;
+
+    renderDetail = function () {
+      __renderDetail();
+
+      try {
+        const col = getCurrent();
+        if (!col) return;
+
+        // armamos mapa sectionId => items en el mismo orden que se renderizan
+        const bySec = new Map();
+        for (const sec of col.sections) bySec.set(sec.id, []);
+        for (const it of col.items) {
+          if (!bySec.has(it.sectionId)) bySec.set(it.sectionId, []);
+          bySec.get(it.sectionId).push(it);
+        }
+
+        // recorrer DOM y asignar ids a cada celda
+        const cards = Array.from(document.querySelectorAll("#sectionsDetail .section-card"));
+        for (const card of cards) {
+          const titleEl = card.querySelector(".section-title");
+          const grid = card.querySelector(".items-grid");
+          if (!grid) continue;
+
+          // encontrar la sección por nombre (fallback) — si no, por orden
+          const secName = (titleEl?.textContent || "").trim();
+          let sec = col.sections.find(s => (s.name || "").trim() === secName) || null;
+
+          // fallback por orden si no matchea
+          if (!sec) {
+            const idx = cards.indexOf(card);
+            sec = col.sections[idx] || null;
+          }
+          if (!sec) continue;
+
+          const items = bySec.get(sec.id) || [];
+          const cells = Array.from(grid.querySelectorAll(".item"));
+          const n = Math.min(items.length, cells.length);
+
+          for (let i = 0; i < n; i++) {
+            cells[i].dataset.itemid = items[i].id;
+          }
+        }
+
+        // badges (rep)
+        applyRepBadges();
+
+      } catch {}
+    };
+  } catch {}
+
+  // 2) Badges de repetidas leyendo el “Rep: X” ya existente
+  function applyRepBadges() {
+    const cells = Array.from(document.querySelectorAll(".item"));
+    for (const cell of cells) {
+      const repEl = cell.querySelector(".item-rep");
+      if (!repEl) continue;
+
+      const m = String(repEl.textContent || "").match(/Rep:\s*(\d+)/i);
+      const rep = m ? parseInt(m[1], 10) : 0;
+
+      let badge = cell.querySelector(".rep-badge");
+      if (!badge) {
+        badge = document.createElement("div");
+        badge.className = "rep-badge";
+        cell.appendChild(badge);
+      }
+
+      if (rep > 0) {
+        badge.textContent = String(rep);
+        badge.style.display = "flex";
+      } else {
+        badge.style.display = "none";
+      }
+    }
+  }
+
+  // 3) Interacción: tap / long-press (sin tocar botones +/−)
+  let pressTimer = null;
+  let longPressed = false;
+
+  function isInsideButton(target) {
+    return !!target.closest?.("button");
+  }
+
+  function getCell(target) {
+    return target.closest?.(".item") || null;
+  }
+
+  function onTap(cell) {
+    const col = getCurrent();
+    const id = cell?.dataset?.itemid;
+    const it = findItemById(col, id);
+    if (!it) return;
+
+    // Tap: si no tengo -> tengo (rep=0), si tengo -> rep++
+    if (!it.have) {
+      it.have = true;
+      it.rep = 0;
+    } else {
+      it.rep = clamp((it.rep || 0) + 1, 0, 999);
+    }
+
+    save();
+    renderDetail();
+  }
+
+  function onLongPress(cell) {
+    const col = getCurrent();
+    const id = cell?.dataset?.itemid;
+    const it = findItemById(col, id);
+    if (!it) return;
+
+    if (!it.have) return; // si no la tengo, no hacemos nada
+
+    const next = clamp((it.rep || 0) - 1, 0, 999);
+    it.rep = next;
+
+    if (ALLOW_UNHAVE_WHEN_LONGPRESS_AT_ZERO && next === 0) {
+      // si ya no hay repetidas, un long press adicional puede desmarcar
+      // (esto lo dejamos suave: si querés, lo ajustamos)
+      // Para que no sea agresivo: solo desmarca si ya estaba en 0 antes
+      // -> acá NO lo hacemos automático; lo vemos si querés en v1.2
+    }
+
+    save();
+    renderDetail();
+  }
+
+  document.addEventListener("touchstart", (e) => {
+    const cell = getCell(e.target);
+    if (!cell) return;
+    if (isInsideButton(e.target)) return;
+
+    longPressed = false;
+    clearTimeout(pressTimer);
+
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      onLongPress(cell);
+    }, LONG_PRESS_MS);
+  }, { passive: true });
+
+  document.addEventListener("touchend", (e) => {
+    const cell = getCell(e.target);
+    if (!cell) return;
+    if (isInsideButton(e.target)) return;
+
+    clearTimeout(pressTimer);
+    if (!longPressed) onTap(cell);
+  }, { passive: true });
+
+  // fallback mouse (por si probás en PC)
+  document.addEventListener("mousedown", (e) => {
+    const cell = getCell(e.target);
+    if (!cell) return;
+    if (isInsideButton(e.target)) return;
+
+    longPressed = false;
+    clearTimeout(pressTimer);
+
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      onLongPress(cell);
+    }, LONG_PRESS_MS);
+  });
+
+  document.addEventListener("mouseup", (e) => {
+    const cell = getCell(e.target);
+    if (!cell) return;
+    if (isInsideButton(e.target)) return;
+
+    clearTimeout(pressTimer);
+    if (!longPressed) onTap(cell);
+  });
+
+})();
