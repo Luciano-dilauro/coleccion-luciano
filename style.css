@@ -375,3 +375,8 @@ main.app{
 .view{
   margin-top: 0 !important;
 }
+/* Orden visual del filtro: Todas / Faltan / Repetidas */
+.seg-filters { display: flex; }
+#fAll { order: 1; }
+#fMiss { order: 2; }
+#fHave { order: 3; } /* reciclado como Repetidas */
