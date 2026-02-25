@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Colección Lucho</title>
 
-  <link rel="stylesheet" href="theme.css?v=26" />
-  <link rel="stylesheet" href="style.css?v=26" />
+  <link rel="stylesheet" href="theme.css?v=27" />
+  <link rel="stylesheet" href="style.css?v=27" />
 </head>
 
 <body>
@@ -58,7 +58,7 @@
       </div>
     </section>
 
-    <!-- MIS COLECCIONES (selector + abrir) -->
+    <!-- MIS COLECCIONES (selector) -->
     <section class="view" data-view="collections">
       <div class="card">
         <div class="field">
@@ -66,8 +66,8 @@
           <select id="collectionsSelect" class="input"></select>
         </div>
 
-        <div class="row gap" style="margin-top:10px;">
-          <button id="btnOpenCollection" class="btn primary" type="button">Abrir</button>
+        <div class="muted small" style="margin-top:10px;">
+          Tip: al elegir una colección se abre automáticamente.
         </div>
       </div>
     </section>
@@ -93,7 +93,7 @@
           </button>
         </div>
 
-        <!-- selector de edición (aparece al tocar “Editar colección”) -->
+        <!-- selector de edición -->
         <div id="editPicker" class="card inner hidden" style="margin-top:14px;">
           <div class="field">
             <label>Elegí cuál editar</label>
@@ -174,6 +174,7 @@
         <div class="row-between">
           <h1 id="detailTitle" class="h1">Colección</h1>
           <div class="row gap">
+            <!-- Editar oculto por CSS (y por diseño ya no se usa acá) -->
             <button class="btn" type="button" data-action="open-edit">Editar</button>
             <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
           </div>
@@ -189,8 +190,8 @@
         <!-- FILTROS -->
         <div class="seg seg-filters" style="margin-top:12px;">
           <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
-          <button id="fHave" class="seg-btn" type="button" data-action="filter-have">Tengo</button>
           <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
+          <button id="fRep" class="seg-btn" type="button" data-action="filter-rep">Repetidas</button>
         </div>
       </div>
 
@@ -254,24 +255,7 @@
     </section>
 
   </main>
-<script>
-  (function () {
-    const _alert = window.alert;
-    window.alert = function (msg) {
-      const s = String(msg || "");
-      // Silenciar SOLO alerts de diagnóstico (DIAG)
-      if (
-        s.includes("Candidatos encontrados") ||
-        s.includes("Primera clase detectada") ||
-        s.includes("DIAG:")
-      ) {
-        console.log("DIAG silenciado:", s);
-        return;
-      }
-      return _alert.call(window, msg);
-    };
-  })();
-</script>
-  <script src="app.js?v=1000"></script>
+
+  <script src="app.js?v=27"></script>
 </body>
 </html>
