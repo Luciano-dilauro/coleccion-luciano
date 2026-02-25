@@ -6,6 +6,10 @@
    - Reordenar secciones: botones ↑ ↓ (y drag & drop opcional)
    - NUEVO (v2.3):
      ✅ Generador rápido de secciones por lista (separadas por coma)
+
+   ✅ UPGRADE ESTÉTICO (v2.3.1):
+     - Pop/Glow sutil al marcar/unmarcar ítems
+     - “Pulse” al completar una sección (una vez)
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -64,6 +68,12 @@ const state = {
     lastExportSize: null,
     lastImportAt: null,
     lastImportMode: "replace",
+  },
+
+  // ✅ UI state (no se guarda en LS, es solo para animaciones)
+  ui: {
+    lastToggledKey: null,
+    lastCompletedSectionId: null,
   }
 };
 
@@ -328,7 +338,6 @@ function resetCreateForm() {
 
 /* -----------------------------
    Generador rápido por lista (coma)
-   - Se inyecta arriba del editor de secciones.
 ----------------------------- */
 function ensureBulkBuilderUI() {
   if (!els.sectionsBlock || !els.sectionsEditor) return;
@@ -375,7 +384,6 @@ function ensureBulkBuilderUI() {
     </div>
   `;
 
-  // Insertar arriba del editor
   els.sectionsBlock.insertBefore(wrap, els.sectionsEditor);
 
   const bulkPrefixes = $("bulkPrefixes");
@@ -402,7 +410,6 @@ function ensureBulkBuilderUI() {
     if (!Number.isFinite(specialsN) || specialsN <= 0) specialsN = 10;
     specialsN = clamp(specialsN, 1, 5000);
 
-    // Reemplazo total del editor
     els.sectionsEditor.innerHTML = "";
 
     for (const pref of list) {
@@ -489,7 +496,6 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
   row.setAttribute("data-section-row", "1");
   row.dataset.specials = JSON.stringify(Array.isArray(specials) ? specials : []);
 
-  // drag opcional
   row.draggable = true;
   row.style.cursor = "grab";
   row.addEventListener("dragstart", () => {
@@ -719,7 +725,7 @@ function readSections(container) {
       name,
       format,
       prefix,
-      count: clamp(count, 1, 5000),
+      count: clamp(Number.isFinite(count) ? count : 1, 1, 5000),
       ownNumbering: (format === "alfa") ? true : !!ownNumbering,
       specials
     });
@@ -746,6 +752,7 @@ els.btnAddSection?.addEventListener("click", () => {
 
 /* -----------------------------
    Crear colección
+   ✅ la nueva colección queda arriba
 ----------------------------- */
 function createCollection() {
   const name = (els.newName.value || "").trim();
@@ -785,7 +792,8 @@ function createCollection() {
       });
     }
 
-    state.data.collections.push({
+    // ✅ Unshift: arriba
+    state.data.collections.unshift({
       id: uid("col"),
       name,
       createdAt: Date.now(),
@@ -860,7 +868,8 @@ function createCollection() {
     }
   }
 
-  state.data.collections.push({
+  // ✅ Unshift: arriba
+  state.data.collections.unshift({
     id: uid("col"),
     name,
     createdAt: Date.now(),
@@ -903,6 +912,15 @@ function renderDetail() {
     const card = document.createElement("div");
     card.className = "section-card";
 
+    // ✅ Pulse visual si esta sección se acaba de completar
+    if (state.ui.lastCompletedSectionId === sec.id) {
+      card.classList.add("is-done-pulse");
+      setTimeout(() => {
+        card.classList.remove("is-done-pulse");
+        if (state.ui.lastCompletedSectionId === sec.id) state.ui.lastCompletedSectionId = null;
+      }, 520);
+    }
+
     const title = document.createElement("div");
     title.className = "section-title";
     title.textContent = sec.name;
@@ -921,7 +939,17 @@ function renderDetail() {
 
 function buildItemCell(it) {
   const wrap = document.createElement("div");
+  // NOTA: tu CSS actual usa "have" / "special" sin problemas
   wrap.className = "item" + (it.have ? " have" : "") + (it.special ? " special" : "");
+
+  // ✅ Pop/Glow en el ítem recientemente tocado
+  if (state.ui.lastToggledKey && it.key === state.ui.lastToggledKey) {
+    wrap.classList.add("is-pop");
+    setTimeout(() => {
+      wrap.classList.remove("is-pop");
+      if (state.ui.lastToggledKey === it.key) state.ui.lastToggledKey = null;
+    }, 260);
+  }
 
   const code = document.createElement("div");
   code.className = "item-code";
@@ -933,8 +961,30 @@ function buildItemCell(it) {
 
   wrap.addEventListener("click", (e) => {
     if (e.target && e.target.closest && e.target.closest("button")) return;
+
+    const col = getCurrent();
+    if (!col) return;
+
+    // ✅ detectar sección completa antes
+    const beforeDone = col.items
+      .filter(x => x.sectionId === it.sectionId)
+      .every(x => !!x.have);
+
     it.have = !it.have;
     if (!it.have) it.rep = 0;
+
+    // ✅ marcar último tocado para animación
+    state.ui.lastToggledKey = it.key;
+
+    // ✅ detectar sección completa después
+    const afterDone = col.items
+      .filter(x => x.sectionId === it.sectionId)
+      .every(x => !!x.have);
+
+    if (!beforeDone && afterDone) {
+      state.ui.lastCompletedSectionId = it.sectionId;
+    }
+
     save();
     renderDetail();
   });
