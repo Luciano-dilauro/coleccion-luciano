@@ -401,3 +401,6 @@ main.app{
 }
 
 /* si querés probar “modo limpio” (ocultar +/−) lo activamos después */
+/* PATCH v1.2 — Ocultar botones + / − (modo limpio) */
+.item-actions { display: none !important; }
+.item-rep { opacity: 0.75; } /* opcional: deja "Rep: X" más suave */
