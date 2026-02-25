@@ -710,3 +710,44 @@ main.app{
 .sticker-box.special.have{
   background: var(--haveBg, #dbe9ff) !important;
 }
+/* =========================
+   PATCH v1.0 – Badge Rep + filtros (override)
+   Pegar al FINAL de style.css
+========================= */
+
+/* Asegura que nada recorte el badge */
+.sticker, .fig, .tile, .slot, .card-sticker,
+.sticker-cell, .fig-cell, .tile-cell {
+  overflow: visible !important;
+}
+
+/* Oculta cualquier “Rep:” viejo que haya quedado en alguna variante */
+.rep, .repText, .rep-label, .rep-count, .repRow,
+[data-rep-text], .is-rep-text {
+  display: none !important;
+}
+
+/* Badge de repetidas: dentro de la esquina (no afuera) */
+.rep-badge, .repBadge {
+  position: absolute !important;
+  top: 10px !important;      /* un poco más abajo */
+  right: 10px !important;    /* más a la izquierda (más “adentro”) */
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 999px !important;
+  display: grid !important;
+  place-items: center !important;
+  font-weight: 800 !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  color: #fff !important;
+  background: #d84a3a !important;
+  box-shadow: 0 10px 18px rgba(0,0,0,.18) !important;
+  z-index: 4 !important;
+  pointer-events: none !important;
+}
+
+/* Si el badge viene con números raros/duplicados por layout, lo normalizamos */
+.rep-badge *, .repBadge * {
+  pointer-events: none !important;
+}
