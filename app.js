@@ -1287,3 +1287,4 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+// 🔒 Punto seguro post-restauración estable
