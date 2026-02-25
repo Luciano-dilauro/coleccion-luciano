@@ -1744,3 +1744,87 @@ document.addEventListener("DOMContentLoaded", init);
   obs.observe(document.body, {childList:true, subtree:true});
 
 })();
+/* =============================
+   PATCH vX — Badge estable + sin duplicados (global)
+   - Elimina todos los badges existentes (de cualquier parche anterior)
+   - Fuerza 1 badge por caja
+   - Evita re-entradas (no se vuelve loco con renders/observers)
+============================= */
+(function () {
+  let running = false;
+
+  function removeAllBadges() {
+    document.querySelectorAll(".repBadgeCorner").forEach(el => el.remove());
+  }
+
+  function getRepCount(tile) {
+    // 1) Si alguna parte del código ya dejó un dato, lo usamos
+    const ds = tile.dataset && (tile.dataset.rep || tile.dataset.reps || tile.dataset.dup || tile.dataset.dups);
+    if (ds != null && ds !== "") {
+      const n = parseInt(ds, 10);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    // 2) Si existe algún elemento "rep" en el DOM, lo leemos (aunque esté oculto)
+    const repEl =
+      tile.querySelector("[data-rep],[data-reps],.rep,.reps,.dup,.dups,.repetidas,.repetidasCount") ||
+      null;
+
+    if (repEl) {
+      const m = (repEl.textContent || "").match(/(\d+)/);
+      if (m) return parseInt(m[1], 10) || 0;
+    }
+
+    // 3) Último recurso: buscar "Rep:" en el texto (NO toma números de RIA12)
+    const t = (tile.textContent || "");
+    const m = t.match(/Rep:\s*(\d+)/i);
+    return m ? (parseInt(m[1], 10) || 0) : 0;
+  }
+
+  function ensureBadge(tile, rep) {
+    // borrar badge previo SOLO dentro de la caja (por si quedó alguno)
+    tile.querySelectorAll(".repBadgeCorner").forEach(el => el.remove());
+
+    if (rep > 0) {
+      const b = document.createElement("div");
+      b.className = "repBadgeCorner";
+      b.textContent = String(rep);
+      tile.appendChild(b);
+    }
+  }
+
+  function applyBadges() {
+    if (running) return;
+    running = true;
+
+    try {
+      // limpieza global: evita "11111"
+      removeAllBadges();
+
+      // seleccionar cajas (amplio, pero seguro)
+      const tiles = document.querySelectorAll(".item, .tile, .sticker, .stickerItem, .sticker-box");
+
+      tiles.forEach(tile => {
+        const rep = getRepCount(tile);
+        ensureBadge(tile, rep);
+      });
+    } finally {
+      running = false;
+    }
+  }
+
+  // 1) al cargar
+  document.addEventListener("DOMContentLoaded", () => {
+    applyBadges();
+    // segundo pase por si renderiza después
+    setTimeout(applyBadges, 120);
+  });
+
+  // 2) cuando se vuelve a renderizar (detalle / filtros / taps)
+  const obs = new MutationObserver(() => {
+    clearTimeout(window.__badgeStableT);
+    window.__badgeStableT = setTimeout(applyBadges, 60);
+  });
+
+  obs.observe(document.body, { childList: true, subtree: true });
+})();
