@@ -526,3 +526,49 @@ main.app{
   box-shadow: 0 8px 18px rgba(0,0,0,.18);
   pointer-events: none;
 }
+/* =============================
+   PATCH — Badge “cuarto de círculo” + centrar código
+   (pegar al FINAL de style.css)
+============================= */
+
+/* Centrado del contenido de cada caja (sin depender de clases internas) */
+.tileCentered{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;  /* centra vertical */
+  align-items: center;      /* centra horizontal */
+  text-align: center;
+}
+
+/* Badge tipo “cuarto de círculo” metido en la esquina */
+.repBadgeCorner{
+  position: absolute;
+  top: 0;
+  right: 0;
+
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+
+  background: #e53935; /* rojo */
+  color: #fff;         /* blanco */
+  font-weight: 900;
+  font-size: 15px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Esto lo mete “hacia adentro”, como 1/4 de círculo visible */
+  transform: translate(40%, -40%);
+
+  box-shadow: 0 10px 18px rgba(0,0,0,.18);
+  pointer-events: none;
+}
+
+/* Por si Safari intenta seleccionar texto igual */
+.tileCentered, .tileCentered *{
+  -webkit-user-select: none;
+  user-select: none;
+}
