@@ -1593,3 +1593,99 @@ document.addEventListener("DOMContentLoaded", init);
     boot();
   }
 })();
+/* =============================
+   PATCH vFilters: Repetidas
+   - Cambia “Tengo” -> “Repetidas”
+   - Repetidas = muestra solo cajas con badge
+   - No rompe “Todas” ni “Faltan”
+============================= */
+(function () {
+  function $(sel) { return document.querySelector(sel); }
+  function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
+
+  function getFilterButtons() {
+    const fAll = $("#fAll");
+    const fMiss = $("#fMiss");
+    const fHave = $("#fHave"); // lo usamos como Repetidas
+    return { fAll, fMiss, fHave };
+  }
+
+  function getTiles() {
+    // Seleccionamos “cajas” de forma amplia (por si cambian clases internas)
+    return $all(".item, .tile, .sticker, .stickerItem, .sticker-box").filter(el => el.closest("#sectionsDetail"));
+  }
+
+  function setActive(btn) {
+    const { fAll, fMiss, fHave } = getFilterButtons();
+    [fAll, fMiss, fHave].forEach(b => b && b.classList.remove("is-active"));
+    btn && btn.classList.add("is-active");
+  }
+
+  function applyRepFilter() {
+    const tiles = getTiles();
+    tiles.forEach(t => {
+      const hasBadge = !!t.querySelector(".repBadgeCorner, .rep-badge");
+      t.style.display = hasBadge ? "" : "none";
+    });
+  }
+
+  function clearCustomFilter() {
+    const tiles = getTiles();
+    tiles.forEach(t => (t.style.display = ""));
+  }
+
+  function wireRepetidas() {
+    const { fAll, fMiss, fHave } = getFilterButtons();
+    if (!fHave) return;
+
+    // 1) etiqueta
+    fHave.textContent = "Repetidas";
+
+    // 2) rewire: clonamos para borrar listeners anteriores sin tocar tu código
+    const newBtn = fHave.cloneNode(true);
+    fHave.parentNode.replaceChild(newBtn, fHave);
+
+    newBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // activamos repetidas
+      setActive(newBtn);
+      clearCustomFilter();
+      applyRepFilter();
+
+      // guardamos estado para re-aplicar si se re-renderiza
+      window.__filterMode = "rep";
+    }, true);
+
+    // “Todas” y “Faltan” vuelven a mostrar todo y dejan que tu lógica haga lo suyo
+    if (fAll) fAll.addEventListener("click", () => {
+      window.__filterMode = "all";
+      clearCustomFilter();
+    }, true);
+
+    if (fMiss) fMiss.addEventListener("click", () => {
+      window.__filterMode = "miss";
+      clearCustomFilter();
+    }, true);
+  }
+
+  function observeRerenders() {
+    const host = document.getElementById("sectionsDetail");
+    if (!host) return;
+
+    const obs = new MutationObserver(() => {
+      if (window.__filterMode === "rep") {
+        // si está en repetidas y se re-renderizó, reaplicamos
+        applyRepFilter();
+      }
+    });
+
+    obs.observe(host, { childList: true, subtree: true });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    wireRepetidas();
+    observeRerenders();
+  });
+})();
