@@ -380,3 +380,24 @@ main.app{
 #fAll { order: 1; }
 #fMiss { order: 2; }
 #fHave { order: 3; } /* reciclado como Repetidas */
+/* PATCH v1.1 — Badge repetidas */
+.item { position: relative; }
+
+.rep-badge{
+  position:absolute;
+  top:8px;
+  right:10px;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  border-radius:999px;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  font-size:12px;
+  background: rgba(0,0,0,0.08);
+  border: 1px solid rgba(0,0,0,0.10);
+}
+
+/* si querés probar “modo limpio” (ocultar +/−) lo activamos después */
