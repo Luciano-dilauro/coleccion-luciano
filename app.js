@@ -4,11 +4,10 @@
    - Crear / Editar secciones + especiales sin perder progreso
    - Backup: solo REEMPLAZAR
    - Reordenar secciones: botones ↑ ↓ (y drag & drop opcional)
-   - Generador rápido de secciones por lista (separadas por coma)
+   - Generador rápido por lista (coma)
    - NUEVO (v2.4):
-     ✅ Al crear, la colección queda arriba
-     ✅ Banner permanente "🎉 Colección completa" cuando st.pct === 100
-     ✅ Pulse sutil 1 vez por sesión por colección (no molesta)
+     ✅ Nueva colección queda arriba
+     ✅ Filtro en detalle: Todas / Faltantes / Tengo
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -43,6 +42,9 @@ const els = {
   stMissing: $("stMissing"),
   stPct: $("stPct"),
   sectionsDetail: $("sectionsDetail"),
+  fAll: $("fAll"),
+  fMissing: $("fMissing"),
+  fHave: $("fHave"),
 
   // Edit
   editTitle: $("editTitle"),
@@ -61,15 +63,13 @@ const els = {
 const state = {
   view: "home",
   currentId: null,
+  detailFilter: "all", // all | missing | have
   data: { collections: [] },
   meta: {
     lastExportAt: null,
     lastExportSize: null,
     lastImportAt: null,
     lastImportMode: "replace",
-  },
-  ui: {
-    celebrated: {} // { [collectionId]: true } -> pulse 1 vez por sesión
   }
 };
 
@@ -107,7 +107,6 @@ function parseCodesList(input) {
     .filter(Boolean);
 }
 
-/** Generador: acepta comas y/o saltos de línea (pero vos usarás coma) */
 function parsePrefixList(input) {
   return String(input || "")
     .split(/[,;\n\r]+/g)
@@ -224,6 +223,7 @@ function goCreate() {
 
 function goDetail(id) {
   state.currentId = id;
+  state.detailFilter = "all"; // default
   renderDetail();
   const col = getCurrent();
   if (col) els.topbarTitle.textContent = col.name;
@@ -450,7 +450,7 @@ function openSpecialsPrompt(currentArr, hint) {
 }
 
 /* -----------------------------
-   Reordenar filas en UI
+   Reordenar filas
 ----------------------------- */
 function moveRow(container, row, dir) {
   const rows = Array.from(container.querySelectorAll("[data-section-row]"));
@@ -461,11 +461,8 @@ function moveRow(container, row, dir) {
   if (newIdx < 0 || newIdx >= rows.length) return;
 
   const ref = rows[newIdx];
-  if (dir === -1) {
-    container.insertBefore(row, ref);
-  } else {
-    container.insertBefore(ref, row);
-  }
+  if (dir === -1) container.insertBefore(row, ref);
+  else container.insertBefore(ref, row);
 }
 
 function getSectionRowValues(row) {
@@ -484,7 +481,7 @@ function getSectionRowValues(row) {
 }
 
 /* -----------------------------
-   Secciones: crear fila
+   Secciones: fila
 ----------------------------- */
 function addSectionRow(container, { name="", format="num", prefix="", count=10, ownNumbering=false, specials=[] } = {}) {
   const row = document.createElement("div");
@@ -677,11 +674,8 @@ function enableDnD(container) {
     if (!dragging) return;
 
     const afterElement = getDragAfterElement(container, e.clientY);
-    if (afterElement == null) {
-      container.appendChild(dragging);
-    } else {
-      container.insertBefore(dragging, afterElement);
-    }
+    if (afterElement == null) container.appendChild(dragging);
+    else container.insertBefore(dragging, afterElement);
   });
 
   container.addEventListener("mousedown", (e) => {
@@ -787,7 +781,8 @@ function createCollection() {
       });
     }
 
-    const newCol = {
+    // ✅ NUEVO: unshift -> queda arriba
+    state.data.collections.unshift({
       id: uid("col"),
       name,
       createdAt: Date.now(),
@@ -795,10 +790,7 @@ function createCollection() {
       numberMode: "global",
       sections,
       items
-    };
-
-    // ✅ Nuevo primero (arriba)
-    state.data.collections.unshift(newCol);
+    });
 
     save();
     goHome();
@@ -865,7 +857,8 @@ function createCollection() {
     }
   }
 
-  const newCol = {
+  // ✅ NUEVO: unshift -> queda arriba
+  state.data.collections.unshift({
     id: uid("col"),
     name,
     createdAt: Date.now(),
@@ -873,58 +866,29 @@ function createCollection() {
     numberMode,
     sections,
     items
-  };
-
-  // ✅ Nuevo primero (arriba)
-  state.data.collections.unshift(newCol);
+  });
 
   save();
   goHome();
 }
 
 /* -----------------------------
-   Detail
+   Detail - filtros
 ----------------------------- */
-function ensureCompletionBanner(st) {
-  // Busca la tarjeta header del detalle (la que contiene stats)
-  const headerCard =
-    document.querySelector('[data-view="detail"] .detail-header') ||
-    document.querySelector('[data-view="detail"] .card');
+function setDetailFilter(f) {
+  state.detailFilter = f;
 
-  if (!headerCard) return;
+  // UI active
+  els.fAll?.classList.toggle("active", f === "all");
+  els.fMissing?.classList.toggle("active", f === "missing");
+  els.fHave?.classList.toggle("active", f === "have");
 
-  let banner = $("completionBanner");
-  if (!banner) {
-    banner = document.createElement("div");
-    banner.id = "completionBanner";
-    banner.className = "completion-banner"; // estilo viene de CSS (si existe)
-    banner.style.marginTop = "10px";
-    banner.style.padding = "10px 12px";
-    banner.style.borderRadius = "14px";
-    banner.style.fontWeight = "900";
-    banner.style.textAlign = "center";
-    banner.style.background = "rgba(45,125,246,.10)";
-    banner.style.border = "1px solid rgba(45,125,246,.25)";
-    banner.style.color = "rgba(0,0,0,.78)";
-    banner.textContent = "🎉 Colección completa";
-    headerCard.appendChild(banner);
-  }
-
-  if (st.pct === 100 && st.total > 0) {
-    banner.style.display = "block";
-
-    // Pulse 1 vez por sesión por colección
-    const col = getCurrent();
-    if (col && !state.ui.celebrated[col.id]) {
-      state.ui.celebrated[col.id] = true;
-      headerCard.classList.add("celebrate-pulse");
-      setTimeout(() => headerCard.classList.remove("celebrate-pulse"), 650);
-    }
-  } else {
-    banner.style.display = "none";
-  }
+  renderDetail();
 }
 
+/* -----------------------------
+   Detail
+----------------------------- */
 function renderDetail() {
   const col = getCurrent();
   if (!col) return goHome();
@@ -938,8 +902,8 @@ function renderDetail() {
   els.stMissing.textContent = String(st.missing);
   els.stPct.textContent = `${st.pct}%`;
 
-  // ✅ Banner permanente + pulse sutil
-  ensureCompletionBanner(st);
+  // Mantener UI del filtro
+  setActiveFilterUI();
 
   els.sectionsDetail.innerHTML = "";
 
@@ -951,6 +915,18 @@ function renderDetail() {
   }
 
   for (const sec of col.sections) {
+    const items = bySec.get(sec.id) || [];
+
+    // Filtrado por ítem
+    const filtered = items.filter(it => {
+      if (state.detailFilter === "have") return !!it.have;
+      if (state.detailFilter === "missing") return !it.have;
+      return true;
+    });
+
+    // Si no hay nada para mostrar en esta sección, la escondo (pero solo si el filtro no es all)
+    if (state.detailFilter !== "all" && filtered.length === 0) continue;
+
     const card = document.createElement("div");
     card.className = "section-card";
 
@@ -961,13 +937,19 @@ function renderDetail() {
     const grid = document.createElement("div");
     grid.className = "items-grid";
 
-    const items = bySec.get(sec.id) || [];
-    for (const it of items) grid.appendChild(buildItemCell(it));
+    for (const it of filtered) grid.appendChild(buildItemCell(it));
 
     card.appendChild(title);
     card.appendChild(grid);
     els.sectionsDetail.appendChild(card);
   }
+}
+
+function setActiveFilterUI() {
+  const f = state.detailFilter || "all";
+  els.fAll?.classList.toggle("active", f === "all");
+  els.fMissing?.classList.toggle("active", f === "missing");
+  els.fHave?.classList.toggle("active", f === "have");
 }
 
 function buildItemCell(it) {
@@ -1040,7 +1022,7 @@ function resetCollection() {
 }
 
 /* -----------------------------
-   Edit (real)
+   Edit
 ----------------------------- */
 function renderEdit() {
   const col = getCurrent();
@@ -1314,6 +1296,12 @@ document.addEventListener("click", (e) => {
   if (action === "reset-collection") return resetCollection();
 
   if (action === "export-backup") return exportBackup();
+
+  // ✅ NUEVO: filtro detalle
+  if (action === "detail-filter") {
+    const f = btn.getAttribute("data-filter") || "all";
+    return setDetailFilter(f);
+  }
 });
 
 els.backBtn?.addEventListener("click", () => goHome());
