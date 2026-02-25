@@ -377,3 +377,51 @@ label{font-weight:800}
 .detail-header .row-between .row.gap{
   flex-wrap: nowrap;
 }
+/* =============================
+   EXPORT modal (faltantes / repetidas)
+============================= */
+.modal.hidden{ display:none !important; }
+.modal{
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+}
+.modal-backdrop{
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,.25);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.modal-sheet{
+  position:absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  background: #fff;
+  border-radius: 22px;
+  border: 1px solid rgba(0,0,0,.08);
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  padding: 14px;
+}
+.modal-title{
+  font-weight: 950;
+  font-size: 20px;
+  letter-spacing: -.02em;
+}
+.modal-sub{
+  margin-top: 4px;
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 13px;
+}
+.modal-actions{
+  display:flex;
+  gap:10px;
+  margin-top: 12px;
+}
+.modal-actions .btn{ flex:1; }
+.modal-cancel{
+  width:100%;
+  margin-top: 10px;
+}
