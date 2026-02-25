@@ -404,3 +404,13 @@ main.app{
 /* PATCH v1.2 — Ocultar botones + / − (modo limpio) */
 .item-actions { display: none !important; }
 .item-rep { opacity: 0.75; } /* opcional: deja "Rep: X" más suave */
+/* PATCH v1.3 — Evitar selección de texto en long-press (iOS Safari) */
+.item, .item * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* evita menú de selección en iOS */
+}
+
+.item {
+  -webkit-tap-highlight-color: transparent;
+}
