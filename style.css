@@ -1,6 +1,8 @@
-=========================
-   BASE / RESET
-========================= */
+/* =============================
+   Colección Luciano - style.css
+   Estilos (blindado)
+============================= */
+
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
 body{
@@ -13,24 +15,28 @@ body{
   overscroll-behavior-y: none;
 }
 
+.app{
+  padding: 16px var(--container-pad) 40px;
+}
+
+/* Views */
+.view{ display:none; opacity:0; transform: translateY(6px); }
+.view.is-active{ display:block; opacity:1; transform:none; transition: all .18s ease; }
+
 /* =========================
-   TOPBAR FIJO (NO DESAPARECE)
+   Topbar
 ========================= */
 .topbar{
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
+  z-index: 80;
   height: var(--topbar-h);
-  z-index: 9999;
-
-  background: rgba(244,245,247,.92);
-  backdrop-filter: blur(10px);
-
+  background: var(--bg-main);
   display:flex;
-  align-items:center;
-  gap: 12px;
-  padding: 0 var(--pad);
+  align-items:flex-end;
+  padding: 10px var(--container-pad) 12px;
   border-bottom: 1px solid var(--stroke);
 }
 
@@ -38,58 +44,34 @@ body{
   flex:1;
   text-align:center;
   font-size: 22px;
-  font-weight: 950;
+  line-height: 1.05;
+  font-weight: 900;
   letter-spacing: -0.02em;
 }
 
-.topbar-spacer{ width:44px; }
+.topbar-spacer{ width:44px; height:44px; }
 
-/* botón volver */
 .icon-btn{
   width:44px;
   height:44px;
   border-radius: 999px;
   border: 1px solid var(--stroke);
   background: var(--bg-panel);
+  display:flex;
+  align-items:center;
+  justify-content:center;
   box-shadow: 0 6px 16px rgba(0,0,0,.06);
   font-size: 18px;
   font-weight: 900;
 }
 
-/* =========================
-   APP WRAP
-   (padding-top para dejar espacio al topbar fijo)
-========================= */
-.app{
-  padding: calc(var(--topbar-h) + 12px) var(--pad) 28px;
-}
+.hidden{ display:none !important; }
+
+/* Separación del contenido para que no quede debajo del topbar */
+.app{ padding-top: calc(var(--topbar-h) + 14px); }
 
 /* =========================
-   VIEWS
-========================= */
-.view{ display:none; opacity:0; transform: translateY(6px); }
-.view.is-active{ display:block; opacity:1; transform:none; transition: all .18s ease; }
-
-/* =========================
-   TIPOS
-========================= */
-.h1{
-  margin:0;
-  font-size: 22px;
-  font-weight: 950;
-  letter-spacing: -0.02em;
-}
-.h2{
-  margin:0;
-  font-size: 18px;
-  font-weight: 950;
-  letter-spacing: -0.02em;
-}
-.muted{ color: var(--text-muted); font-weight: 800; }
-.muted.small{ font-size: 12px; font-weight: 800; }
-
-/* =========================
-   CARD
+   Cards / Layout
 ========================= */
 .card{
   background: var(--bg-panel);
@@ -99,20 +81,7 @@ body{
   padding: 16px;
 }
 
-.stack{ display:flex; flex-direction:column; gap:12px; }
-
-.divider{
-  height:1px;
-  background: var(--stroke);
-  margin: 14px 0;
-}
-
-/* =========================
-   ROWS / GRIDS
-========================= */
-.row{ display:flex; align-items:center; }
-.row-between{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.gap{ gap:10px; }
+.stack{ display:flex; flex-direction:column; gap: 12px; }
 
 .grid-2{
   display:grid;
@@ -120,107 +89,186 @@ body{
   gap: 12px;
 }
 
-/* =========================
-   BOTONES
-========================= */
-.btn{
-  border: 1px solid var(--stroke);
-  background: var(--bg-panel);
-  border-radius: 16px;
-  padding: 12px 14px;
-  font-weight: 950;
-  cursor: pointer;
-}
-.btn.primary{
-  background: var(--accent);
-  border-color: rgba(0,0,0,.06);
-  color: #fff;
-}
-.btn.danger{
-  background: #ff3b30;
-  border-color: rgba(0,0,0,.06);
-  color:#fff;
+.row{ display:flex; align-items:center; }
+.gap{ gap: 10px; }
+.row-between{ display:flex; align-items:center; justify-content:space-between; gap: 10px; flex-wrap:wrap; }
+
+.divider{
+  height: 1px;
+  background: var(--stroke);
+  margin: 14px 0;
 }
 
-/* =========================
-   INPUTS
-========================= */
-.input, textarea, select{
+.muted{ color: var(--text-muted); font-weight: 800; }
+.small{ font-size: 12px; }
+
+.h1{
+  margin: 0;
+  font-size: 20px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+
+.h2{
+  margin: 0;
+  font-size: 16px;
+  font-weight: 950;
+  letter-spacing: -0.01em;
+}
+
+/* Inputs */
+.field{ display:flex; flex-direction:column; gap: 6px; }
+label{ font-weight: 900; }
+
+.input{
   width:100%;
   border: 1px solid var(--stroke);
   border-radius: 16px;
   padding: 12px 14px;
-  font-size: 16px;
+  font-size: 14px;
   outline: none;
   background: var(--bg-panel);
+  color: var(--text-main);
 }
-.field{ display:flex; flex-direction:column; gap:8px; }
-label{ font-weight: 900; }
 
-/* =========================
-   CARD BUTTONS (tarjetas)
-========================= */
+textarea.input{ resize: vertical; }
+
+/* Buttons */
+.btn{
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background: var(--bg-panel);
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--text-main);
+  box-shadow: 0 8px 18px rgba(0,0,0,.05);
+}
+
+.btn.primary{
+  background: var(--accent);
+  border-color: rgba(0,0,0,.08);
+  color: #fff;
+}
+
+.btn.danger{
+  background: rgba(220,38,38,.10);
+  border-color: rgba(220,38,38,.25);
+  color: rgb(185,28,28);
+}
+
+.btn:active{ transform: translateY(1px); }
+
 .card-btn{
+  display:flex;
+  align-items:center;
+  gap: 12px;
   width:100%;
   border-radius: 22px;
   border: 1px solid var(--stroke);
   background: var(--bg-panel);
-  box-shadow: var(--shadow);
   padding: 14px;
-  display:flex;
-  align-items:center;
-  gap: 12px;
-  cursor:pointer;
+  box-shadow: var(--shadow);
 }
-.card-ico{
-  width:44px; height:44px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.03);
-  display:flex; align-items:center; justify-content:center;
-  font-size: 18px;
-}
+
+.card-ico{ font-size: 22px; }
 .card-title{ font-weight: 950; }
-.card-sub{ color: var(--text-muted); font-size: 12px; font-weight: 800; margin-top:2px; }
+.card-sub{ color: var(--text-muted); font-weight: 850; font-size: 12px; margin-top: 2px; }
 .card-txt{ display:flex; flex-direction:column; }
 
-/* =========================
-   HOME LIST
-========================= */
-.collection-row{
+/* Segmented */
+.seg{
+  display:flex;
+  gap: 8px;
+  padding: 6px;
   border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.02);
-  border-radius: 18px;
-  padding: 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.03);
+}
+.seg-opt{
+  flex:1;
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap: 12px;
-  cursor:pointer;
+  justify-content:center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 10px 10px;
+  font-weight: 950;
 }
+.seg-opt input{ transform: scale(1.1); }
 
 /* =========================
-   STATS
+   Detail header sticky
 ========================= */
+.detail-header{
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 70;
+  margin-top: 0;
+}
+
+/* Stats */
 .stats{
-  margin-top: 12px;
   display:grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
+  margin-top: 12px;
 }
+
 .stat{
   border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.02);
   border-radius: 18px;
-  padding: 10px;
+  padding: 10px 10px;
+  background: rgba(0,0,0,.02);
+  display:flex;
+  flex-direction:column;
+  gap: 4px;
   text-align:center;
 }
-.stat span{ display:block; font-size: 12px; color: var(--text-muted); font-weight: 900; }
-.stat b{ display:block; font-size: 18px; font-weight: 950; margin-top:4px; }
 
-/* =========================
-   DETAIL SECTIONS / ITEMS
-========================= */
+.stat span{ color: var(--text-muted); font-weight: 900; font-size: 12px; }
+.stat b{ font-size: 16px; font-weight: 950; }
+
+/* Tabs (Todas / Faltantes / Tengo) */
+.tabs{
+  margin-top: 12px;
+  background: rgba(0,0,0,.04);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  padding: 6px;
+  display:flex;
+  gap: 6px;
+}
+.tab{
+  flex:1;
+  border-radius: 999px;
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: 950;
+  text-align:center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-main);
+}
+.tab.active{
+  background: var(--accent-soft);
+  border-color: rgba(45,125,246,.35);
+  color: var(--accent);
+}
+
+/* Collection list rows */
+.collection-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,.06);
+  background: rgba(0,0,0,.02);
+}
+
+/* Sections */
 .section-card{
   background: var(--bg-panel);
   border: 1px solid var(--stroke);
@@ -228,12 +276,15 @@ label{ font-weight: 900; }
   box-shadow: var(--shadow);
   padding: 14px;
 }
+
 .section-title{
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 950;
-  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
 }
 
+/* Items grid */
 .items-grid{
   display:flex;
   flex-wrap: wrap;
@@ -241,272 +292,83 @@ label{ font-weight: 900; }
 }
 
 .item{
-  width: 92px;
-  border: 1px solid var(--stroke);
+  width: 74px;
   border-radius: 18px;
-  padding: 10px;
+  border: 2px solid rgba(0,0,0,.10);
   background: rgba(0,0,0,.02);
+  padding: 10px 8px 8px;
   display:flex;
   flex-direction:column;
-  gap: 8px;
+  gap: 6px;
+  align-items:center;
 }
-.item.have{
-  background: rgba(45,125,246,.10);
-  border-color: rgba(45,125,246,.25);
-}
+
 .item.special{
   border-color: var(--special-border);
   background: var(--special-bg);
 }
 
+.item.have{
+  background: rgba(45,125,246,.10);
+  border-color: rgba(45,125,246,.30);
+}
+
 .item-code{
   font-weight: 950;
-  font-size: 16px;
-  text-align:center;
+  font-size: 14px;
 }
+
 .item-rep{
   font-size: 12px;
   font-weight: 900;
   color: var(--text-muted);
-  text-align:center;
 }
+
 .item-actions{
   display:flex;
-  justify-content:space-between;
   gap: 8px;
 }
+
 .mini{
-  width: 38px;
+  width: 34px;
   height: 34px;
-  border-radius: 14px;
+  border-radius: 999px;
   border: 1px solid var(--stroke);
   background: var(--bg-panel);
+  font-size: 18px;
   font-weight: 950;
-  cursor:pointer;
-}
-
-/* =========================
-   SECTIONS EDITOR ROW
-========================= */
-.section-row{
-  display:grid;
-  grid-template-columns: 1.2fr .9fr .8fr .7fr 1.1fr auto;
-  gap: 8px;
-  align-items:center;
-
-  border: 1px solid var(--stroke);
-  border-radius: 18px;
-  padding: 10px;
-  background: rgba(0,0,0,.02);
-}
-.section-row .actions{
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-}
-
-.icon-lite{
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: var(--bg-panel);
-  font-weight: 950;
-  cursor:pointer;
-}
-.icon-danger{
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  border: 1px solid rgba(0,0,0,.08);
-  background: #ff3b30;
-  color:#fff;
-  font-weight: 950;
-  cursor:pointer;
+  color: var(--accent);
+  box-shadow: 0 6px 14px rgba(0,0,0,.05);
 }
 
 .inline-check{
   display:flex;
-  align-items:center;
   gap: 10px;
+  align-items:center;
   font-weight: 900;
 }
 
-.seg{
-  display:flex;
-  gap: 10px;
-}
-.seg-opt{
-  flex:1;
-  border: 1px solid var(--stroke);
-  border-radius: 16px;
-  padding: 10px 12px;
-  background: rgba(0,0,0,.02);
-  display:flex;
+.section-row{
+  display:grid;
+  grid-template-columns: 1.2fr .9fr .8fr .7fr 1fr auto;
+  gap: 8px;
   align-items:center;
-  justify-content:center;
-  gap: 10px;
+}
+.actions{ display:flex; align-items:center; }
+.icon-lite{
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: var(--bg-panel);
+  width: 34px;
+  height: 34px;
   font-weight: 950;
 }
-
-/* =========================
-   HELPERS
-========================= */
-.hidden{ display:none !important; }
-/* 🔹 Compensación del topbar fijo */
-.topbar-offset {
-  height: 72px;
-}
-/* ============================
-   FIX STICKY: Topbar + Detail
-   (pegar al FINAL de style.css)
-============================ */
-
-/* safe-area iOS */
-:root{
-  --safe-top: env(safe-area-inset-top, 0px);
-  /* si tu topbar mide distinto, ajustamos este número */
-  --topbar-base: 72px;
-  --topbar-total: calc(var(--topbar-base) + var(--safe-top));
-}
-
-/* Topbar fijo real (por si tu CSS ya lo tiene, esto lo refuerza sin romper) */
-.topbar{
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  padding-top: var(--safe-top);
-}
-
-/* espacio para que el contenido arranque debajo del topbar */
-.topbar-offset{
-  height: var(--topbar-total);
-}
-
-/* ✅ La tarjeta de detalle queda fija debajo del topbar */
-.detail-header{
-  position: sticky;
-  top: var(--topbar-total);
-  z-index: 600;
-  background: var(--bg-panel);
-}
-
-/* pequeño “sellado” visual para que no se vea nada detrás al pegarse */
-.detail-header::before{
-  content:"";
-  position:absolute;
-  left:-18px;
-  right:-18px;
-  top:-14px;
-  height:14px;
-  background: var(--bg-main);
-}
-/* =========================
-   FIX: quitar "aire" entre topbar y detail-header
-   (sin romper el padding global del main)
-========================= */
-
-/* Si ya tenés variables, no pasa nada: estas se usan solo si no existían */
-:root{
-  --topbar-h: 72px; /* altura del topbar (ajustá si el tuyo es diferente) */
-  --content-top: calc(var(--topbar-h) + env(safe-area-inset-top));
-}
-
-/* Asegura que el layout general respete el topbar fijo */
-.topbar{
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  height: var(--topbar-h);
-  padding-top: env(safe-area-inset-top);
-}
-
-/* Este es el “espacio” global para que nada quede debajo del topbar */
-.app{
-  padding-top: var(--content-top);
-}
-
-/* ✅ CLAVE: en la vista detail, subimos la tarjeta para “comerse” el padding */
-.view[data-view="detail"] .detail-header{
-  margin-top: calc(-1 * var(--content-top));
-}
-
-/* ✅ Y dejamos el sticky exactamente pegado debajo del topbar */
-.detail-header{
-  position: sticky;
-  top: var(--content-top);
-  z-index: 10;
-}
-
-/* Opcional: para que quede más “pegado” visualmente (sin borde redondeado arriba) */
-.view[data-view="detail"] .detail-header{
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-/* =========================
-   Animación premium al marcar "Tengo"
-========================= */
-
-.item {
-  transition: 
-    transform 0.18s ease,
-    box-shadow 0.25s ease,
-    background 0.25s ease;
-}
-
-/* efecto cuando pasa a have */
-.item.have {
-  transform: scale(1.04);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
-}
-
-/* micro rebote elegante */
-.item.have {
-  animation: popIn 0.25s ease;
-}
-
-@keyframes popIn {
-  0%   { transform: scale(0.95); }
-  60%  { transform: scale(1.06); }
-  100% { transform: scale(1.04); }
-}
-/* =============================
-   ANIMACIONES PREMIUM (Opción 1 mejorada)
-============================= */
-
-/* Pop + glow sutil al tocar una figurita */
-.item.is-pop {
-  animation: itemPop 220ms ease-out;
-}
-
-.item.is-pop.have {
-  animation: itemPopHave 240ms ease-out;
-}
-
-/* Glow blue elegante (solo cuando queda en "Tengo") */
-@keyframes itemPop {
-  0%   { transform: scale(1); }
-  55%  { transform: scale(1.035); }
-  100% { transform: scale(1); }
-}
-
-@keyframes itemPopHave {
-  0%   { transform: scale(1); box-shadow: none; }
-  55%  { transform: scale(1.04); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18); }
-  100% { transform: scale(1); box-shadow: none; }
-}
-
-/* Celebración al completar sección */
-.section-card.is-done-pulse {
-  animation: sectionDonePulse 420ms ease-out;
-}
-
-@keyframes sectionDonePulse {
-  0%   { transform: scale(1); box-shadow: none; }
-  50%  { transform: scale(1.01); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14); }
-  100% { transform: scale(1); box-shadow: none; }
+.icon-danger{
+  border-radius: 999px;
+  border: 1px solid rgba(220,38,38,.25);
+  background: rgba(220,38,38,.10);
+  width: 34px;
+  height: 34px;
+  color: rgb(185,28,28);
+  font-weight: 950;
 }
