@@ -572,3 +572,36 @@ main.app{
   -webkit-user-select: none;
   user-select: none;
 }
+/* =============================
+   FIX tamaño fijo + eliminar número inferior
+============================= */
+
+/* Tamaño fijo para todas las cajas */
+.item,
+.tile,
+.sticker,
+.stickerItem,
+.sticker-box {
+  min-height: 86px !important;
+  height: 86px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+/* Oculta cualquier número suelto debajo del código */
+.item div:not(.repBadgeCorner):not(.rep-badge):not(.item-code),
+.tile div:not(.repBadgeCorner):not(.rep-badge):not(.item-code) {
+  display: none !important;
+}
+
+/* Asegura que el código quede centrado */
+.item-code,
+.tileCentered {
+  position: relative;
+  z-index: 1;
+  font-size: 18px;
+  font-weight: 800;
+}
