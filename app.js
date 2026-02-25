@@ -1379,3 +1379,35 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+/* ===== PATCH Badge Repetidas v1 ===== */
+
+(function enhanceRepBadges(){
+
+  const originalRenderDetail = renderDetail;
+
+  renderDetail = function(){
+    originalRenderDetail();
+
+    document.querySelectorAll(".item").forEach(itemEl => {
+
+      const repText = itemEl.querySelector(".item-rep");
+      if(!repText) return;
+
+      const match = repText.textContent.match(/\d+/);
+      if(!match) return;
+
+      const repValue = parseInt(match[0], 10);
+      if(repValue <= 0) return;
+
+      // evitar duplicar badge
+      if(itemEl.querySelector(".rep-badge")) return;
+
+      const badge = document.createElement("div");
+      badge.className = "rep-badge";
+      badge.textContent = repValue > 99 ? "99+" : repValue;
+
+      itemEl.appendChild(badge);
+    });
+  };
+
+})();
