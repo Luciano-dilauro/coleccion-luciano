@@ -2000,3 +2000,154 @@ document.addEventListener("DOMContentLoaded", init);
   // Primera corrida
   setTimeout(patchNow, 50);
 })();
+/* =========================
+   HOTFIX – Badge “loco” + filtro Repetidas real
+   Pegar AL FINAL de app.js (debajo de todo)
+========================= */
+
+(function () {
+  // --- Selectores tolerantes para “celdas” ---
+  const CELL_SELECTORS = [
+    ".sticker", ".fig", ".tile", ".slot", ".card-sticker",
+    ".sticker-cell", ".fig-cell", ".tile-cell",
+    "[data-sticker]", "[data-fig]", "[data-code]"
+  ];
+
+  function getCells() {
+    const root = document.getElementById("sectionsDetail") || document;
+    const set = new Set();
+    CELL_SELECTORS.forEach(sel => root.querySelectorAll(sel).forEach(n => set.add(n)));
+    return [...set].filter(el => el && el.nodeType === 1);
+  }
+
+  // Elimina badges existentes (de cualquier versión) para que no contaminen lecturas
+  function removeAllBadges(cell) {
+    cell.querySelectorAll(".rep-badge, .repBadge, .badge-rep, .rep-bubble, .repBubble").forEach(n => n.remove());
+  }
+
+  // Lee repeticiones desde “fuente limpia”:
+  // 1) data-rep si existe
+  // 2) texto oculto "Rep: X" (aunque esté display:none igual vive en el DOM)
+  function readRepClean(cell) {
+    const d = cell.getAttribute("data-rep");
+    if (d != null && d !== "") {
+      const n = parseInt(d, 10);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    // Clonamos y sacamos badges/ruido antes de leer texto
+    const clone = cell.cloneNode(true);
+    clone.querySelectorAll(".rep-badge, .repBadge, .badge-rep, .rep-bubble, .repBubble").forEach(n => n.remove());
+    const txt = (clone.textContent || "").replace(/\s+/g, " ").trim();
+
+    const m = txt.match(/Rep:\s*(\d+)/i);
+    if (m) return parseInt(m[1], 10) || 0;
+
+    return 0;
+  }
+
+  function isHave(cell) {
+    if (cell.getAttribute("data-have") === "1") return true;
+    if (cell.getAttribute("aria-pressed") === "true") return true;
+    const c = cell.classList;
+    return c.contains("is-have") || c.contains("have") || c.contains("owned") || c.contains("done") || c.contains("checked");
+  }
+
+  // Crea/actualiza 1 solo badge por celda, con número correcto
+  function normalizeBadges() {
+    const cells = getCells();
+
+    cells.forEach(cell => {
+      // Primero borramos cualquier badge previo (de cualquier parche)
+      removeAllBadges(cell);
+
+      const rep = readRepClean(cell);
+
+      // Si no hay repetidas, no mostramos badge
+      if (!rep || rep <= 0) return;
+
+      // Creamos badge “oficial”
+      const badge = document.createElement("div");
+      badge.className = "rep-badge";
+      badge.textContent = String(rep);
+
+      // Asegurar stacking/posicion
+      const pos = getComputedStyle(cell).position;
+      if (pos === "static") cell.style.position = "relative";
+      cell.appendChild(badge);
+    });
+  }
+
+  // --- Filtros robustos ---
+  let currentFilter = "all";
+
+  function setActiveFilterUI(mode) {
+    const wrap = document.querySelector(".seg-filters") || document;
+    const buttons = wrap.querySelectorAll(".seg-btn, [data-action^='filter-']");
+    buttons.forEach(b => b.classList.remove("is-active"));
+
+    const map = {
+      all: wrap.querySelector("[data-action='filter-all']") || document.getElementById("fAll"),
+      miss: wrap.querySelector("[data-action='filter-miss']") || document.getElementById("fMiss"),
+      rep: wrap.querySelector("[data-action='filter-rep']") ||
+           wrap.querySelector("[data-action='filter-reps']") ||
+           document.getElementById("fRep") ||
+           document.getElementById("fReps")
+    };
+
+    const btn = map[mode];
+    if (btn) btn.classList.add("is-active");
+  }
+
+  function applyFilter(mode) {
+    currentFilter = mode || "all";
+    setActiveFilterUI(currentFilter);
+
+    const cells = getCells();
+
+    cells.forEach(cell => {
+      let show = true;
+      if (currentFilter === "miss") show = !isHave(cell);
+      if (currentFilter === "rep") show = readRepClean(cell) > 0;
+      cell.style.display = show ? "" : "none";
+    });
+  }
+
+  // Captura clicks primero y frena handlers viejos que estén rompiendo estado/pintado
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+
+    const a = btn.getAttribute("data-action");
+    const isFilter = (a === "filter-all" || a === "filter-miss" || a === "filter-rep" || a === "filter-reps" || a === "filter-repeat");
+    if (!isFilter) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    // Antes de filtrar, normalizamos badges (para que rep sea correcto)
+    normalizeBadges();
+
+    if (a === "filter-all") applyFilter("all");
+    if (a === "filter-miss") applyFilter("miss");
+    if (a === "filter-rep" || a === "filter-reps" || a === "filter-repeat") applyFilter("rep");
+  }, true); // capture=true
+
+  // Re-enganche: si el detalle se re-renderiza, rearmamos badges y re-aplicamos filtro
+  function patchNow() {
+    normalizeBadges();
+    applyFilter(currentFilter);
+  }
+
+  const detail = document.getElementById("sectionsDetail");
+  if (detail) {
+    const mo = new MutationObserver(() => {
+      clearTimeout(window.__hotfixRepT);
+      window.__hotfixRepT = setTimeout(patchNow, 40);
+    });
+    mo.observe(detail, { childList: true, subtree: true });
+  }
+
+  setTimeout(patchNow, 60);
+})();
