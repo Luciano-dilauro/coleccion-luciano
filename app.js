@@ -1,23 +1,14 @@
 /* =============================
-   Colección Lucho - Arquitectura estable (v2.4.1)
-   ✅ FIX CRÍTICO: recupera datos desde claves antiguas (no se pierden colecciones)
+   Colección Luciano - Arquitectura estable (v2.3 + patches)
+   - Tap: si no tengo -> marco tengo
+          si tengo -> suma repetida (rep++)
+   - Long press: si rep>0 -> rep--
+                 si rep==0 y tengo -> confirma y desmarca (have=false)
+   - Backup: REEMPLAZAR
 ============================= */
 
-const LS_KEY = "coleccion_lucho_v24";           // clave nueva
-const META_KEY = "coleccion_lucho_meta_v24";    // meta nueva
-
-// ✅ claves anteriores (para recuperar datos ya guardados)
-const LEGACY_LS_KEYS = [
-  "coleccion_luciano_v2",
-  "coleccion_luciano_v2_1",
-  "coleccion_luciano_v2_2",
-];
-const LEGACY_META_KEYS = [
-  "coleccion_luciano_meta_v2",
-  "coleccion_luciano_meta_v2_1",
-  "coleccion_luciano_meta_v2_2",
-];
-
+const LS_KEY = "coleccion_luciano_v2";
+const META_KEY = "coleccion_luciano_meta_v2";
 const BACKUP_VERSION = 1;
 
 const $ = (id) => document.getElementById(id);
@@ -25,15 +16,19 @@ const $ = (id) => document.getElementById(id);
 const els = {
   backBtn: $("backBtn"),
   topbarTitle: $("topbarTitle"),
+
   views: Array.from(document.querySelectorAll("[data-view]")),
 
+  collectionsList: $("collectionsList"),
+
+  // Dash / pickers (si existen en tu index actual)
   collectionsSelect: $("collectionsSelect"),
   btnOpenCollection: $("btnOpenCollection"),
-
   editPicker: $("editPicker"),
   editSelect: $("editSelect"),
   btnEditOpen: $("btnEditOpen"),
 
+  // Create
   newName: $("newName"),
   structRadios: Array.from(document.querySelectorAll('input[name="structType"]')),
   simpleBlock: $("simpleBlock"),
@@ -44,22 +39,27 @@ const els = {
   sectionsEditor: $("sectionsEditor"),
   btnAddSection: $("btnAddSection"),
 
+  // Detail
   detailTitle: $("detailTitle"),
   stTotal: $("stTotal"),
   stHave: $("stHave"),
   stMissing: $("stMissing"),
   stPct: $("stPct"),
   sectionsDetail: $("sectionsDetail"),
+
+  // Filters (si existen)
   fAll: $("fAll"),
   fHave: $("fHave"),
   fMiss: $("fMiss"),
 
+  // Edit
   editTitle: $("editTitle"),
   editName: $("editName"),
   editSectionsArea: $("editSectionsArea"),
   editAddSection: $("editAddSection"),
   editSectionsEditor: $("editSectionsEditor"),
 
+  // Settings
   importInput: $("importInput"),
   exportMeta: $("exportMeta"),
   importMeta: $("importMeta"),
@@ -69,14 +69,15 @@ const els = {
 const state = {
   view: "dash",
   currentId: null,
-  detailFilter: "all", // all | have | miss
   data: { collections: [] },
   meta: {
     lastExportAt: null,
     lastExportSize: null,
     lastImportAt: null,
     lastImportMode: "replace",
-  }
+  },
+  // filtro dentro de una colección (si tu UI lo usa)
+  filter: "all", // all | have | miss
 };
 
 /* -----------------------------
@@ -86,7 +87,6 @@ function uid(prefix = "id") {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
-function normCode(s) { return String(s || "").trim().toUpperCase(); }
 
 function formatDateTime(ts) {
   if (!ts) return "—";
@@ -99,23 +99,35 @@ function formatBytes(bytes) {
   while (n >= 1024 && i < u.length - 1) { n/=1024; i++; }
   return `${n.toFixed(i===0?0:1)} ${u[i]}`;
 }
-function parseCodesList(input) {
-  return String(input || "")
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean)
-    .map(normCode);
-}
+
 function normalizePrefix(p) {
   return String(p || "")
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
 }
+
+function parseCodesList(input) {
+  return String(input || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+function parsePrefixList(input) {
+  return String(input || "")
+    .split(/[,;\n\r]+/g)
+    .map(s => normalizePrefix(s))
+    .filter(Boolean);
+}
+function normCode(s) {
+  return String(s || "").trim().toUpperCase();
+}
+
 function getCurrent() {
   if (!state.currentId) return null;
   return state.data.collections.find(c => c.id === state.currentId) || null;
 }
+
 function computeStats(col) {
   const total = col.items.length;
   let have = 0;
@@ -126,23 +138,23 @@ function computeStats(col) {
 }
 
 /* -----------------------------
-   Persistencia (con rescate legacy)
+   Persistencia
 ----------------------------- */
-function readFirstExisting(keys) {
-  for (const k of keys) {
-    const raw = localStorage.getItem(k);
-    if (raw && raw.trim()) return { key: k, raw };
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    state.data = raw ? JSON.parse(raw) : { collections: [] };
+    if (!state.data.collections) state.data.collections = [];
+  } catch {
+    state.data = { collections: [] };
   }
-  return null;
-}
 
-function normalizeLoadedData(obj) {
-  if (!obj || typeof obj !== "object") return { collections: [] };
-  if (!Array.isArray(obj.collections)) obj.collections = [];
-  return obj;
-}
+  try {
+    const m = JSON.parse(localStorage.getItem(META_KEY) || "{}");
+    state.meta = { ...state.meta, ...m };
+  } catch {}
 
-function migrateSoft() {
+  // migración suave
   for (const c of state.data.collections) {
     if (!c.sections) c.sections = [];
     if (!c.items) c.items = [];
@@ -166,47 +178,10 @@ function migrateSoft() {
     for (const it of c.items) {
       if (typeof it.special !== "boolean") it.special = false;
       if (!it.key) it.key = `${it.sectionId}|${it.label}`;
+      if (typeof it.have !== "boolean") it.have = false;
+      if (!Number.isFinite(it.rep)) it.rep = 0;
     }
   }
-}
-
-function load() {
-  // 1) Intentar leer la clave nueva
-  let loaded = null;
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw && raw.trim()) loaded = { key: LS_KEY, raw };
-  } catch {}
-
-  // 2) Si no hay datos en la nueva, buscar en legacy (TU CASO)
-  if (!loaded) loaded = readFirstExisting(LEGACY_LS_KEYS);
-
-  // 3) Parse
-  try {
-    state.data = loaded ? normalizeLoadedData(JSON.parse(loaded.raw)) : { collections: [] };
-  } catch {
-    state.data = { collections: [] };
-  }
-
-  // META: nueva o legacy
-  let metaRaw = null;
-  try {
-    const r = localStorage.getItem(META_KEY);
-    if (r && r.trim()) metaRaw = r;
-  } catch {}
-  if (!metaRaw) {
-    const legacyMeta = readFirstExisting(LEGACY_META_KEYS);
-    metaRaw = legacyMeta?.raw || null;
-  }
-  try {
-    const m = JSON.parse(metaRaw || "{}");
-    state.meta = { ...state.meta, ...m };
-  } catch {}
-
-  migrateSoft();
-
-  // ✅ Si venía de legacy, guardamos inmediatamente en la clave nueva (sin borrar legacy)
-  save();
 }
 
 function save() {
@@ -215,59 +190,81 @@ function save() {
 }
 
 /* -----------------------------
-   Views / navegación
+   Views
 ----------------------------- */
 function setView(view) {
   state.view = view;
   for (const v of els.views) v.classList.toggle("is-active", v.dataset.view === view);
 
+  // título + back
   if (view === "dash") {
-    els.topbarTitle.textContent = "Colecciones Lucho";
-    els.backBtn.classList.add("hidden");
+    els.topbarTitle && (els.topbarTitle.textContent = "Colecciones Lucho");
+    els.backBtn?.classList.add("hidden");
   } else if (view === "collections") {
-    els.topbarTitle.textContent = "Mis colecciones";
-    els.backBtn.classList.remove("hidden");
+    els.topbarTitle && (els.topbarTitle.textContent = "Mis colecciones");
+    els.backBtn?.classList.remove("hidden");
   } else if (view === "loadedit") {
-    els.topbarTitle.textContent = "Carga / Edición";
-    els.backBtn.classList.remove("hidden");
+    els.topbarTitle && (els.topbarTitle.textContent = "Carga / Edición");
+    els.backBtn?.classList.remove("hidden");
   } else if (view === "create") {
-    els.topbarTitle.textContent = "Nueva colección";
-    els.backBtn.classList.remove("hidden");
-  } else if (view === "detail") {
-    const col = getCurrent();
-    els.topbarTitle.textContent = col ? col.name : "Colección";
-    els.backBtn.classList.remove("hidden");
-  } else if (view === "edit") {
-    els.topbarTitle.textContent = "Editar";
-    els.backBtn.classList.remove("hidden");
+    els.topbarTitle && (els.topbarTitle.textContent = "Nueva colección");
+    els.backBtn?.classList.remove("hidden");
   } else if (view === "settings") {
-    els.topbarTitle.textContent = "Ajustes";
-    els.backBtn.classList.remove("hidden");
+    els.topbarTitle && (els.topbarTitle.textContent = "Ajustes");
+    els.backBtn?.classList.remove("hidden");
+  } else if (view === "edit") {
+    els.topbarTitle && (els.topbarTitle.textContent = "Editar");
+    els.backBtn?.classList.remove("hidden");
+  } else if (view === "detail") {
+    els.backBtn?.classList.remove("hidden");
   }
 
   window.scrollTo({ top: 0, behavior: "auto" });
 }
 
-function goDash() { state.currentId = null; setView("dash"); }
-function goCollections() { renderCollectionsSelects(); setView("collections"); }
-function goLoadEdit() { renderCollectionsSelects(); els.editPicker?.classList.add("hidden"); setView("loadedit"); }
-function goSettings() { renderSettings(); setView("settings"); }
-function goCreate() { resetCreateForm(); setView("create"); }
-function goDetail(id) { state.currentId = id; state.detailFilter = "all"; syncFilterButtons(); renderDetail(); setView("detail"); }
-function goEdit(id = null) { if (id) state.currentId = id; renderEdit(); setView("edit"); }
-
-function goBack() {
-  if (state.view === "detail") return goCollections();
-  if (state.view === "create" || state.view === "edit" || state.view === "settings") return goDash();
-  if (state.view === "collections" || state.view === "loadedit") return goDash();
-  return goDash();
+function goDash() {
+  state.currentId = null;
+  setView("dash");
+  // refrescos
+  renderCollectionsSelects?.();
+}
+function goCollections() {
+  renderCollectionsSelects();
+  setView("collections");
+}
+function goLoadEdit() {
+  renderCollectionsSelects();
+  // oculto picker si existe
+  if (els.editPicker) els.editPicker.classList.add("hidden");
+  setView("loadedit");
+}
+function goCreate() {
+  resetCreateForm();
+  ensureBulkBuilderUI();
+  setView("create");
+}
+function goDetail(id) {
+  state.currentId = id;
+  state.filter = "all";
+  renderDetail();
+  const col = getCurrent();
+  if (col && els.topbarTitle) els.topbarTitle.textContent = col.name;
+  setView("detail");
+}
+function goSettings() {
+  renderSettings();
+  setView("settings");
+}
+function goEdit() {
+  renderEdit();
+  setView("edit");
 }
 
 /* -----------------------------
-   Selects
+   “Mis colecciones” selector
 ----------------------------- */
 function renderCollectionsSelects() {
-  const cols = state.data.collections.slice().sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const cols = state.data.collections;
 
   const fill = (sel) => {
     if (!sel) return;
@@ -275,12 +272,10 @@ function renderCollectionsSelects() {
     if (!cols.length) {
       const opt = document.createElement("option");
       opt.value = "";
-      opt.textContent = "— No hay colecciones —";
+      opt.textContent = "(Sin colecciones)";
       sel.appendChild(opt);
-      sel.disabled = true;
       return;
     }
-    sel.disabled = false;
     for (const c of cols) {
       const opt = document.createElement("option");
       opt.value = c.id;
@@ -300,23 +295,25 @@ function getStructType() {
   const r = els.structRadios.find(x => x.checked);
   return r ? r.value : "simple";
 }
+
 function syncCreateBlocks() {
   const t = getStructType();
   if (t === "simple") {
-    els.simpleBlock.style.display = "block";
-    els.sectionsBlock.style.display = "none";
+    els.simpleBlock && (els.simpleBlock.style.display = "block");
+    els.sectionsBlock && (els.sectionsBlock.style.display = "none");
   } else {
-    els.simpleBlock.style.display = "none";
-    els.sectionsBlock.style.display = "block";
+    els.simpleBlock && (els.simpleBlock.style.display = "none");
+    els.sectionsBlock && (els.sectionsBlock.style.display = "block");
+    ensureBulkBuilderUI();
   }
 }
 els.structRadios.forEach(r => r.addEventListener("change", syncCreateBlocks));
 
 function resetCreateForm() {
-  els.newName.value = "";
-  els.simpleCount.value = "100";
-  els.simpleSpecials.value = "";
-  els.numberMode.value = "global";
+  if (els.newName) els.newName.value = "";
+  if (els.simpleCount) els.simpleCount.value = "100";
+  if (els.simpleSpecials) els.simpleSpecials.value = "";
+  if (els.numberMode) els.numberMode.value = "global";
   els.structRadios.forEach(r => r.checked = (r.value === "simple"));
   syncCreateBlocks();
 
@@ -330,19 +327,111 @@ function resetCreateForm() {
 }
 
 /* -----------------------------
-   Secciones UI (igual que antes)
+   Generador rápido por lista (coma)
 ----------------------------- */
-function moveRow(container, row, dir) {
-  const rows = Array.from(container.querySelectorAll("[data-section-row]"));
-  const idx = rows.indexOf(row);
-  if (idx < 0) return;
-  const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= rows.length) return;
-  const ref = rows[newIdx];
-  if (dir === -1) container.insertBefore(row, ref);
-  else container.insertBefore(ref, row);
+function ensureBulkBuilderUI() {
+  if (!els.sectionsBlock || !els.sectionsEditor) return;
+  if ($("bulkBuilder")) return;
+
+  const wrap = document.createElement("div");
+  wrap.id = "bulkBuilder";
+  wrap.className = "card";
+  wrap.style.marginBottom = "14px";
+
+  wrap.innerHTML = `
+    <div class="h2" style="margin-bottom:10px;">Generador rápido por lista (con coma)</div>
+    <div class="muted small" style="margin-bottom:10px;">
+      Pegá prefijos separados por coma. Ej: RIA, BAE, ATL
+    </div>
+
+    <div class="field">
+      <label>Prefijos (con coma)</label>
+      <textarea id="bulkPrefixes" class="input" rows="3" placeholder="RIA, BAE, ATL"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Cantidad por equipo</label>
+      <input id="bulkCount" class="input" type="number" min="1" max="5000" value="20" />
+    </div>
+
+    <label class="inline-check" style="margin-top:8px;">
+      <input id="bulkAddSpecialSection" type="checkbox" checked />
+      <span>Agregar sección “Especiales” (numérica con numeración propia)</span>
+    </label>
+
+    <div class="field" style="margin-top:10px;">
+      <label>Cantidad en “Especiales”</label>
+      <input id="bulkSpecialCount" class="input" type="number" min="1" max="5000" value="10" />
+    </div>
+
+    <div class="row gap" style="margin-top:12px;">
+      <button id="btnBulkGenerate" class="btn primary" type="button">Generar secciones</button>
+      <button id="btnBulkClear" class="btn" type="button">Limpiar lista</button>
+    </div>
+
+    <div class="muted small" style="margin-top:10px;">
+      Nota: esto reemplaza todas las secciones actuales del editor.
+    </div>
+  `;
+
+  els.sectionsBlock.insertBefore(wrap, els.sectionsEditor);
+
+  const bulkPrefixes = $("bulkPrefixes");
+  const bulkCount = $("bulkCount");
+  const bulkAddSpecialSection = $("bulkAddSpecialSection");
+  const bulkSpecialCount = $("bulkSpecialCount");
+  const btnBulkGenerate = $("btnBulkGenerate");
+  const btnBulkClear = $("btnBulkClear");
+
+  btnBulkClear?.addEventListener("click", () => {
+    if (bulkPrefixes) bulkPrefixes.value = "";
+    bulkPrefixes?.focus();
+  });
+
+  btnBulkGenerate?.addEventListener("click", () => {
+    const list = parsePrefixList(bulkPrefixes?.value || "");
+    if (!list.length) return alert("Pegá al menos 1 prefijo (separados por coma).");
+
+    let perTeam = parseInt(bulkCount?.value || "0", 10);
+    if (!Number.isFinite(perTeam) || perTeam <= 0) return alert("Cantidad por equipo inválida.");
+    perTeam = clamp(perTeam, 1, 5000);
+
+    let specialsN = parseInt(bulkSpecialCount?.value || "0", 10);
+    if (!Number.isFinite(specialsN) || specialsN <= 0) specialsN = 10;
+    specialsN = clamp(specialsN, 1, 5000);
+
+    els.sectionsEditor.innerHTML = "";
+
+    for (const pref of list) {
+      addSectionRow(els.sectionsEditor, {
+        name: pref,
+        format: "alfa",
+        prefix: pref,
+        count: perTeam,
+        ownNumbering: true,
+        specials: []
+      });
+    }
+
+    if (bulkAddSpecialSection?.checked) {
+      addSectionRow(els.sectionsEditor, {
+        name: "Especiales",
+        format: "num",
+        prefix: "",
+        count: specialsN,
+        ownNumbering: true,
+        specials: []
+      });
+    }
+
+    enableDnD(els.sectionsEditor);
+    alert("Secciones generadas ✅");
+  });
 }
 
+/* -----------------------------
+   Especiales prompt
+----------------------------- */
 function openSpecialsPrompt(currentArr, hint) {
   const current = (currentArr || []).join(", ");
   const txt = prompt(
@@ -350,10 +439,44 @@ function openSpecialsPrompt(currentArr, hint) {
     current
   );
   if (txt === null) return null;
-  const list = parseCodesList(txt);
+  const list = parseCodesList(txt).map(normCode);
   return Array.from(new Set(list));
 }
 
+/* -----------------------------
+   Reordenar filas
+----------------------------- */
+function moveRow(container, row, dir) {
+  const rows = Array.from(container.querySelectorAll("[data-section-row]"));
+  const idx = rows.indexOf(row);
+  if (idx < 0) return;
+
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= rows.length) return;
+
+  const ref = rows[newIdx];
+  if (dir === -1) container.insertBefore(row, ref);
+  else container.insertBefore(ref, row);
+}
+
+function getSectionRowValues(row) {
+  const inputs = row.querySelectorAll("input, select");
+  const name = (inputs[0]?.value || "").trim();
+  const format = (inputs[1]?.value === "alfa") ? "alfa" : "num";
+  const prefix = normalizePrefix(inputs[2]?.value || "");
+  const count = parseInt(inputs[3]?.value || "0", 10);
+  const ownNumbering = !!inputs[4]?.checked;
+
+  let specials = [];
+  try { specials = JSON.parse(row.dataset.specials || "[]"); } catch { specials = []; }
+  specials = (Array.isArray(specials) ? specials : []).map(normCode);
+
+  return { name, format, prefix, count: Number.isFinite(count) ? count : 1, ownNumbering, specials };
+}
+
+/* -----------------------------
+   Secciones: fila
+----------------------------- */
 function addSectionRow(container, { name="", format="num", prefix="", count=10, ownNumbering=false, specials=[] } = {}) {
   const row = document.createElement("div");
   row.className = "section-row";
@@ -362,8 +485,14 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   row.draggable = true;
   row.style.cursor = "grab";
-  row.addEventListener("dragstart", () => { row.classList.add("dragging"); row.style.opacity = "0.6"; });
-  row.addEventListener("dragend", () => { row.classList.remove("dragging"); row.style.opacity = ""; });
+  row.addEventListener("dragstart", () => {
+    row.classList.add("dragging");
+    row.style.opacity = "0.6";
+  });
+  row.addEventListener("dragend", () => {
+    row.classList.remove("dragging");
+    row.style.opacity = "";
+  });
 
   const inName = document.createElement("input");
   inName.className = "input";
@@ -373,7 +502,10 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   const selFormat = document.createElement("select");
   selFormat.className = "input";
-  selFormat.innerHTML = `<option value="num">Numérico</option><option value="alfa">Alfanumérico</option>`;
+  selFormat.innerHTML = `
+    <option value="num">Numérico</option>
+    <option value="alfa">Alfanumérico</option>
+  `;
   selFormat.value = (format === "alfa") ? "alfa" : "num";
 
   const inPrefix = document.createElement("input");
@@ -401,51 +533,51 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   const actions = document.createElement("div");
   actions.className = "actions";
-  actions.style.display = "flex";
   actions.style.gap = "6px";
-  actions.style.alignItems = "center";
 
-  const mkBtn = (txt, title) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "btn";
-    b.style.padding = "10px 12px";
-    b.style.borderRadius = "14px";
-    b.textContent = txt;
-    b.title = title;
-    return b;
-  };
-
-  const upBtn = mkBtn("↑","Subir sección");
-  upBtn.addEventListener("click",(e)=>{e.stopPropagation(); moveRow(container,row,-1);});
-
-  const downBtn = mkBtn("↓","Bajar sección");
-  downBtn.addEventListener("click",(e)=>{e.stopPropagation(); moveRow(container,row,+1);});
-
-  const starBtn = mkBtn("⭐","Editar especiales");
-  starBtn.addEventListener("click",(e)=>{
+  const upBtn = document.createElement("button");
+  upBtn.type = "button";
+  upBtn.className = "icon-lite";
+  upBtn.title = "Subir sección";
+  upBtn.textContent = "↑";
+  upBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const secName = (inName.value || "Sección").trim();
-    const isAlfa = selFormat.value === "alfa";
-    const pref = isAlfa ? normalizePrefix(inPrefix.value) : "";
-    const hint = isAlfa ? `Sección "${secName}" (Alfa) · Prefijo: ${pref || "(sin prefijo)"}` : `Sección "${secName}" (Numérica)`;
-    let current = [];
-    try { current = JSON.parse(row.dataset.specials || "[]"); } catch { current = []; }
-    const next = openSpecialsPrompt(current, hint);
-    if (next === null) return;
-    row.dataset.specials = JSON.stringify(next);
+    moveRow(container, row, -1);
   });
 
-  const delBtn = mkBtn("✕","Eliminar sección");
-  delBtn.style.borderColor = "rgba(239,68,68,.35)";
-  delBtn.style.background = "rgba(239,68,68,.10)";
-  delBtn.style.color = "#b91c1c";
-  delBtn.addEventListener("click",(e)=>{e.stopPropagation(); row.remove();});
+  const downBtn = document.createElement("button");
+  downBtn.type = "button";
+  downBtn.className = "icon-lite";
+  downBtn.title = "Bajar sección";
+  downBtn.textContent = "↓";
+  downBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    moveRow(container, row, +1);
+  });
+
+  const starBtn = document.createElement("button");
+  starBtn.type = "button";
+  starBtn.className = "icon-lite";
+  starBtn.title = "Editar especiales";
+  starBtn.textContent = "⭐";
+
+  const dupBtn = document.createElement("button");
+  dupBtn.type = "button";
+  dupBtn.className = "icon-lite";
+  dupBtn.title = "Duplicar sección";
+  dupBtn.textContent = "⎘";
+
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "icon-danger";
+  del.title = "Eliminar sección";
+  del.textContent = "✕";
 
   actions.appendChild(upBtn);
   actions.appendChild(downBtn);
   actions.appendChild(starBtn);
-  actions.appendChild(delBtn);
+  actions.appendChild(dupBtn);
+  actions.appendChild(del);
 
   const syncRow = () => {
     const isAlfa = selFormat.value === "alfa";
@@ -455,8 +587,42 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
     if (isAlfa) ownChk.checked = true;
     if (isAlfa) inPrefix.value = normalizePrefix(inPrefix.value);
   };
+
   selFormat.addEventListener("change", syncRow);
   inPrefix.addEventListener("input", () => { inPrefix.value = normalizePrefix(inPrefix.value); });
+
+  starBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const secName = (inName.value || "Sección").trim();
+    const isAlfa = selFormat.value === "alfa";
+    const pref = isAlfa ? normalizePrefix(inPrefix.value) : "";
+    const hint = isAlfa
+      ? `Sección "${secName}" (Alfa) · Prefijo: ${pref || "(sin prefijo)"}`
+      : `Sección "${secName}" (Numérica)`;
+
+    let current = [];
+    try { current = JSON.parse(row.dataset.specials || "[]"); } catch { current = []; }
+
+    const next = openSpecialsPrompt(current, hint);
+    if (next === null) return;
+
+    row.dataset.specials = JSON.stringify(next);
+  });
+
+  dupBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const v = getSectionRowValues(row);
+    const copy = { ...v, name: v.name ? `${v.name} (copia)` : "Sección (copia)" };
+    const newRow = addSectionRow(container, copy);
+    container.insertBefore(newRow, row.nextSibling);
+    enableDnD(container);
+    window.scrollTo({ top: window.scrollY + 80, behavior: "smooth" });
+  });
+
+  del.addEventListener("click", (e) => {
+    e.stopPropagation();
+    row.remove();
+  });
 
   row.appendChild(inName);
   row.appendChild(selFormat);
@@ -467,19 +633,23 @@ function addSectionRow(container, { name="", format="num", prefix="", count=10, 
 
   container.appendChild(row);
   syncRow();
+
   return row;
 }
 
-/* DnD */
+/* -----------------------------
+   Drag & Drop
+----------------------------- */
 function getDragAfterElement(container, y) {
-  const els = [...container.querySelectorAll("[data-section-row]:not(.dragging)")];
-  return els.reduce((closest, child) => {
+  const draggableElements = [...container.querySelectorAll("[data-section-row]:not(.dragging)")];
+  return draggableElements.reduce((closest, child) => {
     const box = child.getBoundingClientRect();
     const offset = y - (box.top + box.height / 2);
     if (offset < 0 && offset > closest.offset) return { offset, element: child };
     return closest;
   }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
 }
+
 function enableDnD(container) {
   if (!container) return;
   if (container.dataset.dndEnabled === "1") return;
@@ -489,9 +659,10 @@ function enableDnD(container) {
     e.preventDefault();
     const dragging = container.querySelector(".dragging");
     if (!dragging) return;
-    const after = getDragAfterElement(container, e.clientY);
-    if (!after) container.appendChild(dragging);
-    else container.insertBefore(dragging, after);
+
+    const afterElement = getDragAfterElement(container, e.clientY);
+    if (afterElement == null) container.appendChild(dragging);
+    else container.insertBefore(dragging, afterElement);
   });
 
   container.addEventListener("mousedown", (e) => {
@@ -504,7 +675,9 @@ function enableDnD(container) {
   });
 }
 
-/* leer secciones */
+/* -----------------------------
+   Leer secciones
+----------------------------- */
 function readSections(container) {
   const rows = Array.from(container.querySelectorAll("[data-section-row]"));
   const out = [];
@@ -539,7 +712,9 @@ function readSections(container) {
   return { ok:true, sections: out, rows };
 }
 
-/* Create add section */
+/* -----------------------------
+   Create - botones
+----------------------------- */
 els.btnAddSection?.addEventListener("click", () => {
   addSectionRow(els.sectionsEditor, {
     name: `Sección ${els.sectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
@@ -552,20 +727,27 @@ els.btnAddSection?.addEventListener("click", () => {
   enableDnD(els.sectionsEditor);
 });
 
-/* Crear colección */
+/* -----------------------------
+   Crear colección
+----------------------------- */
 function createCollection() {
-  const name = (els.newName.value || "").trim();
+  const name = (els.newName?.value || "").trim();
   if (!name) return alert("Escribí un nombre.");
 
   const structure = getStructType();
 
+  const insertAtTop = (colObj) => {
+    // ✅ nueva colección arriba
+    state.data.collections.unshift(colObj);
+  };
+
   if (structure === "simple") {
-    let count = parseInt(els.simpleCount.value || "0", 10);
+    let count = parseInt(els.simpleCount?.value || "0", 10);
     if (!Number.isFinite(count) || count <= 0) return alert("Cantidad inválida.");
     count = clamp(count, 1, 5000);
 
     const sectionId = uid("sec");
-    const specials = parseCodesList(els.simpleSpecials.value);
+    const specials = parseCodesList(els.simpleSpecials?.value || "").map(normCode);
     const specialsSet = new Set(specials);
 
     const sections = [{
@@ -591,7 +773,7 @@ function createCollection() {
       });
     }
 
-    state.data.collections.unshift({
+    insertAtTop({
       id: uid("col"),
       name,
       createdAt: Date.now(),
@@ -602,11 +784,12 @@ function createCollection() {
     });
 
     save();
-    goDash();
+    renderCollectionsSelects();
+    goCollections();
     return;
   }
 
-  const numberMode = (els.numberMode.value === "perSection") ? "perSection" : "global";
+  const numberMode = (els.numberMode?.value === "perSection") ? "perSection" : "global";
   const read = readSections(els.sectionsEditor);
   if (!read.ok) return alert(read.error);
 
@@ -666,7 +849,7 @@ function createCollection() {
     }
   }
 
-  state.data.collections.unshift({
+  insertAtTop({
     id: uid("col"),
     name,
     createdAt: Date.now(),
@@ -677,35 +860,27 @@ function createCollection() {
   });
 
   save();
-  goDash();
+  renderCollectionsSelects();
+  goCollections();
 }
 
-/* Filtros */
-function syncFilterButtons() {
-  if (!els.fAll) return;
-  els.fAll.classList.toggle("is-active", state.detailFilter === "all");
-  els.fHave.classList.toggle("is-active", state.detailFilter === "have");
-  els.fMiss.classList.toggle("is-active", state.detailFilter === "miss");
-}
-function passesFilter(it) {
-  if (state.detailFilter === "all") return true;
-  if (state.detailFilter === "have") return !!it.have;
-  if (state.detailFilter === "miss") return !it.have;
-  return true;
-}
-
+/* -----------------------------
+   Detail
+----------------------------- */
 function renderDetail() {
   const col = getCurrent();
-  if (!col) return goDash();
+  if (!col) return goCollections();
 
-  els.detailTitle.textContent = col.name;
+  els.detailTitle && (els.detailTitle.textContent = col.name);
+  els.topbarTitle && (els.topbarTitle.textContent = col.name);
 
   const st = computeStats(col);
-  els.stTotal.textContent = String(st.total);
-  els.stHave.textContent = String(st.have);
-  els.stMissing.textContent = String(st.missing);
-  els.stPct.textContent = `${st.pct}%`;
+  els.stTotal && (els.stTotal.textContent = String(st.total));
+  els.stHave && (els.stHave.textContent = String(st.have));
+  els.stMissing && (els.stMissing.textContent = String(st.missing));
+  els.stPct && (els.stPct.textContent = `${st.pct}%`);
 
+  if (!els.sectionsDetail) return;
   els.sectionsDetail.innerHTML = "";
 
   const bySec = new Map();
@@ -716,9 +891,6 @@ function renderDetail() {
   }
 
   for (const sec of col.sections) {
-    const items = (bySec.get(sec.id) || []).filter(passesFilter);
-    if (!items.length) continue;
-
     const card = document.createElement("div");
     card.className = "section-card";
 
@@ -729,14 +901,33 @@ function renderDetail() {
     const grid = document.createElement("div");
     grid.className = "items-grid";
 
-    for (const it of items) grid.appendChild(buildItemCell(it));
+    const items = bySec.get(sec.id) || [];
+
+    // filtro
+    const visibleItems = items.filter(it => {
+      if (state.filter === "have") return !!it.have;
+      if (state.filter === "miss") return !it.have;
+      return true;
+    });
+
+    for (const it of visibleItems) grid.appendChild(buildItemCell(it));
 
     card.appendChild(title);
     card.appendChild(grid);
     els.sectionsDetail.appendChild(card);
   }
+
+  // UI de filtros si existen
+  if (els.fAll && els.fHave && els.fMiss) {
+    els.fAll.classList.toggle("is-active", state.filter === "all");
+    els.fHave.classList.toggle("is-active", state.filter === "have");
+    els.fMiss.classList.toggle("is-active", state.filter === "miss");
+  }
 }
 
+/* -----------------------------
+   ✅ ITEM: Tap / Long-press (FIX incluido)
+----------------------------- */
 function buildItemCell(it) {
   const wrap = document.createElement("div");
   wrap.className = "item" + (it.have ? " have" : "") + (it.special ? " special" : "");
@@ -749,49 +940,84 @@ function buildItemCell(it) {
   rep.className = "item-rep";
   rep.textContent = `Rep: ${it.rep || 0}`;
 
-  wrap.addEventListener("click", (e) => {
-    if (e.target && e.target.closest && e.target.closest("button")) return;
-    it.have = !it.have;
-    if (!it.have) it.rep = 0;
-    save();
-    renderDetail();
-  });
+  // Long-press setup
+  let pressTimer = null;
+  let longPressed = false;
 
-  const actions = document.createElement("div");
-  actions.className = "item-actions";
+  const clearPress = () => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+  };
 
-  const minus = document.createElement("button");
-  minus.type = "button";
-  minus.className = "mini";
-  minus.textContent = "−";
-  minus.addEventListener("click", (e) => {
-    e.stopPropagation();
-    it.rep = clamp((it.rep || 0) - 1, 0, 999);
-    save();
-    renderDetail();
-  });
+  const doLongPress = () => {
+    longPressed = true;
 
-  const plus = document.createElement("button");
-  plus.type = "button";
-  plus.className = "mini";
-  plus.textContent = "+";
-  plus.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (!it.have) {
-      alert("Primero marcá este ítem como 'Tengo' tocándolo.");
+    // 1) Si tiene repetidas, resto una
+    if ((it.rep || 0) > 0) {
+      it.rep = clamp((it.rep || 0) - 1, 0, 999);
+      save();
+      renderDetail();
       return;
     }
+
+    // 2) Si NO tiene repetidas pero está marcada como tengo => confirmo y desmarco
+    if (it.have) {
+      const ok = confirm("⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?");
+      if (!ok) return;
+
+      // ✅ FIX: desmarcar de verdad
+      it.have = false;
+      it.rep = 0;
+      save();
+      renderDetail();
+    }
+  };
+
+  // START: tocás
+  const onPressStart = (e) => {
+    longPressed = false;
+    clearPress();
+    pressTimer = setTimeout(doLongPress, 520);
+  };
+
+  // END: levantás
+  const onPressEnd = () => {
+    // si fue long press, no ejecuto tap normal
+    if (pressTimer) clearPress();
+  };
+
+  // Tap normal
+  const onTap = () => {
+    if (longPressed) return;
+
+    // Tap: si no tengo -> marco tengo
+    if (!it.have) {
+      it.have = true;
+      it.rep = 0;
+      save();
+      renderDetail();
+      return;
+    }
+
+    // Tap: si ya tengo -> suma repetida
     it.rep = clamp((it.rep || 0) + 1, 0, 999);
     save();
     renderDetail();
-  });
+  };
 
-  actions.appendChild(minus);
-  actions.appendChild(plus);
+  // Pointer/touch/mouse (robusto)
+  wrap.addEventListener("touchstart", onPressStart, { passive: true });
+  wrap.addEventListener("touchend", (e) => { onPressEnd(); onTap(); });
+  wrap.addEventListener("touchcancel", onPressEnd);
+
+  wrap.addEventListener("mousedown", onPressStart);
+  wrap.addEventListener("mouseup", () => { onPressEnd(); onTap(); });
+  wrap.addEventListener("mouseleave", onPressEnd);
 
   wrap.appendChild(code);
   wrap.appendChild(rep);
-  wrap.appendChild(actions);
 
   return wrap;
 }
@@ -806,16 +1032,19 @@ function resetCollection() {
   renderDetail();
 }
 
-/* Edit */
+/* -----------------------------
+   Edit
+----------------------------- */
 function renderEdit() {
   const col = getCurrent();
-  if (!col) return goDash();
+  if (!col) return goCollections();
 
-  els.editTitle.textContent = `Editar`;
-  els.editName.value = col.name;
+  els.editTitle && (els.editTitle.textContent = `Editar: ${col.name}`);
+  els.editName && (els.editName.value = col.name);
 
   const isSections = col.structure === "sections";
-  els.editSectionsArea.style.display = isSections ? "block" : "none";
+  if (els.editSectionsArea) els.editSectionsArea.style.display = isSections ? "block" : "none";
+  if (!els.editSectionsEditor) return;
   els.editSectionsEditor.innerHTML = "";
 
   if (isSections) {
@@ -849,18 +1078,202 @@ els.editAddSection?.addEventListener("click", () => {
 
 function applyEdit() {
   const col = getCurrent();
-  if (!col) return goDash();
+  if (!col) return goCollections();
 
-  const newName = (els.editName.value || "").trim();
+  const newName = (els.editName?.value || "").trim();
   if (!newName) return alert("Nombre inválido.");
   col.name = newName;
 
+  if (col.structure !== "sections") {
+    save();
+    goDetail(col.id);
+    alert("Cambios guardados ✅");
+    return;
+  }
+
+  const read = readSections(els.editSectionsEditor);
+  if (!read.ok) return alert(read.error);
+
+  const rows = read.rows;
+
+  const oldByKey = new Map();
+  for (const it of col.items) oldByKey.set(it.key || `${it.sectionId}|${it.label}`, it);
+
+  const newSections = [];
+  const newItems = [];
+  let globalCounter = 1;
+  const numberMode = col.numberMode === "perSection" ? "perSection" : "global";
+
+  for (let idx = 0; idx < rows.length; idx++) {
+    const r = rows[idx];
+    const s = read.sections[idx];
+
+    const existingId = r.dataset.secId || null;
+    const secId = existingId || uid("sec");
+
+    newSections.push({
+      id: secId,
+      name: s.name,
+      format: s.format,
+      prefix: s.prefix,
+      ownNumbering: !!s.ownNumbering,
+      specials: s.specials
+    });
+
+    const specialsSet = new Set((s.specials || []).map(normCode));
+
+    if (s.format === "alfa") {
+      for (let i = 1; i <= s.count; i++) {
+        const label = `${s.prefix}${i}`;
+        const key = `alfa:${s.prefix}:${i}`;
+        const old = oldByKey.get(key);
+
+        newItems.push({
+          id: old?.id || uid("it"),
+          sectionId: secId,
+          label,
+          have: !!old?.have,
+          rep: old?.rep || 0,
+          special: specialsSet.has(normCode(label)),
+          key
+        });
+      }
+      continue;
+    }
+
+    const sectionIsLocal = (numberMode === "perSection") || s.ownNumbering;
+
+    for (let i = 1; i <= s.count; i++) {
+      const n = sectionIsLocal ? i : globalCounter;
+      const label = String(n);
+      const key = sectionIsLocal ? `numLocal:${secId}:${i}` : `numGlobal:${globalCounter}`;
+      const old = oldByKey.get(key);
+
+      newItems.push({
+        id: old?.id || uid("it"),
+        sectionId: secId,
+        label,
+        have: !!old?.have,
+        rep: old?.rep || 0,
+        special: specialsSet.has(normCode(label)),
+        key
+      });
+
+      if (!sectionIsLocal) globalCounter += 1;
+    }
+  }
+
+  col.sections = newSections;
+  col.items = newItems;
+
   save();
-  alert("Cambios guardados ✅");
   goDetail(col.id);
+  alert("Cambios guardados ✅");
 }
 
-/* Backup UI meta */
+/* -----------------------------
+   Backup (REEMPLAZAR)
+----------------------------- */
+function exportBackup() {
+  const payload = {
+    backupVersion: BACKUP_VERSION,
+    exportedAt: Date.now(),
+    app: "ColeccionLuciano",
+    data: state.data
+  };
+
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `backup-coleccion-luciano-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+
+  state.meta.lastExportAt = Date.now();
+  state.meta.lastExportSize = blob.size;
+  save();
+
+  renderSettings();
+  alert("Backup exportado ✅");
+}
+
+function normalizeImportedPayload(obj) {
+  if (!obj || typeof obj !== "object") return null;
+  if (obj.data && obj.data.collections) {
+    return { collections: Array.isArray(obj.data.collections) ? obj.data.collections : [] };
+  }
+  if (obj.collections) {
+    return { collections: Array.isArray(obj.collections) ? obj.collections : [] };
+  }
+  return null;
+}
+
+function handleImportFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const raw = JSON.parse(reader.result);
+      const normalized = normalizeImportedPayload(raw);
+      if (!normalized) return alert("Este archivo no parece un backup válido.");
+
+      const ok = confirm(
+        "Importar backup (REEMPLAZAR):\n\n" +
+        "Esto borrará TODO lo actual y cargará el contenido del backup.\n\n" +
+        "¿Continuar?"
+      );
+      if (!ok) return;
+
+      state.data.collections = normalized.collections || [];
+
+      // saneo
+      for (const c of state.data.collections) {
+        if (!c.items) c.items = [];
+        if (!c.sections) c.sections = [];
+        if (!c.structure) c.structure = "simple";
+        if (!c.numberMode) c.numberMode = "global";
+
+        if (c.structure === "sections") {
+          for (const s of c.sections) {
+            if (!s.format) s.format = "num";
+            if (typeof s.prefix !== "string") s.prefix = "";
+            if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+            if (!Array.isArray(s.specials)) s.specials = [];
+          }
+        } else {
+          if (!c.sections.length) {
+            c.sections = [{ id: uid("sec"), name:"General", format:"num", prefix:"", ownNumbering:false, specials:[] }];
+          }
+          if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
+        }
+
+        for (const it of c.items) {
+          if (typeof it.special !== "boolean") it.special = false;
+          if (!it.key) it.key = `${it.sectionId}|${it.label}`;
+          if (typeof it.have !== "boolean") it.have = false;
+          if (!Number.isFinite(it.rep)) it.rep = 0;
+        }
+      }
+
+      state.meta.lastImportAt = Date.now();
+      state.meta.lastImportMode = "replace";
+      save();
+
+      renderCollectionsSelects();
+      goCollections();
+      alert("Backup importado ✅ (Reemplazar)");
+    } catch {
+      alert("Error al importar el backup.");
+    }
+  };
+  reader.readAsText(file);
+}
+
 function renderSettings() {
   if (els.exportMeta) {
     els.exportMeta.textContent =
@@ -877,783 +1290,92 @@ function renderSettings() {
 }
 
 /* -----------------------------
-   Eventos
+   Eventos (delegados)
 ----------------------------- */
 document.addEventListener("click", (e) => {
   const btn = e.target?.closest?.("[data-action]");
   if (!btn) return;
   const action = btn.getAttribute("data-action");
 
+  // dashboard
   if (action === "dash-collections") return goCollections();
   if (action === "dash-loadedit") return goLoadEdit();
   if (action === "dash-settings") return goSettings();
   if (action === "dash-stats") return alert("Estadísticas: próximamente 😉");
 
+  // create
   if (action === "go-create") return goCreate();
-  if (action === "create-cancel") return goDash();
+  if (action === "create-cancel") return goLoadEdit();
   if (action === "create-save") return createCollection();
 
+  // edit
   if (action === "open-edit") return goEdit();
-  if (action === "reset-collection") return resetCollection();
-
-  if (action === "filter-all") { state.detailFilter = "all"; syncFilterButtons(); return renderDetail(); }
-  if (action === "filter-have") { state.detailFilter = "have"; syncFilterButtons(); return renderDetail(); }
-  if (action === "filter-miss") { state.detailFilter = "miss"; syncFilterButtons(); return renderDetail(); }
-
   if (action === "edit-cancel") return goDetail(state.currentId);
   if (action === "edit-save") return applyEdit();
 
+  // reset
+  if (action === "reset-collection") return resetCollection();
+
+  // backup
+  if (action === "export-backup") return exportBackup();
+
+  // filtros
+  if (action === "filter-all") { state.filter = "all"; return renderDetail(); }
+  if (action === "filter-have") { state.filter = "have"; return renderDetail(); }
+  if (action === "filter-miss") { state.filter = "miss"; return renderDetail(); }
+
+  // load/edit picker
   if (action === "open-edit-picker") {
-    els.editPicker?.classList.toggle("hidden");
+    if (els.editPicker) els.editPicker.classList.toggle("hidden");
+    renderCollectionsSelects();
     return;
   }
 });
 
-els.backBtn?.addEventListener("click", goBack);
+els.backBtn?.addEventListener("click", () => {
+  // regla simple de back
+  if (state.view === "detail") return goCollections();
+  if (state.view === "collections") return setView("dash");
+  if (state.view === "loadedit") return setView("dash");
+  if (state.view === "settings") return setView("dash");
+  if (state.view === "create") return goLoadEdit();
+  if (state.view === "edit") return goDetail(state.currentId);
+  return setView("dash");
+});
 
+// abrir colección desde selector
 els.btnOpenCollection?.addEventListener("click", () => {
   const id = els.collectionsSelect?.value;
-  if (!id) return alert("No hay colección para abrir.");
+  if (!id) return;
   goDetail(id);
 });
 
+// abrir editor desde picker
 els.btnEditOpen?.addEventListener("click", () => {
   const id = els.editSelect?.value;
-  if (!id) return alert("No hay colección para editar.");
-  goEdit(id);
+  if (!id) return;
+  state.currentId = id;
+  goEdit();
+});
+
+// import input
+els.importInput?.addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  handleImportFile(file);
+  e.target.value = "";
 });
 
 /* -----------------------------
    Init
 ----------------------------- */
 function init() {
-  load();                 // ✅ acá se recuperan tus datos
+  load();
   renderCollectionsSelects();
   renderSettings();
   setView("dash");
   resetCreateForm();
-  syncFilterButtons();
+  ensureBulkBuilderUI();
 }
 
 document.addEventListener("DOMContentLoaded", init);
-/* =============================
-   FIX iOS Incógnito: localStorage puede fallar
-   - Evita que import/export "no haga nada"
-   - Si storage está bloqueado, igual permite usar la app en memoria
-============================= */
-
-(() => {
-  let warned = false;
-
-  function canUseStorage() {
-    try {
-      const k = "__test__" + Date.now();
-      localStorage.setItem(k, "1");
-      localStorage.removeItem(k);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  function warnIfNeeded() {
-    if (warned) return;
-    warned = true;
-    alert(
-      "⚠️ Estás en modo incógnito o el navegador bloquea el almacenamiento.\n\n" +
-      "El backup se puede cargar, pero NO quedará guardado si cerrás la pestaña.\n" +
-      "Para que se guarde, abrí la app en modo normal."
-    );
-  }
-
-  // Re-definimos load/save de forma segura (sin tirar error)
-  const _storageOK = canUseStorage();
-
-  window.__storageOK = _storageOK;
-
-  // Sobrescribe load()
-  window.load = function load() {
-    // Data
-    try {
-      const raw = _storageOK ? localStorage.getItem(LS_KEY) : null;
-      state.data = raw ? JSON.parse(raw) : { collections: [] };
-      if (!state.data.collections) state.data.collections = [];
-    } catch {
-      state.data = { collections: [] };
-      if (!_storageOK) warnIfNeeded();
-    }
-
-    // Meta
-    try {
-      const mraw = _storageOK ? localStorage.getItem(META_KEY) : null;
-      const m = JSON.parse(mraw || "{}");
-      state.meta = { ...state.meta, ...m };
-    } catch {
-      if (!_storageOK) warnIfNeeded();
-    }
-
-    // migración suave (igual que antes)
-    for (const c of state.data.collections) {
-      if (!c.sections) c.sections = [];
-      if (!c.items) c.items = [];
-      if (!c.structure) c.structure = "simple";
-      if (!c.numberMode) c.numberMode = "global";
-
-      if (c.structure === "sections") {
-        for (const s of c.sections) {
-          if (!s.format) s.format = "num";
-          if (typeof s.prefix !== "string") s.prefix = "";
-          if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
-          if (!Array.isArray(s.specials)) s.specials = [];
-        }
-      } else {
-        if (!c.sections.length) {
-          c.sections = [{ id: c.sections?.[0]?.id || uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false, specials: [] }];
-        }
-        if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
-      }
-
-      for (const it of c.items) {
-        if (typeof it.special !== "boolean") it.special = false;
-        if (!it.key) it.key = `${it.sectionId}|${it.label}`;
-      }
-    }
-  };
-
-  // Sobrescribe save()
-  window.save = function save() {
-    if (!_storageOK) {
-      warnIfNeeded();
-      return; // seguimos en memoria sin romper
-    }
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(state.data));
-      localStorage.setItem(META_KEY, JSON.stringify(state.meta));
-    } catch {
-      warnIfNeeded();
-    }
-  };
-})();
-/* =============================
-   FIX Import iOS: usar file.text() + errores visibles
-   v2: NO depende de goHome()
-============================= */
-(() => {
-  const input = document.getElementById("importInput");
-  if (!input) return;
-
-  async function readFileAsText(file) {
-    if (file && typeof file.text === "function") return await file.text();
-    return await new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onerror = () => reject(new Error("No se pudo leer el archivo (FileReader error)."));
-      r.onabort = () => reject(new Error("Lectura cancelada."));
-      r.onload = () => resolve(String(r.result || ""));
-      r.readAsText(file);
-    });
-  }
-
-  function normalizeCollectionsAfterImport() {
-    for (const c of state.data.collections) {
-      if (!c.items) c.items = [];
-      if (!c.sections) c.sections = [];
-      if (!c.structure) c.structure = "simple";
-      if (!c.numberMode) c.numberMode = "global";
-
-      if (c.structure === "sections") {
-        for (const s of c.sections) {
-          if (!s.format) s.format = "num";
-          if (typeof s.prefix !== "string") s.prefix = "";
-          if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
-          if (!Array.isArray(s.specials)) s.specials = [];
-        }
-      } else {
-        if (!c.sections.length) {
-          c.sections = [{ id: uid("sec"), name:"General", format:"num", prefix:"", ownNumbering:false, specials:[] }];
-        }
-        if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
-      }
-
-      for (const it of c.items) {
-        if (typeof it.special !== "boolean") it.special = false;
-        if (!it.key) it.key = `${it.sectionId}|${it.label}`;
-      }
-    }
-  }
-
-  function safeRefreshAfterImport() {
-    // 1) Si existe goHome, perfecto
-    if (typeof window.goHome === "function") {
-      window.goHome();
-      return;
-    }
-    // 2) Si existe renderHome + setView (tu app los usa)
-    if (typeof window.renderHome === "function") {
-      try { window.renderHome(); } catch {}
-    }
-    if (typeof window.renderSettings === "function") {
-      try { window.renderSettings(); } catch {}
-    }
-    if (typeof window.setView === "function") {
-      // tu index actual tiene dashboard como "dash"
-      try { window.setView("dash"); return; } catch {}
-      try { window.setView("collections"); return; } catch {}
-      try { window.setView("home"); return; } catch {}
-    }
-    // 3) Último recurso: recargar
-    location.reload();
-  }
-
-  input.addEventListener("change", async (e) => {
-    try {
-      const file = e.target?.files?.[0];
-      if (!file) return;
-
-      const text = await readFileAsText(file);
-
-      let raw;
-      try {
-        raw = JSON.parse(text);
-      } catch {
-        alert("❌ El archivo no es JSON válido.");
-        return;
-      }
-
-      const normalized = (typeof window.normalizeImportedPayload === "function")
-        ? window.normalizeImportedPayload(raw)
-        : (raw?.data?.collections ? { collections: raw.data.collections } : raw?.collections ? { collections: raw.collections } : null);
-
-      if (!normalized) {
-        alert("❌ Este archivo no parece un backup válido de la app.");
-        return;
-      }
-
-      const ok = confirm(
-        "Importar backup (REEMPLAZAR):\n\n" +
-        "Esto borrará TODO lo actual y cargará el contenido del backup.\n\n" +
-        "¿Continuar?"
-      );
-      if (!ok) return;
-
-      state.data.collections = Array.isArray(normalized.collections) ? normalized.collections : [];
-      normalizeCollectionsAfterImport();
-
-      state.meta.lastImportAt = Date.now();
-      state.meta.lastImportMode = "replace";
-
-      save();
-      safeRefreshAfterImport();
-      alert("✅ Backup importado correctamente.");
-    } catch (err) {
-      alert("❌ Error al importar el backup.\n\n" + (err?.message || String(err)));
-    } finally {
-      try { input.value = ""; } catch {}
-    }
-  }, true);
-})();
-/* =============================
-   FIX Export iOS: descarga robusta + fallback + binding directo
-============================= */
-(() => {
-  function safeExportBackup() {
-    try {
-      const payload = {
-        backupVersion: BACKUP_VERSION,
-        exportedAt: Date.now(),
-        app: "ColeccionLuciano",
-        data: state.data
-      };
-
-      const json = JSON.stringify(payload, null, 2);
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-
-      const filename = `backup-coleccion-lucho-${new Date().toISOString().slice(0,10)}.json`;
-
-      // ✅ Método 1 (recomendado): <a> en DOM + click
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.rel = "noopener";
-      a.style.display = "none";
-      document.body.appendChild(a);
-
-      // Algunos Safari/iOS necesitan este pequeño delay
-      setTimeout(() => {
-        a.click();
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          a.remove();
-        }, 300);
-      }, 0);
-
-      // meta
-      state.meta.lastExportAt = Date.now();
-      state.meta.lastExportSize = blob.size;
-      save();
-      if (typeof window.renderSettings === "function") {
-        try { window.renderSettings(); } catch {}
-      }
-
-      // No alert acá, porque a veces corta el flujo en iOS
-      // pero si querés, lo activamos.
-    } catch (err) {
-      alert("❌ No se pudo exportar.\n\n" + (err?.message || String(err)));
-    }
-  }
-
-  // 1) Reemplazamos/creamos exportBackup global (por si el botón llama a esta)
-  window.exportBackup = safeExportBackup;
-
-  // 2) Binding directo al botón (por si el event delegation se rompió)
-  const btn = document.querySelector('[data-action="export-backup"]');
-  if (btn) {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      safeExportBackup();
-    }, true);
-  }
-
-  // 3) Fallback extra: si el usuario está en iOS y no descargó nada,
-  // puede que Safari lo bloquee. Le damos una opción manual desde un confirm.
-  // (Lo dejamos “silencioso” por ahora para no molestar. Si querés, lo activamos.)
-})();
-/* =============================
-   PATCH v24.x - UX mejoras
-   1) Abrir colección al seleccionar (sin botón Abrir)
-   2) Filtros: Todas / Faltan / Repetidas (rep > 0)
-   - No toca lógica interna: filtra por DOM ya renderizado
-============================= */
-(function () {
-  // ---- Helpers DOM
-  const $id = (id) => document.getElementById(id);
-
-  // ---- 1) Abrir colección al seleccionar
-  function wireAutoOpenCollections() {
-    const sel = $id("collectionsSelect");
-    const btn = $id("btnOpenCollection");
-
-    if (btn) btn.style.display = "none"; // ocultamos "Abrir"
-
-    if (!sel || sel.dataset.autoOpenWired === "1") return;
-    sel.dataset.autoOpenWired = "1";
-
-    sel.addEventListener("change", () => {
-      const id = sel.value;
-      if (!id) return;
-
-      // Intentamos abrir con la función existente
-      if (typeof window.goDetail === "function") {
-        window.goDetail(id);
-      } else {
-        // fallback: click al botón "Abrir" si existiera lógica atada ahí
-        btn?.click?.();
-      }
-    });
-  }
-
-  // ---- 2) Filtros: Todas / Faltan / Repetidas
-  let __filterMode = "all"; // all | miss | rep
-
-  function applyDomFilter() {
-    const container = $id("sectionsDetail");
-    if (!container) return;
-
-    const items = Array.from(container.querySelectorAll(".item"));
-    for (const el of items) {
-      const isHave = el.classList.contains("have");
-
-      // lee "Rep: X"
-      let rep = 0;
-      const repEl = el.querySelector(".item-rep");
-      if (repEl) {
-        const m = repEl.textContent.match(/(\d+)/);
-        rep = m ? parseInt(m[1], 10) : 0;
-      }
-
-      let show = true;
-      if (__filterMode === "miss") show = !isHave;
-      if (__filterMode === "rep") show = rep > 0;
-
-      el.style.display = show ? "" : "none";
-    }
-  }
-
-  function setFilter(mode) {
-    __filterMode = mode;
-
-    // botones existentes
-    const fAll = $id("fAll");
-    const fHave = $id("fHave"); // lo reciclamos como "Repetidas"
-    const fMiss = $id("fMiss"); // queda "Faltan"
-
-    // textos
-    if (fAll) fAll.textContent = "Todas";
-    if (fMiss) fMiss.textContent = "Faltan";
-    if (fHave) fHave.textContent = "Repetidas";
-
-    // estados visuales
-    const setActive = (btn, on) => btn && btn.classList.toggle("is-active", !!on);
-    setActive(fAll, mode === "all");
-    setActive(fMiss, mode === "miss");
-    setActive(fHave, mode === "rep");
-
-    applyDomFilter();
-  }
-
-  function wireFilterButtons() {
-    const fAll = $id("fAll");
-    const fHave = $id("fHave");
-    const fMiss = $id("fMiss");
-    if (!fAll || !fHave || !fMiss) return;
-    if (fAll.dataset.filterWired === "1") return;
-
-    fAll.dataset.filterWired = "1";
-
-    // Importante: frenamos su acción vieja y usamos la nueva
-    const stop = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    fAll.addEventListener("click", (e) => { stop(e); setFilter("all"); });
-    fMiss.addEventListener("click", (e) => { stop(e); setFilter("miss"); });
-    fHave.addEventListener("click", (e) => { stop(e); setFilter("rep"); });
-  }
-
-  // ---- Hook: cada vez que se renderiza el detalle, re-aplicamos filtro
-  function patchRenderDetail() {
-    if (typeof window.renderDetail !== "function") return;
-    if (window.renderDetail.__patched === true) return;
-
-    const original = window.renderDetail;
-    window.renderDetail = function () {
-      const r = original.apply(this, arguments);
-      // re-wire (por si cambiaste de vista)
-      wireFilterButtons();
-      setFilter(__filterMode); // mantiene modo actual
-      return r;
-    };
-    window.renderDetail.__patched = true;
-  }
-
-  // ---- Boot
-  function bootPatch() {
-    wireAutoOpenCollections();
-    wireFilterButtons();
-    patchRenderDetail();
-
-    // si ya estás en detalle, aplicar filtro
-    setTimeout(() => {
-      wireFilterButtons();
-      applyDomFilter();
-    }, 0);
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bootPatch);
-  } else {
-    bootPatch();
-  }
-})();
- /* =============================
-   PATCH v1.1 — Tap / Long-Press + Badge Repetidas
-   - Tap: si no tengo => tengo; si tengo => rep++
-   - Long press: rep-- (y si rep=0 opcional desmarcar)
-============================= */
-
-(function () {
-  // Ajustes
-  const LONG_PRESS_MS = 420;
-  const ALLOW_UNHAVE_WHEN_LONGPRESS_AT_ZERO = true;
-
-  // Helper: buscar item por id en colección actual
-  function findItemById(col, id) {
-    if (!col || !id) return null;
-    return col.items.find(it => it.id === id) || null;
-  }
-
-  // 1) “Hook” renderDetail para etiquetar cada .item con data-itemid
-  try {
-    const __renderDetail = renderDetail;
-
-    renderDetail = function () {
-      __renderDetail();
-
-      try {
-        const col = getCurrent();
-        if (!col) return;
-
-        // armamos mapa sectionId => items en el mismo orden que se renderizan
-        const bySec = new Map();
-        for (const sec of col.sections) bySec.set(sec.id, []);
-        for (const it of col.items) {
-          if (!bySec.has(it.sectionId)) bySec.set(it.sectionId, []);
-          bySec.get(it.sectionId).push(it);
-        }
-
-        // recorrer DOM y asignar ids a cada celda
-        const cards = Array.from(document.querySelectorAll("#sectionsDetail .section-card"));
-        for (const card of cards) {
-          const titleEl = card.querySelector(".section-title");
-          const grid = card.querySelector(".items-grid");
-          if (!grid) continue;
-
-          // encontrar la sección por nombre (fallback) — si no, por orden
-          const secName = (titleEl?.textContent || "").trim();
-          let sec = col.sections.find(s => (s.name || "").trim() === secName) || null;
-
-          // fallback por orden si no matchea
-          if (!sec) {
-            const idx = cards.indexOf(card);
-            sec = col.sections[idx] || null;
-          }
-          if (!sec) continue;
-
-          const items = bySec.get(sec.id) || [];
-          const cells = Array.from(grid.querySelectorAll(".item"));
-          const n = Math.min(items.length, cells.length);
-
-          for (let i = 0; i < n; i++) {
-            cells[i].dataset.itemid = items[i].id;
-          }
-        }
-
-        // badges (rep)
-        applyRepBadges();
-
-      } catch {}
-    };
-  } catch {}
-
-  // 2) Badges de repetidas leyendo el “Rep: X” ya existente
-  function applyRepBadges() {
-    const cells = Array.from(document.querySelectorAll(".item"));
-    for (const cell of cells) {
-      const repEl = cell.querySelector(".item-rep");
-      if (!repEl) continue;
-
-      const m = String(repEl.textContent || "").match(/Rep:\s*(\d+)/i);
-      const rep = m ? parseInt(m[1], 10) : 0;
-
-      let badge = cell.querySelector(".rep-badge");
-      if (!badge) {
-        badge = document.createElement("div");
-        badge.className = "rep-badge";
-        cell.appendChild(badge);
-      }
-
-      if (rep > 0) {
-        badge.textContent = String(rep);
-        badge.style.display = "flex";
-      } else {
-        badge.style.display = "none";
-      }
-    }
-  }
-
-  // 3) Interacción: tap / long-press (sin tocar botones +/−)
-  let pressTimer = null;
-  let longPressed = false;
-
-  function isInsideButton(target) {
-    return !!target.closest?.("button");
-  }
-
-  function getCell(target) {
-    return target.closest?.(".item") || null;
-  }
-
-  function onTap(cell) {
-    const col = getCurrent();
-    const id = cell?.dataset?.itemid;
-    const it = findItemById(col, id);
-    if (!it) return;
-
-    // Tap: si no tengo -> tengo (rep=0), si tengo -> rep++
-    if (!it.have) {
-      it.have = true;
-      it.rep = 0;
-    } else {
-      it.rep = clamp((it.rep || 0) + 1, 0, 999);
-    }
-
-    save();
-    renderDetail();
-  }
-
-  function onLongPress(cell) {
-    const col = getCurrent();
-    const id = cell?.dataset?.itemid;
-    const it = findItemById(col, id);
-    if (!it) return;
-
-    if (!it.have) return; // si no la tengo, no hacemos nada
-
-    const next = clamp((it.rep || 0) - 1, 0, 999);
-    it.rep = next;
-
-    if (ALLOW_UNHAVE_WHEN_LONGPRESS_AT_ZERO && next === 0) {
-      // si ya no hay repetidas, un long press adicional puede desmarcar
-      // (esto lo dejamos suave: si querés, lo ajustamos)
-      // Para que no sea agresivo: solo desmarca si ya estaba en 0 antes
-      // -> acá NO lo hacemos automático; lo vemos si querés en v1.2
-    }
-
-    save();
-    renderDetail();
-  }
-
-  document.addEventListener("touchstart", (e) => {
-    const cell = getCell(e.target);
-    if (!cell) return;
-    if (isInsideButton(e.target)) return;
-
-    longPressed = false;
-    clearTimeout(pressTimer);
-
-    pressTimer = setTimeout(() => {
-      longPressed = true;
-      onLongPress(cell);
-    }, LONG_PRESS_MS);
-  }, { passive: true });
-
-  document.addEventListener("touchend", (e) => {
-    const cell = getCell(e.target);
-    if (!cell) return;
-    if (isInsideButton(e.target)) return;
-
-    clearTimeout(pressTimer);
-    if (!longPressed) onTap(cell);
-  }, { passive: true });
-
-  // fallback mouse (por si probás en PC)
-  document.addEventListener("mousedown", (e) => {
-    const cell = getCell(e.target);
-    if (!cell) return;
-    if (isInsideButton(e.target)) return;
-
-    longPressed = false;
-    clearTimeout(pressTimer);
-
-    pressTimer = setTimeout(() => {
-      longPressed = true;
-      onLongPress(cell);
-    }, LONG_PRESS_MS);
-  });
-
-  document.addEventListener("mouseup", (e) => {
-    const cell = getCell(e.target);
-    if (!cell) return;
-    if (isInsideButton(e.target)) return;
-
-    clearTimeout(pressTimer);
-    if (!longPressed) onTap(cell);
-  });
-
-})();
-/* =============================
-   PATCH v1.2 — Long-press con confirm si rep=0 + override handlers
-   - Tap: si no tengo => tengo; si tengo => rep++
-   - Long press:
-       si rep>0 => rep--
-       si rep==0 y tengo => confirmar “quitar figurita no repetida”
-============================= */
-
-(function () {
-  const LONG_PRESS_MS = 420;
-
-  function isInsideButton(target) {
-    return !!target.closest?.("button");
-  }
-  function getCell(target) {
-    return target.closest?.(".item") || null;
-  }
-  function findItemById(col, id) {
-    if (!col || !id) return null;
-    return col.items.find(it => it.id === id) || null;
-  }
-
-  let pressTimer = null;
-  let longPressed = false;
-
-  function onTap(cell) {
-    const col = getCurrent();
-    const id = cell?.dataset?.itemid;
-    const it = findItemById(col, id);
-    if (!it) return;
-
-    if (!it.have) {
-      it.have = true;
-      it.rep = 0;
-    } else {
-      it.rep = clamp((it.rep || 0) + 1, 0, 999);
-    }
-
-    save();
-    renderDetail();
-  }
-
-  function onLongPress(cell) {
-    const col = getCurrent();
-    const id = cell?.dataset?.itemid;
-    const it = findItemById(col, id);
-    if (!it) return;
-    if (!it.have) return;
-
-    const rep = it.rep || 0;
-
-    // Si NO hay repetidas -> pedir confirmación para quitar la figurita
-    if (rep <= 0) {
-      const ok = confirm("Estás a punto de quitar una figurita NO repetida.\n\n¿Querés continuar?");
-      if (!ok) return;
-
-      it.have = false;
-      it.rep = 0;
-      save();
-      renderDetail();
-      return;
-    }
-
-    // Si hay repetidas -> restar una
-    it.rep = clamp(rep - 1, 0, 999);
-    save();
-    renderDetail();
-  }
-
-  // CAPTURE: frenamos los handlers viejos solo para taps sobre .item (no botones)
-  function handleStart(e) {
-    const cell = getCell(e.target);
-    if (!cell) return;
-    if (isInsideButton(e.target)) return;
-
-    e.stopImmediatePropagation();
-
-    longPressed = false;
-    clearTimeout(pressTimer);
-    pressTimer = setTimeout(() => {
-      longPressed = true;
-      onLongPress(cell);
-    }, LONG_PRESS_MS);
-  }
-
-  function handleEnd(e) {
-    const cell = getCell(e.target);
-    if (!cell) return;
-    if (isInsideButton(e.target)) return;
-
-    e.stopImmediatePropagation();
-
-    clearTimeout(pressTimer);
-    if (!longPressed) onTap(cell);
-  }
-
-  document.addEventListener("touchstart", handleStart, { capture: true, passive: true });
-  document.addEventListener("touchend", handleEnd, { capture: true, passive: true });
-
-  // fallback mouse (PC)
-  document.addEventListener("mousedown", handleStart, true);
-  document.addEventListener("mouseup", handleEnd, true);
-
-})();
