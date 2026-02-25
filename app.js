@@ -1553,3 +1553,107 @@ document.addEventListener("DOMContentLoaded", init);
   });
 
 })();
+/* =============================
+   PATCH v1.2 — Long-press con confirm si rep=0 + override handlers
+   - Tap: si no tengo => tengo; si tengo => rep++
+   - Long press:
+       si rep>0 => rep--
+       si rep==0 y tengo => confirmar “quitar figurita no repetida”
+============================= */
+
+(function () {
+  const LONG_PRESS_MS = 420;
+
+  function isInsideButton(target) {
+    return !!target.closest?.("button");
+  }
+  function getCell(target) {
+    return target.closest?.(".item") || null;
+  }
+  function findItemById(col, id) {
+    if (!col || !id) return null;
+    return col.items.find(it => it.id === id) || null;
+  }
+
+  let pressTimer = null;
+  let longPressed = false;
+
+  function onTap(cell) {
+    const col = getCurrent();
+    const id = cell?.dataset?.itemid;
+    const it = findItemById(col, id);
+    if (!it) return;
+
+    if (!it.have) {
+      it.have = true;
+      it.rep = 0;
+    } else {
+      it.rep = clamp((it.rep || 0) + 1, 0, 999);
+    }
+
+    save();
+    renderDetail();
+  }
+
+  function onLongPress(cell) {
+    const col = getCurrent();
+    const id = cell?.dataset?.itemid;
+    const it = findItemById(col, id);
+    if (!it) return;
+    if (!it.have) return;
+
+    const rep = it.rep || 0;
+
+    // Si NO hay repetidas -> pedir confirmación para quitar la figurita
+    if (rep <= 0) {
+      const ok = confirm("Estás a punto de quitar una figurita NO repetida.\n\n¿Querés continuar?");
+      if (!ok) return;
+
+      it.have = false;
+      it.rep = 0;
+      save();
+      renderDetail();
+      return;
+    }
+
+    // Si hay repetidas -> restar una
+    it.rep = clamp(rep - 1, 0, 999);
+    save();
+    renderDetail();
+  }
+
+  // CAPTURE: frenamos los handlers viejos solo para taps sobre .item (no botones)
+  function handleStart(e) {
+    const cell = getCell(e.target);
+    if (!cell) return;
+    if (isInsideButton(e.target)) return;
+
+    e.stopImmediatePropagation();
+
+    longPressed = false;
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      onLongPress(cell);
+    }, LONG_PRESS_MS);
+  }
+
+  function handleEnd(e) {
+    const cell = getCell(e.target);
+    if (!cell) return;
+    if (isInsideButton(e.target)) return;
+
+    e.stopImmediatePropagation();
+
+    clearTimeout(pressTimer);
+    if (!longPressed) onTap(cell);
+  }
+
+  document.addEventListener("touchstart", handleStart, { capture: true, passive: true });
+  document.addEventListener("touchend", handleEnd, { capture: true, passive: true });
+
+  // fallback mouse (PC)
+  document.addEventListener("mousedown", handleStart, true);
+  document.addEventListener("mouseup", handleEnd, true);
+
+})();
