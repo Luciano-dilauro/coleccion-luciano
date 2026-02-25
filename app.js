@@ -1,755 +1,1289 @@
-/* app.js — Colección Luciano (Arquitectura blindada)
-   - Migración automática desde claves viejas de localStorage
-   - Persistencia estable con schema version
-   - Backup export/import (REEMPLAZAR)
-   - UI simple y robusta (SPA)
-*/
+/* =============================
+   Colección Luciano - Arquitectura estable (v2.3)
+   - Especiales por lista (por sección o simple)
+   - Crear / Editar secciones + especiales sin perder progreso
+   - Backup: solo REEMPLAZAR
+   - Reordenar secciones: botones ↑ ↓ (y drag & drop opcional)
+   - NUEVO (v2.3):
+     ✅ Generador rápido de secciones por lista (separadas por coma)
+============================= */
 
-(() => {
-  "use strict";
+const LS_KEY = "coleccion_luciano_v2";
+const META_KEY = "coleccion_luciano_meta_v2";
+const BACKUP_VERSION = 1;
 
-  /********************
-   * CONFIG / STORAGE *
-   ********************/
-  const APP_NAME = "Colección Luciano";
-  const SCHEMA_VERSION = 1;
+const $ = (id) => document.getElementById(id);
 
-  // Clave nueva (estable). No la cambies más.
-  const LS_KEY_NEW = "coleccion-luciano:data:v1";
+const els = {
+  backBtn: $("backBtn"),
+  topbarTitle: $("topbarTitle"),
 
-  // Claves posibles viejas (probables). Agregá acá si recordás alguna.
-  const LS_KEYS_OLD = [
-    "coleccion_luciano_arch_v3",
-    "coleccion_luciano",
-    "coleccionLuciano",
-    "mis_colecciones",
-    "app_colecciones",
-    "albums_app",
-    "colecciones_data",
-    "data",
-  ];
+  views: Array.from(document.querySelectorAll("[data-view]")),
 
-  const now = () => Date.now();
-  const uid = () => Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+  collectionsList: $("collectionsList"),
 
-  function safeJSONParse(str) {
-    try {
-      return JSON.parse(str);
-    } catch {
-      return null;
-    }
+  // Create
+  newName: $("newName"),
+  structRadios: Array.from(document.querySelectorAll('input[name="structType"]')),
+  simpleBlock: $("simpleBlock"),
+  sectionsBlock: $("sectionsBlock"),
+  simpleCount: $("simpleCount"),
+  simpleSpecials: $("simpleSpecials"),
+  numberMode: $("numberMode"),
+  sectionsEditor: $("sectionsEditor"),
+  btnAddSection: $("btnAddSection"),
+
+  // Detail
+  detailTitle: $("detailTitle"),
+  stTotal: $("stTotal"),
+  stHave: $("stHave"),
+  stMissing: $("stMissing"),
+  stPct: $("stPct"),
+  sectionsDetail: $("sectionsDetail"),
+
+  // Edit
+  editTitle: $("editTitle"),
+  editName: $("editName"),
+  editSectionsArea: $("editSectionsArea"),
+  editAddSection: $("editAddSection"),
+  editSectionsEditor: $("editSectionsEditor"),
+
+  // Settings
+  importInput: $("importInput"),
+  exportMeta: $("exportMeta"),
+  importMeta: $("importMeta"),
+  storageMeta: $("storageMeta"),
+};
+
+const state = {
+  view: "home",
+  currentId: null,
+  data: { collections: [] },
+  meta: {
+    lastExportAt: null,
+    lastExportSize: null,
+    lastImportAt: null,
+    lastImportMode: "replace",
+  }
+};
+
+/* -----------------------------
+   Helpers
+----------------------------- */
+function uid(prefix = "id") {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+function formatDateTime(ts) {
+  if (!ts) return "—";
+  try { return new Date(ts).toLocaleString(); } catch { return "—"; }
+}
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+  const u = ["B","KB","MB","GB"];
+  let i = 0, n = bytes;
+  while (n >= 1024 && i < u.length - 1) { n/=1024; i++; }
+  return `${n.toFixed(i===0?0:1)} ${u[i]}`;
+}
+
+function normalizePrefix(p) {
+  return String(p || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function parseCodesList(input) {
+  return String(input || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+/** Generador: acepta comas y/o saltos de línea (pero vos usarás coma) */
+function parsePrefixList(input) {
+  return String(input || "")
+    .split(/[,;\n\r]+/g)
+    .map(s => normalizePrefix(s))
+    .filter(Boolean);
+}
+
+function normCode(s) {
+  return String(s || "").trim().toUpperCase();
+}
+
+function getCurrent() {
+  if (!state.currentId) return null;
+  return state.data.collections.find(c => c.id === state.currentId) || null;
+}
+
+function computeStats(col) {
+  const total = col.items.length;
+  let have = 0;
+  for (const it of col.items) if (it.have) have++;
+  const missing = total - have;
+  const pct = total ? Math.round((have / total) * 100) : 0;
+  return { total, have, missing, pct };
+}
+
+/* -----------------------------
+   Persistencia
+----------------------------- */
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    state.data = raw ? JSON.parse(raw) : { collections: [] };
+    if (!state.data.collections) state.data.collections = [];
+  } catch {
+    state.data = { collections: [] };
   }
 
-  function readLS(key) {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const data = safeJSONParse(raw);
-    return data;
-  }
+  try {
+    const m = JSON.parse(localStorage.getItem(META_KEY) || "{}");
+    state.meta = { ...state.meta, ...m };
+  } catch {}
 
-  function writeLS(key, data) {
-    localStorage.setItem(key, JSON.stringify(data));
-  }
+  // migración suave
+  for (const c of state.data.collections) {
+    if (!c.sections) c.sections = [];
+    if (!c.items) c.items = [];
+    if (!c.structure) c.structure = "simple";
+    if (!c.numberMode) c.numberMode = "global";
 
-  function isValidState(obj) {
-    if (!obj || typeof obj !== "object") return false;
-    if (!Array.isArray(obj.collections)) return false;
-    return true;
-  }
-
-  function normalizeState(state) {
-    // Estado mínimo y estable
-    const out = {
-      schema: SCHEMA_VERSION,
-      updatedAt: now(),
-      collections: [],
-    };
-
-    if (isValidState(state)) {
-      out.schema = Number.isFinite(state.schema) ? state.schema : SCHEMA_VERSION;
-      out.updatedAt = Number.isFinite(state.updatedAt) ? state.updatedAt : now();
-      out.collections = Array.isArray(state.collections) ? state.collections : [];
-    } else if (Array.isArray(state)) {
-      // por si alguna vez guardamos el array directo
-      out.collections = state;
-    }
-
-    // Normalizar colecciones
-    out.collections = out.collections
-      .filter(Boolean)
-      .map((c) => normalizeCollection(c))
-      .filter((c) => c && c.id && c.name);
-
-    // Orden: más nueva arriba (createdAt/updatedAt)
-    out.collections.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
-
-    return out;
-  }
-
-  function normalizeCollection(c) {
-    if (!c || typeof c !== "object") return null;
-    const createdAt = Number.isFinite(c.createdAt) ? c.createdAt : now();
-    const updatedAt = Number.isFinite(c.updatedAt) ? c.updatedAt : createdAt;
-
-    const col = {
-      id: c.id || uid(),
-      name: String(c.name || "").trim(),
-      createdAt,
-      updatedAt,
-      // modelo simple: 1 sección default con items 1..N
-      sections: Array.isArray(c.sections) && c.sections.length ? c.sections.map(normalizeSection) : [],
-    };
-
-    // compatibilidad: si existía "items" suelto
-    if (!col.sections.length && Array.isArray(c.items)) {
-      col.sections = [normalizeSection({ id: uid(), name: "Items", items: c.items })];
-    }
-
-    // si sigue vacío, creamos sección default vacía (no rompe)
-    if (!col.sections.length) {
-      col.sections = [normalizeSection({ id: uid(), name: "Items", items: [] })];
-    }
-
-    return col;
-  }
-
-  function normalizeSection(s) {
-    const sec = {
-      id: (s && s.id) || uid(),
-      name: String((s && s.name) || "Items"),
-      items: Array.isArray(s && s.items) ? s.items.map(normalizeItem).filter(Boolean) : [],
-    };
-    return sec;
-  }
-
-  function normalizeItem(it) {
-    if (!it) return null;
-
-    // soporta varios formatos viejos
-    const code = String(it.code ?? it.id ?? it.n ?? it.num ?? "").trim();
-    if (!code) return null;
-
-    const have = Boolean(it.have ?? it.tengo ?? it.has ?? false);
-    const rep = clampInt(it.rep ?? it.reps ?? it.repetidas ?? 0, 0, 999);
-
-    return { code, have, rep };
-  }
-
-  function clampInt(v, min, max) {
-    const n = parseInt(v, 10);
-    if (!Number.isFinite(n)) return min;
-    return Math.max(min, Math.min(max, n));
-  }
-
-  function mergeCollectionsUnique(listA, listB) {
-    // Merge por id (prioridad: más nuevo). Si no hay ids coherentes, fallback por name.
-    const map = new Map();
-
-    function put(c) {
-      const key = c.id || ("name:" + c.name.toLowerCase());
-      const prev = map.get(key);
-      if (!prev) {
-        map.set(key, c);
-        return;
+    if (c.structure === "sections") {
+      for (const s of c.sections) {
+        if (!s.format) s.format = "num";
+        if (typeof s.prefix !== "string") s.prefix = "";
+        if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+        if (!Array.isArray(s.specials)) s.specials = [];
       }
-      const prevTs = prev.updatedAt || prev.createdAt || 0;
-      const curTs = c.updatedAt || c.createdAt || 0;
-      if (curTs >= prevTs) map.set(key, c);
-    }
-
-    [...listA, ...listB].forEach(put);
-    return Array.from(map.values());
-  }
-
-  function migrateIfNeeded() {
-    // 1) Si ya existe la nueva, la usamos.
-    const current = readLS(LS_KEY_NEW);
-    if (isValidState(current)) return normalizeState(current);
-
-    // 2) Buscar en claves viejas (y también en la nueva aunque inválida).
-    const candidates = [];
-
-    const tryKeys = [LS_KEY_NEW, ...LS_KEYS_OLD];
-    for (const k of tryKeys) {
-      const d = readLS(k);
-      if (!d) continue;
-      const normalized = normalizeState(d);
-      if (normalized.collections.length) {
-        candidates.push({ key: k, state: normalized });
+    } else {
+      if (!c.sections.length) {
+        c.sections = [{ id: c.sections?.[0]?.id || uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false, specials: [] }];
       }
+      if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
     }
 
-    // 3) Si no hay nada, crear vacío.
-    if (!candidates.length) {
-      const empty = normalizeState({ collections: [] });
-      writeLS(LS_KEY_NEW, empty);
-      return empty;
+    for (const it of c.items) {
+      if (typeof it.special !== "boolean") it.special = false;
+      if (!it.key) it.key = `${it.sectionId}|${it.label}`;
+    }
+  }
+}
+
+function save() {
+  localStorage.setItem(LS_KEY, JSON.stringify(state.data));
+  localStorage.setItem(META_KEY, JSON.stringify(state.meta));
+}
+
+/* -----------------------------
+   Views
+----------------------------- */
+function setView(view) {
+  state.view = view;
+  for (const v of els.views) v.classList.toggle("is-active", v.dataset.view === view);
+
+  if (view === "home") {
+    els.topbarTitle.textContent = "Mis Colecciones";
+    els.backBtn.classList.add("hidden");
+  } else if (view === "create") {
+    els.topbarTitle.textContent = "Nueva colección";
+    els.backBtn.classList.remove("hidden");
+  } else if (view === "settings") {
+    els.topbarTitle.textContent = "Ajustes / Backup";
+    els.backBtn.classList.remove("hidden");
+  } else if (view === "edit") {
+    els.topbarTitle.textContent = "Editar";
+    els.backBtn.classList.remove("hidden");
+  } else {
+    els.backBtn.classList.remove("hidden");
+  }
+
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function goHome() {
+  state.currentId = null;
+  renderHome();
+  renderSettings();
+  setView("home");
+}
+
+function goCreate() {
+  resetCreateForm();
+  ensureBulkBuilderUI(); // ✅ inyecta el generador si hace falta
+  setView("create");
+}
+
+function goDetail(id) {
+  state.currentId = id;
+  renderDetail();
+  const col = getCurrent();
+  if (col) els.topbarTitle.textContent = col.name;
+  setView("detail");
+}
+
+function goSettings() {
+  renderSettings();
+  setView("settings");
+}
+
+function goEdit() {
+  renderEdit();
+  setView("edit");
+}
+
+/* -----------------------------
+   Home
+----------------------------- */
+function renderHome() {
+  els.collectionsList.innerHTML = "";
+
+  const cols = state.data.collections;
+  if (!cols.length) {
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.textContent = "Todavía no tenés colecciones. Tocá “Nueva”.";
+    els.collectionsList.appendChild(empty);
+    return;
+  }
+
+  for (const c of cols) {
+    const st = computeStats(c);
+
+    const row = document.createElement("div");
+    row.className = "collection-row";
+
+    const left = document.createElement("div");
+    left.style.display = "flex";
+    left.style.flexDirection = "column";
+    left.style.gap = "4px";
+
+    const name = document.createElement("div");
+    name.style.fontWeight = "950";
+    name.style.fontSize = "16px";
+    name.textContent = c.name;
+
+    const meta = document.createElement("div");
+    meta.className = "muted small";
+    meta.textContent =
+      c.structure === "sections"
+        ? `Con secciones · num: ${c.numberMode === "global" ? "global" : "por sección"}`
+        : "Simple";
+
+    left.appendChild(name);
+    left.appendChild(meta);
+
+    const right = document.createElement("div");
+    right.className = "muted small";
+    right.style.textAlign = "right";
+    right.innerHTML = `Completo <b>${st.pct}%</b><br>Total ${st.total} · Tengo ${st.have}`;
+
+    row.appendChild(left);
+    row.appendChild(right);
+
+    row.addEventListener("click", () => goDetail(c.id));
+    els.collectionsList.appendChild(row);
+  }
+}
+
+/* -----------------------------
+   Create UI
+----------------------------- */
+function getStructType() {
+  const r = els.structRadios.find(x => x.checked);
+  return r ? r.value : "simple";
+}
+
+function syncCreateBlocks() {
+  const t = getStructType();
+  if (t === "simple") {
+    els.simpleBlock.style.display = "block";
+    els.sectionsBlock.style.display = "none";
+  } else {
+    els.simpleBlock.style.display = "none";
+    els.sectionsBlock.style.display = "block";
+    ensureBulkBuilderUI(); // ✅ cuando cambia a secciones
+  }
+}
+els.structRadios.forEach(r => r.addEventListener("change", syncCreateBlocks));
+
+function resetCreateForm() {
+  els.newName.value = "";
+  els.simpleCount.value = "100";
+  els.simpleSpecials.value = "";
+  els.numberMode.value = "global";
+  els.structRadios.forEach(r => r.checked = (r.value === "simple"));
+  syncCreateBlocks();
+
+  if (els.sectionsEditor) {
+    els.sectionsEditor.innerHTML = "";
+    addSectionRow(els.sectionsEditor, { name:"Equipo A", format:"alfa", prefix:"RIA", count:20, ownNumbering:true, specials:[] });
+    addSectionRow(els.sectionsEditor, { name:"Equipo B", format:"alfa", prefix:"BAE", count:20, ownNumbering:true, specials:[] });
+    addSectionRow(els.sectionsEditor, { name:"Especiales", format:"num", prefix:"", count:10, ownNumbering:true, specials:[] });
+    enableDnD(els.sectionsEditor);
+  }
+}
+
+/* -----------------------------
+   Generador rápido por lista (coma)
+   - Se inyecta arriba del editor de secciones.
+----------------------------- */
+function ensureBulkBuilderUI() {
+  if (!els.sectionsBlock || !els.sectionsEditor) return;
+  if ($("bulkBuilder")) return; // ya existe
+
+  const wrap = document.createElement("div");
+  wrap.id = "bulkBuilder";
+  wrap.className = "card";
+  wrap.style.marginBottom = "14px";
+
+  wrap.innerHTML = `
+    <div class="h2" style="margin-bottom:10px;">Generador rápido por lista (con coma)</div>
+    <div class="muted small" style="margin-bottom:10px;">
+      Pegá prefijos separados por coma. Ej: RIA, BAE, ATL
+    </div>
+
+    <div class="field">
+      <label>Prefijos (con coma)</label>
+      <textarea id="bulkPrefixes" class="input" rows="3" placeholder="RIA, BAE, ATL"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Cantidad por equipo</label>
+      <input id="bulkCount" class="input" type="number" min="1" max="5000" value="20" />
+    </div>
+
+    <label class="inline-check" style="margin-top:8px;">
+      <input id="bulkAddSpecialSection" type="checkbox" checked />
+      <span>Agregar sección “Especiales” (numérica con numeración propia)</span>
+    </label>
+
+    <div class="field" style="margin-top:10px;">
+      <label>Cantidad en “Especiales”</label>
+      <input id="bulkSpecialCount" class="input" type="number" min="1" max="5000" value="10" />
+    </div>
+
+    <div class="row gap" style="margin-top:12px;">
+      <button id="btnBulkGenerate" class="btn primary" type="button">Generar secciones</button>
+      <button id="btnBulkClear" class="btn" type="button">Limpiar lista</button>
+    </div>
+
+    <div class="muted small" style="margin-top:10px;">
+      Nota: esto reemplaza todas las secciones actuales del editor.
+    </div>
+  `;
+
+  // Insertar arriba del editor
+  els.sectionsBlock.insertBefore(wrap, els.sectionsEditor);
+
+  const bulkPrefixes = $("bulkPrefixes");
+  const bulkCount = $("bulkCount");
+  const bulkAddSpecialSection = $("bulkAddSpecialSection");
+  const bulkSpecialCount = $("bulkSpecialCount");
+  const btnBulkGenerate = $("btnBulkGenerate");
+  const btnBulkClear = $("btnBulkClear");
+
+  btnBulkClear?.addEventListener("click", () => {
+    if (bulkPrefixes) bulkPrefixes.value = "";
+    bulkPrefixes?.focus();
+  });
+
+  btnBulkGenerate?.addEventListener("click", () => {
+    const list = parsePrefixList(bulkPrefixes?.value || "");
+    if (!list.length) return alert("Pegá al menos 1 prefijo (separados por coma).");
+
+    let perTeam = parseInt(bulkCount?.value || "0", 10);
+    if (!Number.isFinite(perTeam) || perTeam <= 0) return alert("Cantidad por equipo inválida.");
+    perTeam = clamp(perTeam, 1, 5000);
+
+    let specialsN = parseInt(bulkSpecialCount?.value || "0", 10);
+    if (!Number.isFinite(specialsN) || specialsN <= 0) specialsN = 10;
+    specialsN = clamp(specialsN, 1, 5000);
+
+    // Reemplazo total del editor
+    els.sectionsEditor.innerHTML = "";
+
+    for (const pref of list) {
+      addSectionRow(els.sectionsEditor, {
+        name: pref,
+        format: "alfa",
+        prefix: pref,
+        count: perTeam,
+        ownNumbering: true,
+        specials: []
+      });
     }
 
-    // 4) Si hay varios, merge conservador (únicos) sin borrar nada.
-    let merged = candidates[0].state;
-    for (let i = 1; i < candidates.length; i++) {
-      merged = {
-        schema: SCHEMA_VERSION,
-        updatedAt: now(),
-        collections: mergeCollectionsUnique(merged.collections, candidates[i].state.collections),
-      };
+    if (bulkAddSpecialSection?.checked) {
+      addSectionRow(els.sectionsEditor, {
+        name: "Especiales",
+        format: "num",
+        prefix: "",
+        count: specialsN,
+        ownNumbering: true,
+        specials: []
+      });
     }
 
-    merged = normalizeState(merged);
-    writeLS(LS_KEY_NEW, merged);
+    enableDnD(els.sectionsEditor);
+    alert("Secciones generadas ✅");
+  });
+}
 
-    return merged;
+/* -----------------------------
+   Especiales prompt
+----------------------------- */
+function openSpecialsPrompt(currentArr, hint) {
+  const current = (currentArr || []).join(", ");
+  const txt = prompt(
+    `Especiales (lista separada por coma)\n${hint}\n\nEj: 7, 10, 55  o  RIA1, RIA7\n\nActual:\n${current}`,
+    current
+  );
+  if (txt === null) return null;
+  const list = parseCodesList(txt).map(normCode);
+  return Array.from(new Set(list));
+}
+
+/* -----------------------------
+   Reordenar filas en UI
+----------------------------- */
+function moveRow(container, row, dir) {
+  const rows = Array.from(container.querySelectorAll("[data-section-row]"));
+  const idx = rows.indexOf(row);
+  if (idx < 0) return;
+
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= rows.length) return;
+
+  const ref = rows[newIdx];
+  if (dir === -1) {
+    container.insertBefore(row, ref);
+  } else {
+    container.insertBefore(ref, row);
   }
+}
 
-  let STATE = migrateIfNeeded();
+function getSectionRowValues(row) {
+  const inputs = row.querySelectorAll("input, select");
+  const name = (inputs[0]?.value || "").trim();
+  const format = (inputs[1]?.value === "alfa") ? "alfa" : "num";
+  const prefix = normalizePrefix(inputs[2]?.value || "");
+  const count = parseInt(inputs[3]?.value || "0", 10);
+  const ownNumbering = !!inputs[4]?.checked;
 
-  function saveState() {
-    STATE.updatedAt = now();
-    // ordenar: más reciente arriba
-    STATE.collections.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
-    writeLS(LS_KEY_NEW, STATE);
-  }
+  let specials = [];
+  try { specials = JSON.parse(row.dataset.specials || "[]"); } catch { specials = []; }
+  specials = (Array.isArray(specials) ? specials : []).map(normCode);
 
-  /*************
-   * UI / SPA  *
-   *************/
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  return { name, format, prefix, count: Number.isFinite(count) ? count : 1, ownNumbering, specials };
+}
 
-  function h(tag, attrs = {}, children = []) {
-    const el = document.createElement(tag);
-    for (const [k, v] of Object.entries(attrs || {})) {
-      if (k === "class") el.className = v;
-      else if (k === "text") el.textContent = v;
-      else if (k === "html") el.innerHTML = v;
-      else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
-      else el.setAttribute(k, String(v));
+/* -----------------------------
+   Secciones: crear fila
+----------------------------- */
+function addSectionRow(container, { name="", format="num", prefix="", count=10, ownNumbering=false, specials=[] } = {}) {
+  const row = document.createElement("div");
+  row.className = "section-row";
+  row.setAttribute("data-section-row", "1");
+  row.dataset.specials = JSON.stringify(Array.isArray(specials) ? specials : []);
+
+  // drag opcional
+  row.draggable = true;
+  row.style.cursor = "grab";
+  row.addEventListener("dragstart", () => {
+    row.classList.add("dragging");
+    row.style.opacity = "0.6";
+  });
+  row.addEventListener("dragend", () => {
+    row.classList.remove("dragging");
+    row.style.opacity = "";
+  });
+
+  const inName = document.createElement("input");
+  inName.className = "input";
+  inName.type = "text";
+  inName.placeholder = "Nombre";
+  inName.value = name;
+
+  const selFormat = document.createElement("select");
+  selFormat.className = "input";
+  selFormat.innerHTML = `
+    <option value="num">Numérico</option>
+    <option value="alfa">Alfanumérico</option>
+  `;
+  selFormat.value = (format === "alfa") ? "alfa" : "num";
+
+  const inPrefix = document.createElement("input");
+  inPrefix.className = "input";
+  inPrefix.type = "text";
+  inPrefix.placeholder = "Prefijo";
+  inPrefix.value = prefix;
+
+  const inCount = document.createElement("input");
+  inCount.className = "input";
+  inCount.type = "number";
+  inCount.min = "1";
+  inCount.max = "5000";
+  inCount.value = String(count);
+
+  const ownWrap = document.createElement("label");
+  ownWrap.className = "inline-check";
+  const ownChk = document.createElement("input");
+  ownChk.type = "checkbox";
+  ownChk.checked = !!ownNumbering;
+  const ownTxt = document.createElement("span");
+  ownTxt.textContent = "Numeración propia";
+  ownWrap.appendChild(ownChk);
+  ownWrap.appendChild(ownTxt);
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  actions.style.gap = "6px";
+
+  const upBtn = document.createElement("button");
+  upBtn.type = "button";
+  upBtn.className = "icon-lite";
+  upBtn.title = "Subir sección";
+  upBtn.textContent = "↑";
+  upBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    moveRow(container, row, -1);
+  });
+
+  const downBtn = document.createElement("button");
+  downBtn.type = "button";
+  downBtn.className = "icon-lite";
+  downBtn.title = "Bajar sección";
+  downBtn.textContent = "↓";
+  downBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    moveRow(container, row, +1);
+  });
+
+  const starBtn = document.createElement("button");
+  starBtn.type = "button";
+  starBtn.className = "icon-lite";
+  starBtn.title = "Editar especiales";
+  starBtn.textContent = "⭐";
+
+  const dupBtn = document.createElement("button");
+  dupBtn.type = "button";
+  dupBtn.className = "icon-lite";
+  dupBtn.title = "Duplicar sección";
+  dupBtn.textContent = "⎘";
+
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "icon-danger";
+  del.title = "Eliminar sección";
+  del.textContent = "✕";
+
+  actions.appendChild(upBtn);
+  actions.appendChild(downBtn);
+  actions.appendChild(starBtn);
+  actions.appendChild(dupBtn);
+  actions.appendChild(del);
+
+  const syncRow = () => {
+    const isAlfa = selFormat.value === "alfa";
+    inPrefix.style.display = isAlfa ? "block" : "none";
+    ownWrap.style.opacity = isAlfa ? "0.5" : "1";
+    ownChk.disabled = isAlfa;
+    if (isAlfa) ownChk.checked = true;
+    if (isAlfa) inPrefix.value = normalizePrefix(inPrefix.value);
+  };
+
+  selFormat.addEventListener("change", syncRow);
+  inPrefix.addEventListener("input", () => { inPrefix.value = normalizePrefix(inPrefix.value); });
+
+  starBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const secName = (inName.value || "Sección").trim();
+    const isAlfa = selFormat.value === "alfa";
+    const pref = isAlfa ? normalizePrefix(inPrefix.value) : "";
+    const hint = isAlfa
+      ? `Sección "${secName}" (Alfa) · Prefijo: ${pref || "(sin prefijo)"}`
+      : `Sección "${secName}" (Numérica)`;
+
+    let current = [];
+    try { current = JSON.parse(row.dataset.specials || "[]"); } catch { current = []; }
+
+    const next = openSpecialsPrompt(current, hint);
+    if (next === null) return;
+
+    row.dataset.specials = JSON.stringify(next);
+  });
+
+  dupBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+
+    const v = getSectionRowValues(row);
+    const copy = { ...v, name: v.name ? `${v.name} (copia)` : "Sección (copia)" };
+
+    const newRow = addSectionRow(container, copy);
+    container.insertBefore(newRow, row.nextSibling);
+
+    enableDnD(container);
+    window.scrollTo({ top: window.scrollY + 80, behavior: "smooth" });
+  });
+
+  del.addEventListener("click", (e) => {
+    e.stopPropagation();
+    row.remove();
+  });
+
+  row.appendChild(inName);
+  row.appendChild(selFormat);
+  row.appendChild(inPrefix);
+  row.appendChild(inCount);
+  row.appendChild(ownWrap);
+  row.appendChild(actions);
+
+  container.appendChild(row);
+  syncRow();
+
+  return row;
+}
+
+/* -----------------------------
+   Drag & Drop opcional
+----------------------------- */
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll("[data-section-row]:not(.dragging)")];
+
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - (box.top + box.height / 2);
+    if (offset < 0 && offset > closest.offset) {
+      return { offset, element: child };
+    } else {
+      return closest;
     }
-    for (const ch of (children || [])) {
-      if (ch == null) continue;
-      el.appendChild(typeof ch === "string" ? document.createTextNode(ch) : ch);
+  }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+}
+
+function enableDnD(container) {
+  if (!container) return;
+  if (container.dataset.dndEnabled === "1") return;
+  container.dataset.dndEnabled = "1";
+
+  container.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    const dragging = container.querySelector(".dragging");
+    if (!dragging) return;
+
+    const afterElement = getDragAfterElement(container, e.clientY);
+    if (afterElement == null) {
+      container.appendChild(dragging);
+    } else {
+      container.insertBefore(dragging, afterElement);
     }
-    return el;
-  }
+  });
 
-  function ensureBaseShell() {
-    // Si tu index ya tiene estructura, igual esto no rompe: solo crea un contenedor principal.
-    document.title = APP_NAME;
-
-    let app = $("#app");
-    if (!app) {
-      app = h("div", { id: "app" });
-      document.body.appendChild(app);
+  container.addEventListener("mousedown", (e) => {
+    const row = e.target.closest?.("[data-section-row]");
+    if (!row) return;
+    if (e.target.closest("button, input, select, textarea, label")) {
+      row.draggable = false;
+      setTimeout(() => { row.draggable = true; }, 0);
     }
+  });
+}
 
-    // Topbar fijo (simple). Si tu CSS ya tiene topbar, esto convive.
-    let top = $("#topbar");
-    if (!top) {
-      top = h("header", { id: "topbar", class: "topbar" }, [
-        h("button", { id: "backBtn", class: "icon-btn hidden", type: "button", "aria-label": "Volver", text: "←" }),
-        h("div", { id: "topTitle", class: "topbar-title", text: APP_NAME }),
-        h("div", { class: "topbar-spacer" }),
-      ]);
-      document.body.insertBefore(top, document.body.firstChild);
-    }
+/* -----------------------------
+   Leer secciones desde UI
+----------------------------- */
+function readSections(container) {
+  const rows = Array.from(container.querySelectorAll("[data-section-row]"));
+  const out = [];
 
-    // hook back
-    $("#backBtn").addEventListener("click", () => goBack());
+  for (const r of rows) {
+    const inputs = r.querySelectorAll("input, select");
+    const name = (inputs[0]?.value || "").trim();
+    const format = (inputs[1]?.value === "alfa") ? "alfa" : "num";
+    const prefix = normalizePrefix(inputs[2]?.value || "");
+    const count = parseInt(inputs[3]?.value || "0", 10);
+    const ownNumbering = !!inputs[4]?.checked;
+
+    let specials = [];
+    try { specials = JSON.parse(r.dataset.specials || "[]"); } catch { specials = []; }
+    specials = (Array.isArray(specials) ? specials : []).map(normCode);
+
+    if (!name) return { ok:false, error:"Hay una sección sin nombre." };
+    if (!Number.isFinite(count) || count <= 0) return { ok:false, error:`Cantidad inválida en "${name}".` };
+    if (format === "alfa" && !prefix) return { ok:false, error:`La sección "${name}" es alfanumérica pero no tiene prefijo.` };
+
+    out.push({
+      name,
+      format,
+      prefix,
+      count: clamp(count, 1, 5000),
+      ownNumbering: (format === "alfa") ? true : !!ownNumbering,
+      specials
+    });
   }
 
-  function setTop(title, canBack) {
-    $("#topTitle").textContent = title;
-    $("#backBtn").classList.toggle("hidden", !canBack);
-  }
+  if (!out.length) return { ok:false, error:"Agregá al menos 1 sección." };
+  return { ok:true, sections: out, rows };
+}
 
-  // Router simple con historial
-  const ROUTE_STACK = [];
-  function nav(route) {
-    ROUTE_STACK.push(route);
-    render();
-    // scroll to top (evita “cosas raras”)
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }
+/* -----------------------------
+   Create - botones
+----------------------------- */
+els.btnAddSection?.addEventListener("click", () => {
+  addSectionRow(els.sectionsEditor, {
+    name: `Sección ${els.sectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
+    format: "num",
+    prefix: "",
+    count: 10,
+    ownNumbering: false,
+    specials: []
+  });
+  enableDnD(els.sectionsEditor);
+});
 
-  function goBack() {
-    if (ROUTE_STACK.length > 1) ROUTE_STACK.pop();
-    render();
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }
+/* -----------------------------
+   Crear colección
+----------------------------- */
+function createCollection() {
+  const name = (els.newName.value || "").trim();
+  if (!name) return alert("Escribí un nombre.");
 
-  function currentRoute() {
-    if (!ROUTE_STACK.length) return { name: "home" };
-    return ROUTE_STACK[ROUTE_STACK.length - 1];
-  }
+  const structure = getStructType();
 
-  /****************
-   * BUSINESS LOGIC
-   ****************/
-  function createCollection(name, nItems) {
-    const cleanName = String(name || "").trim();
-    if (!cleanName) throw new Error("Nombre inválido");
+  if (structure === "simple") {
+    let count = parseInt(els.simpleCount.value || "0", 10);
+    if (!Number.isFinite(count) || count <= 0) return alert("Cantidad inválida.");
+    count = clamp(count, 1, 5000);
 
-    const N = clampInt(nItems, 1, 5000);
+    const sectionId = uid("sec");
+    const specials = parseCodesList(els.simpleSpecials.value).map(normCode);
+    const specialsSet = new Set(specials);
+
+    const sections = [{
+      id: sectionId,
+      name: "General",
+      format: "num",
+      prefix: "",
+      ownNumbering: false,
+      specials
+    }];
 
     const items = [];
-    for (let i = 1; i <= N; i++) {
-      items.push({ code: String(i), have: false, rep: 0 });
+    for (let i = 1; i <= count; i++) {
+      const label = String(i);
+      items.push({
+        id: uid("it"),
+        sectionId,
+        label,
+        have: false,
+        rep: 0,
+        special: specialsSet.has(normCode(label)),
+        key: `num:${i}`
+      });
     }
 
-    const col = {
-      id: uid(),
-      name: cleanName,
-      createdAt: now(),
-      updatedAt: now(),
-      sections: [
-        {
-          id: uid(),
-          name: "Items",
-          items,
-        },
-      ],
-    };
-
-    STATE.collections.unshift(col); // nueva arriba
-    saveState();
-    return col;
-  }
-
-  function getCollection(id) {
-    return STATE.collections.find((c) => c.id === id) || null;
-  }
-
-  function updateCollection(col) {
-    col.updatedAt = now();
-    saveState();
-  }
-
-  function deleteCollection(id) {
-    STATE.collections = STATE.collections.filter((c) => c.id !== id);
-    saveState();
-  }
-
-  function resetCollection(col) {
-    for (const sec of col.sections) {
-      for (const it of sec.items) {
-        it.have = false;
-        it.rep = 0;
-      }
-    }
-    updateCollection(col);
-  }
-
-  function statsForCollection(col) {
-    let total = 0, have = 0, missing = 0;
-    for (const sec of col.sections) {
-      for (const it of sec.items) {
-        total++;
-        if (it.have) have++;
-      }
-    }
-    missing = total - have;
-    const pct = total ? Math.round((have * 100) / total) : 0;
-    return { total, have, missing, pct };
-  }
-
-  /*************
-   * BACKUP I/O *
-   *************/
-  function exportBackup() {
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      app: APP_NAME,
-      schema: SCHEMA_VERSION,
-      data: STATE,
-    };
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const a = h("a", { href: url, download: "coleccion-luciano-backup.json" });
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  async function importBackupReplace(file) {
-    const text = await file.text();
-    const parsed = safeJSONParse(text);
-
-    // formatos aceptados
-    let incoming = null;
-    if (parsed && parsed.data && isValidState(parsed.data)) incoming = parsed.data;
-    else if (isValidState(parsed)) incoming = parsed;
-    else if (parsed && Array.isArray(parsed.collections)) incoming = parsed;
-
-    if (!incoming) throw new Error("Backup inválido");
-
-    const normalized = normalizeState(incoming);
-
-    // REEMPLAZAR (sin merge)
-    STATE = normalized;
-    saveState();
-  }
-
-  /*************
-   * RENDERING  *
-   *************/
-  function clearApp() {
-    const app = $("#app");
-    app.innerHTML = "";
-    return app;
-  }
-
-  function render() {
-    ensureBaseShell();
-
-    const route = currentRoute();
-    const app = clearApp();
-
-    if (route.name === "home") {
-      setTop("Mis Colecciones", false);
-      app.appendChild(renderHome());
-      return;
-    }
-
-    if (route.name === "new") {
-      setTop("Nueva colección", true);
-      app.appendChild(renderNewCollection());
-      return;
-    }
-
-    if (route.name === "settings") {
-      setTop("Ajustes / Backup", true);
-      app.appendChild(renderSettings());
-      return;
-    }
-
-    if (route.name === "collection") {
-      const col = getCollection(route.id);
-      if (!col) {
-        alert("No encontré esa colección (quizá fue eliminada).");
-        ROUTE_STACK.length = 0;
-        nav({ name: "home" });
-        return;
-      }
-      setTop(col.name, true);
-      app.appendChild(renderCollection(col));
-      return;
-    }
-
-    // fallback
-    ROUTE_STACK.length = 0;
-    nav({ name: "home" });
-  }
-
-  function card(children = [], extraClass = "") {
-    return h("div", { class: `card ${extraClass}`.trim() }, children);
-  }
-
-  function btn(text, onClick, cls = "btn") {
-    return h("button", { type: "button", class: cls, onClick, text });
-  }
-
-  function renderHome() {
-    const wrap = h("div", { class: "container" });
-
-    const headerCard = card([
-      h("div", { class: "row-between" }, [
-        h("h2", { class: "h2", text: "Mis Colecciones" }),
-        btn("Nueva", () => nav({ name: "new" }), "btn primary"),
-      ]),
-      h("p", { class: "muted", text: STATE.collections.length ? "Tocá una colección para entrar." : "Todavía no tenés colecciones. Tocá “Nueva” para crear una." }),
-      h("div", { class: "divider" }),
-      btn("Ajustes / Backup", () => nav({ name: "settings" }), "btn"),
-    ]);
-
-    wrap.appendChild(headerCard);
-
-    if (STATE.collections.length) {
-      const list = h("div", { class: "stack" });
-      for (const col of STATE.collections) {
-        const st = statsForCollection(col);
-        const item = card([
-          h("div", { class: "row-between" }, [
-            h("div", {}, [
-              h("div", { class: "title-lg", text: col.name }),
-              h("div", { class: "muted", text: `Total ${st.total} • Tengo ${st.have} • Faltan ${st.missing} • ${st.pct}%` }),
-            ]),
-            btn("Abrir", () => nav({ name: "collection", id: col.id }), "btn primary"),
-          ]),
-        ], "list-item");
-        list.appendChild(item);
-      }
-      wrap.appendChild(list);
-    }
-
-    return wrap;
-  }
-
-  function renderNewCollection() {
-    const wrap = h("div", { class: "container" });
-
-    const nameInput = h("input", { class: "input", type: "text", placeholder: "Ej: Adrenalyn WC 2026" });
-    const nInput = h("input", { class: "input", type: "number", min: "1", max: "5000", value: "100" });
-
-    const form = card([
-      h("h2", { class: "h2", text: "Nueva colección" }),
-      h("label", { class: "label", text: "Nombre" }),
-      nameInput,
-      h("div", { style: "height:12px" }),
-      h("label", { class: "label", text: "Cantidad de ítems (números 1..N)" }),
-      nInput,
-      h("div", { style: "height:14px" }),
-      h("div", { class: "row gap" }, [
-        btn("Crear", () => {
-          const name = nameInput.value;
-          const n = nInput.value;
-          try {
-            const col = createCollection(name, n);
-            nav({ name: "collection", id: col.id });
-          } catch (e) {
-            alert(e.message || "No se pudo crear.");
-          }
-        }, "btn primary"),
-        btn("Cancelar", () => goBack(), "btn"),
-      ]),
-      h("p", { class: "muted", text: "Esta versión crea ítems 1..N (simple y estable). Luego sumamos secciones, alfanuméricos, importaciones, etc." }),
-    ]);
-
-    wrap.appendChild(form);
-    return wrap;
-  }
-
-  function renderSettings() {
-    const wrap = h("div", { class: "container" });
-
-    const fileInput = h("input", { type: "file", accept: "application/json", class: "input" });
-
-    const c = card([
-      h("h2", { class: "h2", text: "Ajustes / Backup" }),
-      h("div", { class: "row gap" }, [
-        btn("Exportar backup", () => exportBackup(), "btn primary"),
-        btn("Importar (reemplazar)", async () => {
-          const f = fileInput.files && fileInput.files[0];
-          if (!f) return alert("Elegí un archivo .json primero.");
-          const ok = confirm("Esto REEMPLAZA tus datos actuales por el backup. ¿Continuar?");
-          if (!ok) return;
-          try {
-            await importBackupReplace(f);
-            alert("Backup importado correctamente.");
-            nav({ name: "home" });
-          } catch (e) {
-            alert(e.message || "No se pudo importar.");
-          }
-        }, "btn"),
-      ]),
-      h("div", { style: "height:10px" }),
-      fileInput,
-      h("div", { class: "divider" }),
-      btn("Volver", () => goBack(), "btn"),
-      h("p", { class: "muted", text: "Nota: quitamos “fusionar” para evitar duplicaciones y confusión." }),
-    ]);
-
-    wrap.appendChild(c);
-    return wrap;
-  }
-
-  function renderCollection(col) {
-    const wrap = h("div", { class: "container" });
-    const st = statsForCollection(col);
-
-    // Header card
-    const header = card([
-      h("div", { class: "row-between" }, [
-        h("div", { class: "title-xl", text: col.name }),
-        h("div", { class: "row gap" }, [
-          btn("Editar", () => {
-            const nuevo = prompt("Nuevo nombre:", col.name);
-            if (nuevo == null) return;
-            const n = String(nuevo).trim();
-            if (!n) return alert("Nombre inválido.");
-            col.name = n;
-            updateCollection(col);
-            render();
-          }, "btn"),
-          btn("Reset", () => {
-            const ok = confirm("¿Resetear (Tengo=OFF, Rep=0) toda la colección?");
-            if (!ok) return;
-            resetCollection(col);
-            render();
-          }, "btn danger"),
-        ]),
-      ]),
-      h("div", { class: "stats-row" }, [
-        statBox("Total", st.total),
-        statBox("Tengo", st.have),
-        statBox("Faltan", st.missing),
-        statBox("%", st.pct + "%"),
-      ]),
-      h("div", { class: "divider" }),
-      h("div", { class: "row-between" }, [
-        btn("Eliminar", () => {
-          const ok = confirm("Eliminar colección definitivamente. ¿Seguro?");
-          if (!ok) return;
-          deleteCollection(col.id);
-          nav({ name: "home" });
-        }, "btn danger"),
-        btn("Duplicar", () => {
-          const clone = deepClone(col);
-          clone.id = uid();
-          clone.name = col.name + " (copia)";
-          clone.createdAt = now();
-          clone.updatedAt = now();
-          STATE.collections.unshift(clone);
-          saveState();
-          nav({ name: "collection", id: clone.id });
-        }, "btn primary"),
-      ]),
-    ]);
-
-    wrap.appendChild(header);
-
-    // Items (simple: sección única o múltiples)
-    for (const sec of col.sections) {
-      const secCard = card([
-        h("div", { class: "row-between" }, [
-          h("div", { class: "title-lg", text: sec.name }),
-          h("div", { class: "muted", text: `Ítems: ${sec.items.length}` }),
-        ]),
-        h("div", { class: "grid-items" }, sec.items.map((it) => itemCard(col, it))),
-      ]);
-
-      wrap.appendChild(secCard);
-    }
-
-    return wrap;
-  }
-
-  function statBox(label, value) {
-    return h("div", { class: "statbox" }, [
-      h("div", { class: "statlabel", text: label }),
-      h("div", { class: "statvalue", text: String(value) }),
-    ]);
-  }
-
-  function itemCard(col, it) {
-    const isHave = it.have;
-    const rep = it.rep;
-
-    const cardEl = h("div", { class: `item ${isHave ? "have" : ""}`.trim() }, [
-      h("div", { class: "itemcode", text: it.code }),
-      h("div", { class: "itemrep", text: `Rep: ${rep}` }),
-      h("div", { class: "itemcontrols" }, [
-        h("button", {
-          type: "button",
-          class: "mini",
-          text: "−",
-          onClick: () => {
-            if (!it.have) return alert("Primero marcá este ítem como 'Tengo' tocándolo.");
-            it.rep = clampInt(it.rep - 1, 0, 999);
-            updateCollection(col);
-            render();
-          },
-        }),
-        h("button", {
-          type: "button",
-          class: "mini",
-          text: "+",
-          onClick: () => {
-            if (!it.have) return alert("Primero marcá este ítem como 'Tengo' tocándolo.");
-            it.rep = clampInt(it.rep + 1, 0, 999);
-            updateCollection(col);
-            render();
-          },
-        }),
-      ]),
-    ]);
-
-    // Tap para alternar "Tengo"
-    cardEl.addEventListener("click", (e) => {
-      // evitar que el click en botones dispare toggle
-      const t = e.target;
-      if (t && t.closest && t.closest("button")) return;
-
-      it.have = !it.have;
-      if (!it.have) it.rep = 0; // coherencia
-      updateCollection(col);
-      render();
+    state.data.collections.push({
+      id: uid("col"),
+      name,
+      createdAt: Date.now(),
+      structure: "simple",
+      numberMode: "global",
+      sections,
+      items
     });
 
-    return cardEl;
+    save();
+    goHome();
+    return;
   }
 
-  function deepClone(obj) {
-    return JSON.parse(JSON.stringify(obj));
+  const numberMode = (els.numberMode.value === "perSection") ? "perSection" : "global";
+  const read = readSections(els.sectionsEditor);
+  if (!read.ok) return alert(read.error);
+
+  const sections = read.sections.map(s => ({
+    id: uid("sec"),
+    name: s.name,
+    format: s.format,
+    prefix: s.prefix,
+    ownNumbering: !!s.ownNumbering,
+    specials: s.specials
+  }));
+
+  const items = [];
+  let globalCounter = 1;
+
+  for (let idx = 0; idx < sections.length; idx++) {
+    const sec = sections[idx];
+    const sDef = read.sections[idx];
+    const count = sDef.count;
+    const specialsSet = new Set((sec.specials || []).map(normCode));
+
+    if (sec.format === "alfa") {
+      for (let i = 1; i <= count; i++) {
+        const label = `${sec.prefix}${i}`;
+        const key = `alfa:${sec.prefix}:${i}`;
+        items.push({
+          id: uid("it"),
+          sectionId: sec.id,
+          label,
+          have: false,
+          rep: 0,
+          special: specialsSet.has(normCode(label)),
+          key
+        });
+      }
+      continue;
+    }
+
+    const sectionIsLocal = (numberMode === "perSection") || sec.ownNumbering;
+
+    for (let i = 1; i <= count; i++) {
+      const n = sectionIsLocal ? i : globalCounter;
+      const label = String(n);
+      const key = sectionIsLocal ? `numLocal:${sec.id}:${i}` : `numGlobal:${globalCounter}`;
+
+      items.push({
+        id: uid("it"),
+        sectionId: sec.id,
+        label,
+        have: false,
+        rep: 0,
+        special: specialsSet.has(normCode(label)),
+        key
+      });
+
+      if (!sectionIsLocal) globalCounter += 1;
+    }
   }
 
-  /******************
-   * MIN CSS FALLBACK
-   ******************/
-  function injectFallbackCSS() {
-    // Si ya tenés style.css, esto solo ayuda a que el app.js sea usable igual.
-    if ($("#_fallback_css")) return;
+  state.data.collections.push({
+    id: uid("col"),
+    name,
+    createdAt: Date.now(),
+    structure: "sections",
+    numberMode,
+    sections,
+    items
+  });
 
-    const css = `
-      :root{--bg:#F4F5F7;--panel:#fff;--stroke:rgba(0,0,0,.08);--shadow:0 10px 30px rgba(0,0,0,.08);--accent:#2D7DF6;}
-      body{margin:0;background:var(--bg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:rgba(0,0,0,.88)}
-      .topbar{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--stroke);height:86px;display:flex;align-items:flex-end;padding:10px 18px 12px;gap:12px}
-      .topbar-title{flex:1;text-align:center;font-size:38px;line-height:1.05;font-weight:900;letter-spacing:-.02em}
-      .topbar-spacer{width:44px;height:44px}
-      .icon-btn{width:44px;height:44px;border-radius:999px;border:1px solid var(--stroke);background:var(--panel);box-shadow:0 6px 16px rgba(0,0,0,.06);font-size:20px;font-weight:900}
-      .hidden{display:none !important}
-      .container{padding:18px 18px 30px}
-      .card{background:var(--panel);border:1px solid var(--stroke);border-radius:26px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px}
-      .h2{margin:0 0 10px;font-size:34px;font-weight:900;letter-spacing:-.02em}
-      .muted{color:rgba(0,0,0,.55);font-weight:800}
-      .row{display:flex;align-items:center}
-      .row-between{display:flex;align-items:center;justify-content:space-between;gap:12px}
-      .gap{gap:10px}
-      .divider{height:1px;background:rgba(0,0,0,.08);margin:14px 0}
-      .btn{border:1px solid var(--stroke);background:var(--panel);border-radius:999px;padding:12px 16px;font-weight:900;font-size:18px}
-      .btn.primary{background:rgba(45,125,246,.16);border-color:rgba(45,125,246,.35);color:var(--accent)}
-      .btn.danger{background:rgba(231,76,60,.16);border-color:rgba(231,76,60,.35);color:#c0392b}
-      .input{width:100%;border:1px solid var(--stroke);border-radius:16px;padding:12px 14px;font-size:18px;outline:none;background:var(--panel)}
-      .stack{display:flex;flex-direction:column;gap:12px;margin-top:12px}
-      .title-xl{font-size:44px;font-weight:950;letter-spacing:-.02em}
-      .title-lg{font-size:30px;font-weight:950;letter-spacing:-.02em}
-      .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
-      .statbox{border:1px solid rgba(0,0,0,.06);background:rgba(0,0,0,.02);border-radius:20px;padding:14px;text-align:center}
-      .statlabel{font-weight:900;color:rgba(0,0,0,.55)}
-      .statvalue{font-weight:950;font-size:28px}
-      .grid-items{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
-      .item{border:1px solid rgba(0,0,0,.06);background:rgba(0,0,0,.02);border-radius:22px;padding:14px;box-shadow:none}
-      .item.have{background:rgba(45,125,246,.10);border-color:rgba(45,125,246,.30)}
-      .itemcode{font-size:26px;font-weight:950}
-      .itemrep{margin-top:6px;color:rgba(0,0,0,.55);font-weight:900}
-      .itemcontrols{display:flex;gap:10px;margin-top:10px}
-      .mini{width:46px;height:46px;border-radius:999px;border:1px solid var(--stroke);background:var(--panel);font-size:26px;font-weight:950;color:var(--accent)}
-      @media (max-width:420px){.grid-items{grid-template-columns:repeat(2,1fr)}}
-    `;
+  save();
+  goHome();
+}
 
-    const style = document.createElement("style");
-    style.id = "_fallback_css";
-    style.textContent = css;
-    document.head.appendChild(style);
+/* -----------------------------
+   Detail
+----------------------------- */
+function renderDetail() {
+  const col = getCurrent();
+  if (!col) return goHome();
+
+  els.detailTitle.textContent = col.name;
+  els.topbarTitle.textContent = col.name;
+
+  const st = computeStats(col);
+  els.stTotal.textContent = String(st.total);
+  els.stHave.textContent = String(st.have);
+  els.stMissing.textContent = String(st.missing);
+  els.stPct.textContent = `${st.pct}%`;
+
+  els.sectionsDetail.innerHTML = "";
+
+  const bySec = new Map();
+  for (const sec of col.sections) bySec.set(sec.id, []);
+  for (const it of col.items) {
+    if (!bySec.has(it.sectionId)) bySec.set(it.sectionId, []);
+    bySec.get(it.sectionId).push(it);
   }
 
-  /************
-   * STARTUP  *
-   ************/
-  function start() {
-    injectFallbackCSS();
-    // ruta inicial
-    if (!ROUTE_STACK.length) ROUTE_STACK.push({ name: "home" });
-    render();
+  for (const sec of col.sections) {
+    const card = document.createElement("div");
+    card.className = "section-card";
+
+    const title = document.createElement("div");
+    title.className = "section-title";
+    title.textContent = sec.name;
+
+    const grid = document.createElement("div");
+    grid.className = "items-grid";
+
+    const items = bySec.get(sec.id) || [];
+    for (const it of items) grid.appendChild(buildItemCell(it));
+
+    card.appendChild(title);
+    card.appendChild(grid);
+    els.sectionsDetail.appendChild(card);
+  }
+}
+
+function buildItemCell(it) {
+  const wrap = document.createElement("div");
+  wrap.className = "item" + (it.have ? " have" : "") + (it.special ? " special" : "");
+
+  const code = document.createElement("div");
+  code.className = "item-code";
+  code.textContent = it.label;
+
+  const rep = document.createElement("div");
+  rep.className = "item-rep";
+  rep.textContent = `Rep: ${it.rep || 0}`;
+
+  wrap.addEventListener("click", (e) => {
+    if (e.target && e.target.closest && e.target.closest("button")) return;
+    it.have = !it.have;
+    if (!it.have) it.rep = 0;
+    save();
+    renderDetail();
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "item-actions";
+
+  const minus = document.createElement("button");
+  minus.type = "button";
+  minus.className = "mini";
+  minus.textContent = "−";
+  minus.addEventListener("click", (e) => {
+    e.stopPropagation();
+    it.rep = clamp((it.rep || 0) - 1, 0, 999);
+    save();
+    renderDetail();
+  });
+
+  const plus = document.createElement("button");
+  plus.type = "button";
+  plus.className = "mini";
+  plus.textContent = "+";
+  plus.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!it.have) {
+      alert("Primero marcá este ítem como 'Tengo' tocándolo.");
+      return;
+    }
+    it.rep = clamp((it.rep || 0) + 1, 0, 999);
+    save();
+    renderDetail();
+  });
+
+  actions.appendChild(minus);
+  actions.appendChild(plus);
+
+  wrap.appendChild(code);
+  wrap.appendChild(rep);
+  wrap.appendChild(actions);
+
+  return wrap;
+}
+
+function resetCollection() {
+  const col = getCurrent();
+  if (!col) return;
+  const ok = confirm(`Resetear "${col.name}"?\n\nSe borran Tengo y Rep de todos los ítems.`);
+  if (!ok) return;
+  for (const it of col.items) { it.have = false; it.rep = 0; }
+  save();
+  renderDetail();
+}
+
+/* -----------------------------
+   Edit (real)
+----------------------------- */
+function renderEdit() {
+  const col = getCurrent();
+  if (!col) return goHome();
+
+  els.editTitle.textContent = `Editar: ${col.name}`;
+  els.editName.value = col.name;
+
+  const isSections = col.structure === "sections";
+  els.editSectionsArea.style.display = isSections ? "block" : "none";
+  els.editSectionsEditor.innerHTML = "";
+
+  if (isSections) {
+    for (const sec of col.sections) {
+      const count = col.items.filter(it => it.sectionId === sec.id).length;
+      const row = addSectionRow(els.editSectionsEditor, {
+        name: sec.name,
+        format: sec.format || "num",
+        prefix: sec.prefix || "",
+        count,
+        ownNumbering: !!sec.ownNumbering,
+        specials: Array.isArray(sec.specials) ? sec.specials : []
+      });
+      row.dataset.secId = sec.id;
+    }
+    enableDnD(els.editSectionsEditor);
+  }
+}
+
+els.editAddSection?.addEventListener("click", () => {
+  addSectionRow(els.editSectionsEditor, {
+    name: `Sección ${els.editSectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
+    format: "num",
+    prefix: "",
+    count: 10,
+    ownNumbering: false,
+    specials: []
+  });
+  enableDnD(els.editSectionsEditor);
+});
+
+function applyEdit() {
+  const col = getCurrent();
+  if (!col) return goHome();
+
+  const newName = (els.editName.value || "").trim();
+  if (!newName) return alert("Nombre inválido.");
+  col.name = newName;
+
+  if (col.structure !== "sections") {
+    save();
+    renderHome();
+    goDetail(col.id);
+    alert("Cambios guardados ✅");
+    return;
   }
 
-  // Boot
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start);
-  } else {
-    start();
+  const read = readSections(els.editSectionsEditor);
+  if (!read.ok) return alert(read.error);
+
+  const rows = read.rows;
+
+  const oldByKey = new Map();
+  for (const it of col.items) oldByKey.set(it.key || `${it.sectionId}|${it.label}`, it);
+
+  const newSections = [];
+  const newItems = [];
+  let globalCounter = 1;
+  const numberMode = col.numberMode === "perSection" ? "perSection" : "global";
+
+  for (let idx = 0; idx < rows.length; idx++) {
+    const r = rows[idx];
+    const s = read.sections[idx];
+
+    const existingId = r.dataset.secId || null;
+    const secId = existingId || uid("sec");
+
+    newSections.push({
+      id: secId,
+      name: s.name,
+      format: s.format,
+      prefix: s.prefix,
+      ownNumbering: !!s.ownNumbering,
+      specials: s.specials
+    });
+
+    const specialsSet = new Set((s.specials || []).map(normCode));
+
+    if (s.format === "alfa") {
+      for (let i = 1; i <= s.count; i++) {
+        const label = `${s.prefix}${i}`;
+        const key = `alfa:${s.prefix}:${i}`;
+        const old = oldByKey.get(key);
+
+        newItems.push({
+          id: old?.id || uid("it"),
+          sectionId: secId,
+          label,
+          have: !!old?.have,
+          rep: old?.rep || 0,
+          special: specialsSet.has(normCode(label)),
+          key
+        });
+      }
+      continue;
+    }
+
+    const sectionIsLocal = (numberMode === "perSection") || s.ownNumbering;
+
+    for (let i = 1; i <= s.count; i++) {
+      const n = sectionIsLocal ? i : globalCounter;
+      const label = String(n);
+      const key = sectionIsLocal ? `numLocal:${secId}:${i}` : `numGlobal:${globalCounter}`;
+      const old = oldByKey.get(key);
+
+      newItems.push({
+        id: old?.id || uid("it"),
+        sectionId: secId,
+        label,
+        have: !!old?.have,
+        rep: old?.rep || 0,
+        special: specialsSet.has(normCode(label)),
+        key
+      });
+
+      if (!sectionIsLocal) globalCounter += 1;
+    }
   }
-})();
+
+  col.sections = newSections;
+  col.items = newItems;
+
+  save();
+  renderHome();
+  goDetail(col.id);
+  alert("Cambios guardados ✅");
+}
+
+/* -----------------------------
+   Backup (solo REEMPLAZAR)
+----------------------------- */
+function exportBackup() {
+  const payload = {
+    backupVersion: BACKUP_VERSION,
+    exportedAt: Date.now(),
+    app: "ColeccionLuciano",
+    data: state.data
+  };
+
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `backup-coleccion-luciano-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+
+  URL.revokeObjectURL(url);
+
+  state.meta.lastExportAt = Date.now();
+  state.meta.lastExportSize = blob.size;
+  save();
+
+  renderSettings();
+  alert("Backup exportado ✅");
+}
+
+function normalizeImportedPayload(obj) {
+  if (!obj || typeof obj !== "object") return null;
+  if (obj.data && obj.data.collections) {
+    return { collections: Array.isArray(obj.data.collections) ? obj.data.collections : [] };
+  }
+  if (obj.collections) {
+    return { collections: Array.isArray(obj.collections) ? obj.collections : [] };
+  }
+  return null;
+}
+
+function handleImportFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const raw = JSON.parse(reader.result);
+      const normalized = normalizeImportedPayload(raw);
+      if (!normalized) return alert("Este archivo no parece un backup válido.");
+
+      const ok = confirm(
+        "Importar backup (REEMPLAZAR):\n\n" +
+        "Esto borrará TODO lo actual y cargará el contenido del backup.\n\n" +
+        "¿Continuar?"
+      );
+      if (!ok) return;
+
+      state.data.collections = normalized.collections || [];
+
+      for (const c of state.data.collections) {
+        if (!c.items) c.items = [];
+        if (!c.sections) c.sections = [];
+        if (!c.structure) c.structure = "simple";
+        if (!c.numberMode) c.numberMode = "global";
+
+        if (c.structure === "sections") {
+          for (const s of c.sections) {
+            if (!s.format) s.format = "num";
+            if (typeof s.prefix !== "string") s.prefix = "";
+            if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
+            if (!Array.isArray(s.specials)) s.specials = [];
+          }
+        } else {
+          if (!c.sections.length) {
+            c.sections = [{ id: uid("sec"), name:"General", format:"num", prefix:"", ownNumbering:false, specials:[] }];
+          }
+          if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
+        }
+
+        for (const it of c.items) {
+          if (typeof it.special !== "boolean") it.special = false;
+          if (!it.key) it.key = `${it.sectionId}|${it.label}`;
+        }
+      }
+
+      state.meta.lastImportAt = Date.now();
+      state.meta.lastImportMode = "replace";
+      save();
+
+      goHome();
+      alert("Backup importado ✅ (Reemplazar)");
+    } catch {
+      alert("Error al importar el backup.");
+    }
+  };
+  reader.readAsText(file);
+}
+
+function renderSettings() {
+  if (els.exportMeta) {
+    els.exportMeta.textContent =
+      `Último: ${formatDateTime(state.meta.lastExportAt)} · Tamaño: ${formatBytes(state.meta.lastExportSize)}`;
+  }
+  if (els.importMeta) {
+    els.importMeta.textContent =
+      `Último: ${formatDateTime(state.meta.lastImportAt)} · Modo: Reemplazar`;
+  }
+  if (els.storageMeta) {
+    const raw = localStorage.getItem(LS_KEY) || "";
+    els.storageMeta.textContent = `Datos actuales en el dispositivo: ${formatBytes(raw.length)}`;
+  }
+}
+
+/* -----------------------------
+   Eventos
+----------------------------- */
+document.addEventListener("click", (e) => {
+  const btn = e.target?.closest?.("[data-action]");
+  if (!btn) return;
+
+  const action = btn.getAttribute("data-action");
+
+  if (action === "go-home") return goHome();
+  if (action === "go-create") return goCreate();
+  if (action === "create-cancel") return goHome();
+  if (action === "create-save") return createCollection();
+
+  if (action === "go-settings") return goSettings();
+
+  if (action === "open-edit") return goEdit();
+  if (action === "edit-cancel") return goDetail(state.currentId);
+  if (action === "edit-save") return applyEdit();
+
+  if (action === "reset-collection") return resetCollection();
+
+  if (action === "export-backup") return exportBackup();
+});
+
+els.backBtn?.addEventListener("click", () => goHome());
+
+els.importInput?.addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  handleImportFile(file);
+  e.target.value = "";
+});
+
+/* -----------------------------
+   Init
+----------------------------- */
+function init() {
+  load();
+  renderHome();
+  renderSettings();
+  setView("home");
+  resetCreateForm();
+  ensureBulkBuilderUI(); // ✅ queda listo para cuando uses “secciones”
+}
+
+document.addEventListener("DOMContentLoaded", init);
