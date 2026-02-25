@@ -1219,3 +1219,141 @@ document.addEventListener("DOMContentLoaded", init);
   // puede que Safari lo bloquee. Le damos una opción manual desde un confirm.
   // (Lo dejamos “silencioso” por ahora para no molestar. Si querés, lo activamos.)
 })();
+/* =============================
+   PATCH v24.x - UX mejoras
+   1) Abrir colección al seleccionar (sin botón Abrir)
+   2) Filtros: Todas / Faltan / Repetidas (rep > 0)
+   - No toca lógica interna: filtra por DOM ya renderizado
+============================= */
+(function () {
+  // ---- Helpers DOM
+  const $id = (id) => document.getElementById(id);
+
+  // ---- 1) Abrir colección al seleccionar
+  function wireAutoOpenCollections() {
+    const sel = $id("collectionsSelect");
+    const btn = $id("btnOpenCollection");
+
+    if (btn) btn.style.display = "none"; // ocultamos "Abrir"
+
+    if (!sel || sel.dataset.autoOpenWired === "1") return;
+    sel.dataset.autoOpenWired = "1";
+
+    sel.addEventListener("change", () => {
+      const id = sel.value;
+      if (!id) return;
+
+      // Intentamos abrir con la función existente
+      if (typeof window.goDetail === "function") {
+        window.goDetail(id);
+      } else {
+        // fallback: click al botón "Abrir" si existiera lógica atada ahí
+        btn?.click?.();
+      }
+    });
+  }
+
+  // ---- 2) Filtros: Todas / Faltan / Repetidas
+  let __filterMode = "all"; // all | miss | rep
+
+  function applyDomFilter() {
+    const container = $id("sectionsDetail");
+    if (!container) return;
+
+    const items = Array.from(container.querySelectorAll(".item"));
+    for (const el of items) {
+      const isHave = el.classList.contains("have");
+
+      // lee "Rep: X"
+      let rep = 0;
+      const repEl = el.querySelector(".item-rep");
+      if (repEl) {
+        const m = repEl.textContent.match(/(\d+)/);
+        rep = m ? parseInt(m[1], 10) : 0;
+      }
+
+      let show = true;
+      if (__filterMode === "miss") show = !isHave;
+      if (__filterMode === "rep") show = rep > 0;
+
+      el.style.display = show ? "" : "none";
+    }
+  }
+
+  function setFilter(mode) {
+    __filterMode = mode;
+
+    // botones existentes
+    const fAll = $id("fAll");
+    const fHave = $id("fHave"); // lo reciclamos como "Repetidas"
+    const fMiss = $id("fMiss"); // queda "Faltan"
+
+    // textos
+    if (fAll) fAll.textContent = "Todas";
+    if (fMiss) fMiss.textContent = "Faltan";
+    if (fHave) fHave.textContent = "Repetidas";
+
+    // estados visuales
+    const setActive = (btn, on) => btn && btn.classList.toggle("is-active", !!on);
+    setActive(fAll, mode === "all");
+    setActive(fMiss, mode === "miss");
+    setActive(fHave, mode === "rep");
+
+    applyDomFilter();
+  }
+
+  function wireFilterButtons() {
+    const fAll = $id("fAll");
+    const fHave = $id("fHave");
+    const fMiss = $id("fMiss");
+    if (!fAll || !fHave || !fMiss) return;
+    if (fAll.dataset.filterWired === "1") return;
+
+    fAll.dataset.filterWired = "1";
+
+    // Importante: frenamos su acción vieja y usamos la nueva
+    const stop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    fAll.addEventListener("click", (e) => { stop(e); setFilter("all"); });
+    fMiss.addEventListener("click", (e) => { stop(e); setFilter("miss"); });
+    fHave.addEventListener("click", (e) => { stop(e); setFilter("rep"); });
+  }
+
+  // ---- Hook: cada vez que se renderiza el detalle, re-aplicamos filtro
+  function patchRenderDetail() {
+    if (typeof window.renderDetail !== "function") return;
+    if (window.renderDetail.__patched === true) return;
+
+    const original = window.renderDetail;
+    window.renderDetail = function () {
+      const r = original.apply(this, arguments);
+      // re-wire (por si cambiaste de vista)
+      wireFilterButtons();
+      setFilter(__filterMode); // mantiene modo actual
+      return r;
+    };
+    window.renderDetail.__patched = true;
+  }
+
+  // ---- Boot
+  function bootPatch() {
+    wireAutoOpenCollections();
+    wireFilterButtons();
+    patchRenderDetail();
+
+    // si ya estás en detalle, aplicar filtro
+    setTimeout(() => {
+      wireFilterButtons();
+      applyDomFilter();
+    }, 0);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootPatch);
+  } else {
+    bootPatch();
+  }
+})();
