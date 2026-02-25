@@ -605,3 +605,41 @@ main.app{
   font-size: 18px;
   font-weight: 800;
 }
+/* =============================
+   PATCH vBadgeOver + hide Edit
+   - badge NO se corta (queda sobre la caja)
+   - ocultar botón Editar en detalle
+============================= */
+
+/* El badge necesita poder “salirse” */
+.item,
+.tile,
+.sticker,
+.stickerItem,
+.sticker-box {
+  overflow: visible !important; /* clave */
+  position: relative !important;
+}
+
+/* Badge estilo “sobre la caja” */
+.repBadgeCorner,
+.rep-badge {
+  position: absolute !important;
+  top: -10px !important;
+  right: -10px !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 999px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 900 !important;
+  color: #fff !important;
+  z-index: 20 !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,.18) !important;
+}
+
+/* Oculta el botón Editar (ya lo tenés por otro camino) */
+.detail-header [data-action="open-edit"] {
+  display: none !important;
+}
