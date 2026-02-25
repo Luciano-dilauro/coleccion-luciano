@@ -403,3 +403,47 @@ label{ font-weight: 900; }
   height:14px;
   background: var(--bg-main);
 }
+/* =========================
+   FIX: quitar "aire" entre topbar y detail-header
+   (sin romper el padding global del main)
+========================= */
+
+/* Si ya tenés variables, no pasa nada: estas se usan solo si no existían */
+:root{
+  --topbar-h: 72px; /* altura del topbar (ajustá si el tuyo es diferente) */
+  --content-top: calc(var(--topbar-h) + env(safe-area-inset-top));
+}
+
+/* Asegura que el layout general respete el topbar fijo */
+.topbar{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: var(--topbar-h);
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Este es el “espacio” global para que nada quede debajo del topbar */
+.app{
+  padding-top: var(--content-top);
+}
+
+/* ✅ CLAVE: en la vista detail, subimos la tarjeta para “comerse” el padding */
+.view[data-view="detail"] .detail-header{
+  margin-top: calc(-1 * var(--content-top));
+}
+
+/* ✅ Y dejamos el sticky exactamente pegado debajo del topbar */
+.detail-header{
+  position: sticky;
+  top: var(--content-top);
+  z-index: 10;
+}
+
+/* Opcional: para que quede más “pegado” visualmente (sin borde redondeado arriba) */
+.view[data-view="detail"] .detail-header{
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
