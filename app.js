@@ -1489,3 +1489,162 @@ document.addEventListener("DOMContentLoaded", init);
     exportFlow();
   });
 })();
+/* =============================
+   EXPORT v1 — modal + texto “bold” (unicode)
+   - Exporta Faltantes o Repetidas por sección
+   - Usa navigator.share si existe (ideal iPhone → Notas/WhatsApp)
+   - Fallback: copia al portapapeles
+============================= */
+(function () {
+  // ---- Bold “real” en apps: usamos Unicode bold ----
+  const BOLD_MAP = (() => {
+    const m = new Map();
+    const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const a = "abcdefghijklmnopqrstuvwxyz";
+    const d = "0123456789";
+    const BA = "𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔𝐕𝐖𝐗𝐘𝐙";
+    const Ba = "𝐚𝐛𝐜𝐝𝐞𝐟𝐠𝐡𝐢𝐣𝐤𝐥𝐦𝐧𝐨𝐩𝐪𝐫𝐬𝐭𝐮𝐯𝐰𝐱𝐲𝐳";
+    const Bd = "𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗";
+    for (let i=0;i<A.length;i++) m.set(A[i], BA[i]);
+    for (let i=0;i<a.length;i++) m.set(a[i], Ba[i]);
+    for (let i=0;i<d.length;i++) m.set(d[i], Bd[i]);
+    return m;
+  })();
+
+  function toBoldUnicode(s){
+    return String(s || "").split("").map(ch => BOLD_MAP.get(ch) || ch).join("");
+  }
+
+  function getCurrentSafe(){
+    try { return (typeof getCurrent === "function") ? getCurrent() : null; }
+    catch { return null; }
+  }
+
+  function buildExportText(mode){
+    const col = getCurrentSafe();
+    if (!col) return "";
+
+    // Agrupar items por sección (según data real)
+    const bySec = new Map();
+    for (const sec of col.sections || []) bySec.set(sec.id, { name: sec.name, items: [] });
+    for (const it of col.items || []) {
+      if (!bySec.has(it.sectionId)) bySec.set(it.sectionId, { name: "Sección", items: [] });
+      bySec.get(it.sectionId).items.push(it);
+    }
+
+    const title = toBoldUnicode(col.name);
+    const sub = toBoldUnicode(mode === "missing" ? `Faltantes (${countMissing(col)})` : `Repetidas (${countReps(col)})`);
+
+    const lines = [];
+    lines.push(title);
+    lines.push(sub);
+    lines.push(""); // espacio
+
+    for (const sec of (col.sections || [])) {
+      const bucket = bySec.get(sec.id);
+      const items = (bucket?.items || []);
+
+      let list = [];
+      if (mode === "missing") {
+        // faltantes = !have
+        list = items.filter(it => !it.have).map(it => it.label);
+      } else {
+        // repetidas = rep>0 (sin “x cantidad”: solo el código)
+        list = items.filter(it => (it.rep || 0) > 0).map(it => it.label);
+      }
+
+      if (!list.length) continue;
+
+      // Encabezado sección “en bold”
+      lines.push(`${toBoldUnicode(sec.name)}: ${list.join(", ")}`);
+    }
+
+    // Si está todo vacío:
+    if (lines.length <= 4) {
+      lines.push(mode === "missing" ? "✅ No tenés faltantes" : "✅ No tenés repetidas");
+    }
+
+    return lines.join("\n");
+  }
+
+  function countMissing(col){
+    let n = 0;
+    for (const it of (col.items || [])) if (!it.have) n++;
+    return n;
+  }
+  function countReps(col){
+    let n = 0;
+    for (const it of (col.items || [])) if ((it.rep || 0) > 0) n++;
+    return n;
+  }
+
+  async function shareOrCopy(text){
+    // iPhone: esto es lo mejor (te abre el share sheet, elegís Notas/WhatsApp/etc)
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch {
+        // si cancelás, caemos a copiar
+      }
+    }
+
+    // fallback copiar
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("Copiado ✅");
+    } catch {
+      // último fallback
+      const ok = prompt("Copiá el texto:", text);
+      if (ok !== null) alert("Listo ✅");
+    }
+  }
+
+  // ---- Modal ----
+  const modal = document.getElementById("exportModal");
+  function openModal(){
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+  }
+  function closeModal(){
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  // ---- Hook clicks (export-list / export-missing / export-reps / export-close) ----
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest?.("[data-action]");
+    if (!btn) return;
+    const a = btn.getAttribute("data-action");
+
+    if (a === "export-list") {
+      e.preventDefault();
+      openModal();
+      return;
+    }
+
+    if (a === "export-close") {
+      e.preventDefault();
+      closeModal();
+      return;
+    }
+
+    if (a === "export-missing") {
+      e.preventDefault();
+      closeModal();
+      const text = buildExportText("missing");
+      await shareOrCopy(text);
+      return;
+    }
+
+    if (a === "export-reps") {
+      e.preventDefault();
+      closeModal();
+      const text = buildExportText("reps");
+      await shareOrCopy(text);
+      return;
+    }
+  }, true);
+})();
