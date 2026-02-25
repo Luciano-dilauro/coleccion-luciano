@@ -1533,3 +1533,32 @@ document.addEventListener("DOMContentLoaded", init);
     }
   }, true);
 })();
+// ========================================
+// FIX DEFINITIVO EXPORT (mata sistema viejo)
+// ========================================
+(function(){
+
+  // Bloquea cualquier prompt viejo tipo "1 o 2"
+  const originalPrompt = window.prompt;
+  window.prompt = function(msg, def){
+    const t = String(msg || "").toLowerCase();
+    if(t.includes("export") || t.includes("1") || t.includes("2")){
+      console.log("Prompt viejo bloqueado");
+      return null;
+    }
+    return originalPrompt.call(window, msg, def);
+  };
+
+  // Evita que algún handler viejo copie directo
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest?.("button");
+    if(!btn) return;
+
+    const txt = btn.textContent?.toLowerCase() || "";
+    if(txt.includes("exportar") && !btn.dataset.action){
+      e.stopImmediatePropagation();
+      console.log("Export viejo bloqueado");
+    }
+  }, true);
+
+})();
