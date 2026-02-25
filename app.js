@@ -2151,3 +2151,28 @@ document.addEventListener("DOMContentLoaded", init);
 
   setTimeout(patchNow, 60);
 })();
+/* === DIAG: ¿cuántas cajas detecto? (pegar al final) === */
+(function () {
+  const root = document.getElementById("sectionsDetail");
+  if (!root) return;
+
+  // heurística: candidatos = elementos dentro del grid que parecen “caja”
+  const candidates = [...root.querySelectorAll("*")].filter(el => {
+    if (!(el instanceof HTMLElement)) return false;
+    const t = (el.innerText || "").trim();
+    if (!t) return false;
+    // si contiene algo como RIA1 / BAE12 / etc
+    return /^[A-Z]{2,}\d{1,4}\b/.test(t);
+  });
+
+  // reducimos a “caja” probable (padre más cercano con borde/radius)
+  const boxes = candidates.map(el => el.closest("div,button,article,li,span")).filter(Boolean);
+  const unique = [...new Set(boxes)];
+
+  alert("DIAG: sectionsDetail OK ✅\nCajas detectadas: " + unique.length);
+
+  // marco las primeras 3 para ver si son las correctas
+  unique.slice(0, 3).forEach(b => {
+    b.style.outline = "3px solid #ff3b30";
+  });
+})();
