@@ -1,15 +1,14 @@
 /* =============================
-   Colección Luciano - Arquitectura estable (v2.3)
+   Colección Luciano - Arquitectura estable (v2.4)
    - Especiales por lista (por sección o simple)
    - Crear / Editar secciones + especiales sin perder progreso
    - Backup: solo REEMPLAZAR
    - Reordenar secciones: botones ↑ ↓ (y drag & drop opcional)
-   - NUEVO (v2.3):
-     ✅ Generador rápido de secciones por lista (separadas por coma)
-
-   ✅ UPGRADE ESTÉTICO (v2.3.1):
-     - Pop/Glow sutil al marcar/unmarcar ítems
-     - “Pulse” al completar una sección (una vez)
+   - Generador rápido de secciones por lista (separadas por coma)
+   - NUEVO (v2.4):
+     ✅ Al crear, la colección queda arriba
+     ✅ Banner permanente "🎉 Colección completa" cuando st.pct === 100
+     ✅ Pulse sutil 1 vez por sesión por colección (no molesta)
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -69,11 +68,8 @@ const state = {
     lastImportAt: null,
     lastImportMode: "replace",
   },
-
-  // ✅ UI state (no se guarda en LS, es solo para animaciones)
   ui: {
-    lastToggledKey: null,
-    lastCompletedSectionId: null,
+    celebrated: {} // { [collectionId]: true } -> pulse 1 vez por sesión
   }
 };
 
@@ -222,7 +218,7 @@ function goHome() {
 
 function goCreate() {
   resetCreateForm();
-  ensureBulkBuilderUI(); // ✅ inyecta el generador si hace falta
+  ensureBulkBuilderUI();
   setView("create");
 }
 
@@ -314,7 +310,7 @@ function syncCreateBlocks() {
   } else {
     els.simpleBlock.style.display = "none";
     els.sectionsBlock.style.display = "block";
-    ensureBulkBuilderUI(); // ✅ cuando cambia a secciones
+    ensureBulkBuilderUI();
   }
 }
 els.structRadios.forEach(r => r.addEventListener("change", syncCreateBlocks));
@@ -341,7 +337,7 @@ function resetCreateForm() {
 ----------------------------- */
 function ensureBulkBuilderUI() {
   if (!els.sectionsBlock || !els.sectionsEditor) return;
-  if ($("bulkBuilder")) return; // ya existe
+  if ($("bulkBuilder")) return;
 
   const wrap = document.createElement("div");
   wrap.id = "bulkBuilder";
@@ -725,7 +721,7 @@ function readSections(container) {
       name,
       format,
       prefix,
-      count: clamp(Number.isFinite(count) ? count : 1, 1, 5000),
+      count: clamp(count, 1, 5000),
       ownNumbering: (format === "alfa") ? true : !!ownNumbering,
       specials
     });
@@ -752,7 +748,6 @@ els.btnAddSection?.addEventListener("click", () => {
 
 /* -----------------------------
    Crear colección
-   ✅ la nueva colección queda arriba
 ----------------------------- */
 function createCollection() {
   const name = (els.newName.value || "").trim();
@@ -792,8 +787,7 @@ function createCollection() {
       });
     }
 
-    // ✅ Unshift: arriba
-    state.data.collections.unshift({
+    const newCol = {
       id: uid("col"),
       name,
       createdAt: Date.now(),
@@ -801,7 +795,10 @@ function createCollection() {
       numberMode: "global",
       sections,
       items
-    });
+    };
+
+    // ✅ Nuevo primero (arriba)
+    state.data.collections.unshift(newCol);
 
     save();
     goHome();
@@ -868,8 +865,7 @@ function createCollection() {
     }
   }
 
-  // ✅ Unshift: arriba
-  state.data.collections.unshift({
+  const newCol = {
     id: uid("col"),
     name,
     createdAt: Date.now(),
@@ -877,7 +873,10 @@ function createCollection() {
     numberMode,
     sections,
     items
-  });
+  };
+
+  // ✅ Nuevo primero (arriba)
+  state.data.collections.unshift(newCol);
 
   save();
   goHome();
@@ -886,6 +885,46 @@ function createCollection() {
 /* -----------------------------
    Detail
 ----------------------------- */
+function ensureCompletionBanner(st) {
+  // Busca la tarjeta header del detalle (la que contiene stats)
+  const headerCard =
+    document.querySelector('[data-view="detail"] .detail-header') ||
+    document.querySelector('[data-view="detail"] .card');
+
+  if (!headerCard) return;
+
+  let banner = $("completionBanner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "completionBanner";
+    banner.className = "completion-banner"; // estilo viene de CSS (si existe)
+    banner.style.marginTop = "10px";
+    banner.style.padding = "10px 12px";
+    banner.style.borderRadius = "14px";
+    banner.style.fontWeight = "900";
+    banner.style.textAlign = "center";
+    banner.style.background = "rgba(45,125,246,.10)";
+    banner.style.border = "1px solid rgba(45,125,246,.25)";
+    banner.style.color = "rgba(0,0,0,.78)";
+    banner.textContent = "🎉 Colección completa";
+    headerCard.appendChild(banner);
+  }
+
+  if (st.pct === 100 && st.total > 0) {
+    banner.style.display = "block";
+
+    // Pulse 1 vez por sesión por colección
+    const col = getCurrent();
+    if (col && !state.ui.celebrated[col.id]) {
+      state.ui.celebrated[col.id] = true;
+      headerCard.classList.add("celebrate-pulse");
+      setTimeout(() => headerCard.classList.remove("celebrate-pulse"), 650);
+    }
+  } else {
+    banner.style.display = "none";
+  }
+}
+
 function renderDetail() {
   const col = getCurrent();
   if (!col) return goHome();
@@ -899,6 +938,9 @@ function renderDetail() {
   els.stMissing.textContent = String(st.missing);
   els.stPct.textContent = `${st.pct}%`;
 
+  // ✅ Banner permanente + pulse sutil
+  ensureCompletionBanner(st);
+
   els.sectionsDetail.innerHTML = "";
 
   const bySec = new Map();
@@ -911,15 +953,6 @@ function renderDetail() {
   for (const sec of col.sections) {
     const card = document.createElement("div");
     card.className = "section-card";
-
-    // ✅ Pulse visual si esta sección se acaba de completar
-    if (state.ui.lastCompletedSectionId === sec.id) {
-      card.classList.add("is-done-pulse");
-      setTimeout(() => {
-        card.classList.remove("is-done-pulse");
-        if (state.ui.lastCompletedSectionId === sec.id) state.ui.lastCompletedSectionId = null;
-      }, 520);
-    }
 
     const title = document.createElement("div");
     title.className = "section-title";
@@ -939,17 +972,7 @@ function renderDetail() {
 
 function buildItemCell(it) {
   const wrap = document.createElement("div");
-  // NOTA: tu CSS actual usa "have" / "special" sin problemas
   wrap.className = "item" + (it.have ? " have" : "") + (it.special ? " special" : "");
-
-  // ✅ Pop/Glow en el ítem recientemente tocado
-  if (state.ui.lastToggledKey && it.key === state.ui.lastToggledKey) {
-    wrap.classList.add("is-pop");
-    setTimeout(() => {
-      wrap.classList.remove("is-pop");
-      if (state.ui.lastToggledKey === it.key) state.ui.lastToggledKey = null;
-    }, 260);
-  }
 
   const code = document.createElement("div");
   code.className = "item-code";
@@ -961,30 +984,8 @@ function buildItemCell(it) {
 
   wrap.addEventListener("click", (e) => {
     if (e.target && e.target.closest && e.target.closest("button")) return;
-
-    const col = getCurrent();
-    if (!col) return;
-
-    // ✅ detectar sección completa antes
-    const beforeDone = col.items
-      .filter(x => x.sectionId === it.sectionId)
-      .every(x => !!x.have);
-
     it.have = !it.have;
     if (!it.have) it.rep = 0;
-
-    // ✅ marcar último tocado para animación
-    state.ui.lastToggledKey = it.key;
-
-    // ✅ detectar sección completa después
-    const afterDone = col.items
-      .filter(x => x.sectionId === it.sectionId)
-      .every(x => !!x.have);
-
-    if (!beforeDone && afterDone) {
-      state.ui.lastCompletedSectionId = it.sectionId;
-    }
-
     save();
     renderDetail();
   });
@@ -1333,7 +1334,7 @@ function init() {
   renderSettings();
   setView("home");
   resetCreateForm();
-  ensureBulkBuilderUI(); // ✅ queda listo para cuando uses “secciones”
+  ensureBulkBuilderUI();
 }
 
 document.addEventListener("DOMContentLoaded", init);
