@@ -14,24 +14,62 @@
   <!-- TOPBAR FIJO -->
   <header class="topbar" role="banner">
     <button id="backBtn" class="icon-btn hidden" type="button" aria-label="Volver">←</button>
-    <div id="topbarTitle" class="topbar-title">Mis Colecciones</div>
+    <div id="topbarTitle" class="topbar-title">Colecciones Lucho</div>
     <div class="topbar-spacer"></div>
   </header>
 
   <main class="app" role="main">
 
-    <!-- HOME -->
-    <section class="view is-active" data-view="home">
+    <!-- DASHBOARD -->
+    <section class="view is-active" data-view="dash">
+      <div class="dash-wrap">
+        <div class="dash-grid">
+          <button class="card-btn" type="button" data-action="dash-go-home">
+            <div class="card-ico">📚</div>
+            <div class="card-txt">
+              <div class="card-title">Mis colecciones</div>
+              <div class="card-sub">Ver y abrir</div>
+            </div>
+          </button>
+
+          <button class="card-btn" type="button" data-action="dash-go-create">
+            <div class="card-ico">➕</div>
+            <div class="card-txt">
+              <div class="card-title">Carga / edición</div>
+              <div class="card-sub">Crear y editar</div>
+            </div>
+          </button>
+
+          <button class="card-btn" type="button" data-action="dash-go-stats">
+            <div class="card-ico">📊</div>
+            <div class="card-txt">
+              <div class="card-title">Estadísticas</div>
+              <div class="card-sub">Resumen general</div>
+            </div>
+          </button>
+
+          <button class="card-btn" type="button" data-action="dash-go-settings">
+            <div class="card-ico">⚙️</div>
+            <div class="card-txt">
+              <div class="card-title">Ajustes</div>
+              <div class="card-sub">Backup y datos</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOME (MIS COLECCIONES) -->
+    <section class="view" data-view="home">
       <div class="card">
         <div class="row-between">
-          <h1 class="h1">Mis Colecciones</h1>
+          <h1 class="h1">Mis colecciones</h1>
           <button class="btn primary" type="button" data-action="go-create">Nueva</button>
         </div>
 
         <div id="collectionsList" class="stack" style="margin-top:12px;"></div>
 
         <div class="divider"></div>
-
         <button class="btn" type="button" data-action="go-settings">Ajustes / Backup</button>
       </div>
     </section>
@@ -104,7 +142,6 @@
 
     <!-- DETAIL -->
     <section class="view" data-view="detail">
-      <!-- Header sticky -->
       <div class="card detail-header">
         <div class="row-between">
           <h1 id="detailTitle" class="h1">Colección</h1>
@@ -119,13 +156,6 @@
           <div class="stat"><span>Tengo</span><b id="stHave">0</b></div>
           <div class="stat"><span>Faltan</span><b id="stMissing">0</b></div>
           <div class="stat"><span>%</span><b id="stPct">0%</b></div>
-        </div>
-
-        <!-- ✅ NUEVO: filtros dentro de la colección -->
-        <div class="tabs" style="margin-top:12px;">
-          <button id="fAll" class="tab active" type="button" data-action="detail-filter" data-filter="all">Todas</button>
-          <button id="fMissing" class="tab" type="button" data-action="detail-filter" data-filter="missing">Faltantes</button>
-          <button id="fHave" class="tab" type="button" data-action="detail-filter" data-filter="have">Tengo</button>
         </div>
       </div>
 
@@ -161,6 +191,29 @@
       </div>
     </section>
 
+    <!-- STATS -->
+    <section class="view" data-view="stats">
+      <div class="card">
+        <div class="row-between">
+          <h1 class="h1">Estadísticas</h1>
+          <button class="btn" type="button" data-action="go-dash">Volver</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="stats big">
+          <div class="stat"><span>Colecciones</span><b id="gCols">0</b></div>
+          <div class="stat"><span>Total</span><b id="gTotal">0</b></div>
+          <div class="stat"><span>Tengo</span><b id="gHave">0</b></div>
+          <div class="stat"><span>Faltan</span><b id="gMissing">0</b></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="gNote" class="muted small"></div>
+      </div>
+    </section>
+
     <!-- SETTINGS -->
     <section class="view" data-view="settings">
       <div class="card">
@@ -189,7 +242,7 @@
         <div id="storageMeta" class="muted">Datos actuales en el dispositivo: —</div>
 
         <div class="divider"></div>
-        <button class="btn" type="button" data-action="go-home">Volver</button>
+        <button class="btn" type="button" data-action="go-dash">Volver</button>
       </div>
     </section>
 
