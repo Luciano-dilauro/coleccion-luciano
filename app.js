@@ -1689,3 +1689,58 @@ document.addEventListener("DOMContentLoaded", init);
     observeRerenders();
   });
 })();
+/* =============================
+   FIX FINAL Badge + Pintado Especial
+============================= */
+(function(){
+
+  function cleanOldBadges(tile){
+    const old = tile.querySelectorAll(
+      ".repBadgeCorner, .rep-badge, .badge-rep, .badgeRep, .item-badge, .itemBadge"
+    );
+    old.forEach(b => b.remove());
+  }
+
+  function applyBadgeSystem(){
+    const tiles = document.querySelectorAll(
+      ".item, .tile, .sticker, .stickerItem, .sticker-box"
+    );
+
+    tiles.forEach(tile => {
+
+      // restaurar pintado celeste si tiene clase have
+      if(tile.classList.contains("have")){
+        tile.style.background = "";
+        tile.style.borderColor = "";
+      }
+
+      // buscar número repetidas desde dataset o atributo interno
+      const repText = tile.textContent.match(/Rep:\s*(\d+)/i);
+      const repValue = repText ? parseInt(repText[1],10) : 0;
+
+      // eliminar cualquier badge previo
+      cleanOldBadges(tile);
+
+      if(repValue > 0){
+        const badge = document.createElement("div");
+        badge.className = "repBadgeCorner";
+        badge.textContent = repValue;
+        tile.appendChild(badge);
+      }
+    });
+  }
+
+  // Ejecutar al cargar
+  document.addEventListener("DOMContentLoaded", () => {
+    applyBadgeSystem();
+  });
+
+  // Reaplicar cuando se re-renderiza detalle
+  const obs = new MutationObserver(() => {
+    clearTimeout(window.__badgeFixT);
+    window.__badgeFixT = setTimeout(applyBadgeSystem, 50);
+  });
+
+  obs.observe(document.body, {childList:true, subtree:true});
+
+})();
