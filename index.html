@@ -58,7 +58,7 @@
       </div>
     </section>
 
-    <!-- MIS COLECCIONES (selector) -->
+    <!-- MIS COLECCIONES -->
     <section class="view" data-view="collections">
       <div class="card">
         <div class="field">
@@ -66,8 +66,9 @@
           <select id="collectionsSelect" class="input"></select>
         </div>
 
-        <div class="muted small" style="margin-top:10px;">
-          Tip: al elegir una colección se abre automáticamente.
+        <!-- Botón abrir oculto por CSS + auto-open en JS -->
+        <div class="row gap" style="margin-top:10px;">
+          <button id="btnOpenCollection" class="btn primary" type="button">Abrir</button>
         </div>
       </div>
     </section>
@@ -93,7 +94,6 @@
           </button>
         </div>
 
-        <!-- selector de edición -->
         <div id="editPicker" class="card inner hidden" style="margin-top:14px;">
           <div class="field">
             <label>Elegí cuál editar</label>
@@ -130,7 +130,6 @@
           </div>
         </div>
 
-        <!-- SIMPLE -->
         <div id="simpleBlock">
           <div class="field">
             <label>Cantidad total</label>
@@ -143,7 +142,6 @@
           </div>
         </div>
 
-        <!-- SECTIONS -->
         <div id="sectionsBlock" style="display:none;">
           <div class="field">
             <label>Modo de numeración</label>
@@ -174,9 +172,14 @@
         <div class="row-between">
           <h1 id="detailTitle" class="h1">Colección</h1>
           <div class="row gap">
-  <button class="btn" type="button" data-action="export-list">Exportar</button>
-  <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
-</div>
+            <!-- Editar oculto por CSS (y por diseño ya no se usa acá) -->
+            <button class="btn" type="button" data-action="open-edit">Editar</button>
+
+            <!-- ✅ NUEVO: Exportar -->
+            <button id="btnExport" class="btn primary" type="button" data-action="export-list">Exportar</button>
+
+            <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
+          </div>
         </div>
 
         <div class="stats">
@@ -186,11 +189,10 @@
           <div class="stat"><span>%</span><b id="stPct">0%</b></div>
         </div>
 
-        <!-- FILTROS -->
         <div class="seg seg-filters" style="margin-top:12px;">
           <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
           <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
-          <button id="fRep" class="seg-btn" type="button" data-action="filter-rep">Repetidas</button>
+          <button id="fHave" class="seg-btn" type="button" data-action="filter-have">Repetidas</button>
         </div>
       </div>
 
@@ -255,6 +257,22 @@
 
   </main>
 
-  <script src="app.js?v=27"></script>
+  <!-- ✅ Modal export (botones Faltantes / Repetidas) -->
+  <div id="exportModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-action="export-close"></div>
+    <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Exportar">
+      <div class="modal-title">Exportar</div>
+      <div class="modal-sub">¿Qué querés exportar?</div>
+
+      <div class="modal-actions">
+        <button class="btn primary" type="button" data-action="export-missing">Faltantes</button>
+        <button class="btn" type="button" data-action="export-reps">Repetidas</button>
+      </div>
+
+      <button class="btn danger modal-cancel" type="button" data-action="export-close">Cancelar</button>
+    </div>
+  </div>
+
+  <script src="app.js?v=2001"></script>
 </body>
 </html>
