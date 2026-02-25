@@ -1483,3 +1483,113 @@ document.addEventListener("DOMContentLoaded", init);
   const obs = new MutationObserver(() => wireCollectionsAutoOpen());
   obs.observe(document.body, { childList: true, subtree: true });
 })();
+/* =============================
+   PATCH — Badge esquina + eliminar "Rep: x" + centrar código
+   (pegar al FINAL de app.js)
+============================= */
+(function () {
+  const BADGE_CLASS = "repBadgeCorner";
+  const CENTER_CLASS = "tileCentered";
+
+  // Busca un texto tipo "Rep: 2" en algún nodo hijo y devuelve {node, n}
+  function findRepNode(root) {
+    // Recorremos elementos que tengan texto (rápido y seguro)
+    const els = root.querySelectorAll("*");
+    for (const el of els) {
+      const t = (el.textContent || "").trim();
+      const m = t.match(/^Rep:\s*(\d+)\s*$/i);
+      if (m) return { node: el, n: parseInt(m[1], 10) || 0 };
+    }
+    return null;
+  }
+
+  // A veces el "Rep:" viene pegado en el mismo elemento con más texto.
+  // Buscamos el patrón dentro del texto y lo limpiamos.
+  function stripInlineRep(root) {
+    const els = root.querySelectorAll("*");
+    for (const el of els) {
+      const t = (el.textContent || "");
+      if (/Rep:\s*\d+/i.test(t) && t.length > 8) {
+        // solo limpiamos si hay más texto además de "Rep: N"
+        el.textContent = t.replace(/Rep:\s*\d+/gi, "").replace(/\s{2,}/g, " ").trim();
+        // no retornamos, porque podría haber varios
+      }
+    }
+  }
+
+  function upsertBadge(tile, n) {
+    // quitar badge si no corresponde
+    let badge = tile.querySelector("." + BADGE_CLASS);
+
+    if (!n || n <= 0) {
+      if (badge) badge.remove();
+      return;
+    }
+
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.className = BADGE_CLASS;
+      tile.appendChild(badge);
+    }
+    badge.textContent = String(n);
+  }
+
+  function centerCode(tile) {
+    tile.classList.add(CENTER_CLASS);
+  }
+
+  function patchTile(tile) {
+    if (!tile || tile.nodeType !== 1) return;
+
+    // 1) centrar contenido
+    centerCode(tile);
+
+    // 2) encontrar "Rep: N" como elemento SOLO "Rep: N"
+    const found = findRepNode(tile);
+    if (found) {
+      const n = found.n;
+      found.node.remove();      // elimina el "Rep: x"
+      upsertBadge(tile, n);     // crea/actualiza el badge
+      return;
+    }
+
+    // 3) si no lo encontramos como elemento aislado, limpiamos inline (por si viene mezclado)
+    stripInlineRep(tile);
+
+    // 4) si existe un badge viejo (por versiones anteriores), lo convertimos a nuestro estilo
+    // (si ya hay algún badge con número, lo dejamos y aplicamos clase nueva)
+    const anyBadge = tile.querySelector(".rep-badge,.repBadge,.badge-rep,.badgeRep,.item-badge,.itemBadge");
+    if (anyBadge && !tile.querySelector("." + BADGE_CLASS)) {
+      const num = parseInt((anyBadge.textContent || "").trim(), 10);
+      anyBadge.remove();
+      upsertBadge(tile, isNaN(num) ? 0 : num);
+    }
+  }
+
+  function patchAllVisible() {
+    // cubrimos varios nombres posibles de “caja” sin depender del HTML exacto
+    const tiles = document.querySelectorAll(
+      ".item, .tile, .fig, .sticker, .stickerItem, .sticker-box, .card-item, [data-sticker], [data-item]"
+    );
+    tiles.forEach(patchTile);
+  }
+
+  // Ejecutar al cargar + cada vez que se renderiza algo nuevo
+  function boot() {
+    patchAllVisible();
+
+    const target = document.getElementById("sectionsDetail") || document.body;
+    const mo = new MutationObserver(() => {
+      // pequeño debounce
+      clearTimeout(window.__repPatchT);
+      window.__repPatchT = setTimeout(patchAllVisible, 50);
+    });
+    mo.observe(target, { childList: true, subtree: true });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
