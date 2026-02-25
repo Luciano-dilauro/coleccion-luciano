@@ -1411,3 +1411,75 @@ document.addEventListener("DOMContentLoaded", init);
   };
 
 })();
+/* =============================
+   PATCH v1.0.x — Auto-abrir colección + UI badge/rep cleanup
+   (pegar al FINAL de app.js)
+============================= */
+(function () {
+  // helper seguro
+  const $id = (id) => document.getElementById(id);
+
+  function tryOpenCollectionById(colId) {
+    if (!colId) return;
+
+    // Intentos (según cómo esté tu app.js hoy)
+    try {
+      if (typeof window.goDetail === "function") return window.goDetail(colId);
+    } catch {}
+
+    try {
+      if (typeof window.openCollection === "function") return window.openCollection(colId);
+    } catch {}
+
+    // Fallback best-effort
+    try {
+      if (window.state) window.state.currentId = colId;
+      if (typeof window.renderDetail === "function") window.renderDetail();
+      if (typeof window.setView === "function") window.setView("detail");
+    } catch {}
+  }
+
+  function wireCollectionsAutoOpen() {
+    const sel = $id("collectionsSelect");
+    if (!sel) return;
+
+    // Ocultar botón "Abrir" si existe
+    const btn = $id("btnOpenCollection");
+    if (btn) {
+      btn.style.display = "none";
+      btn.classList?.add("hidden");
+    }
+
+    if (sel.dataset.autoOpenWired === "1") return;
+    sel.dataset.autoOpenWired = "1";
+
+    // Abrir apenas selecciona
+    sel.addEventListener("change", () => {
+      const colId = sel.value;
+      // pequeño delay para dejar que cierre el select en iOS
+      setTimeout(() => tryOpenCollectionById(colId), 80);
+    });
+
+    // Por si alguien toca el botón igual (o queda un handler viejo)
+    if (btn) btn.onclick = () => tryOpenCollectionById(sel.value);
+  }
+
+  // Mantenerlo “vivo” aunque la vista se re-renderice
+  function keepAlive() {
+    wireCollectionsAutoOpen();
+    // reintenta un par de veces por si la UI carga luego
+    setTimeout(wireCollectionsAutoOpen, 300);
+    setTimeout(wireCollectionsAutoOpen, 900);
+  }
+
+  // Al cargar
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", keepAlive);
+  } else {
+    keepAlive();
+  }
+
+  // Si cambian vistas dinámicamente, lo volvemos a enganchar
+  const obs = new MutationObserver(() => wireCollectionsAutoOpen());
+  obs.observe(document.body, { childList: true, subtree: true });
+})();
