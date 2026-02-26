@@ -951,7 +951,7 @@ function buildItemCell(it) {
   code.className = "item-code";
   code.textContent = it.label;
 
-  // Badge si rep > 0
+  // Badge: solo si rep > 0
   const repCount = it.rep || 0;
   if (repCount > 0) {
     const badge = document.createElement("div");
@@ -960,11 +960,12 @@ function buildItemCell(it) {
     wrap.appendChild(badge);
   }
 
-  // nodo oculto (compat)
+  // Nodo oculto por compatibilidad
   const repHidden = document.createElement("div");
   repHidden.className = "item-rep";
   repHidden.textContent = `Rep: ${repCount}`;
 
+  // Long press
   let pressTimer = null;
   let longPressFired = false;
 
@@ -978,6 +979,7 @@ function buildItemCell(it) {
   const doLongPress = () => {
     longPressFired = true;
 
+    // Si tiene repetidas -> resto
     if ((it.rep || 0) > 0) {
       it.rep = clamp((it.rep || 0) - 1, 0, 999);
       save();
@@ -985,8 +987,11 @@ function buildItemCell(it) {
       return;
     }
 
+    // Si no tiene repetidas pero está marcada -> confirmar desmarcar
     if (it.have) {
-      const ok = confirm("⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?");
+      const ok = confirm(
+        "⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?"
+      );
       if (!ok) return;
       it.have = false;
       it.rep = 0;
@@ -996,9 +1001,8 @@ function buildItemCell(it) {
   };
 
   const onPressStart = () => {
-    longPressFired = false;
     clearPress();
-    pressTimer = setTimeout(doLongPress, 520);
+    pressTimer = setTimeout(doLongPress, 500);
   };
 
   const onPressEnd = () => {
@@ -1006,8 +1010,13 @@ function buildItemCell(it) {
   };
 
   const onTap = () => {
-    if (longPressFired) return; // ✅ si fue longpress, NO hacer tap
+    // Si venimos de long press, no ejecutar tap
+    if (longPressFired) {
+      longPressFired = false;
+      return;
+    }
 
+    // Tap normal
     if (!it.have) {
       it.have = true;
       it.rep = 0;
