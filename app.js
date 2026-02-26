@@ -1,4 +1,4 @@
-* =============================
+/* =============================
    Colección Lucho — App estable (v3.0)
    - Tap:
       * si NO tengo -> tengo=true (rep=0)
