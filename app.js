@@ -846,14 +846,17 @@ window.__draftCoverDataUrl = null;
   }
 
   state.data.collections.unshift({
-    id: uid("col"),
-    name,
-    createdAt: Date.now(),
-    structure: "sections",
-    numberMode,
-    sections,
-    items
-  });
+  id: uid("col"),
+  name,
+  createdAt: Date.now(),
+  structure: "sections",
+  numberMode,
+  cover: window.__draftCoverDataUrl || null,  // 👈 NUEVO
+  sections,
+  items
+});
+
+window.__draftCoverDataUrl = null;
 
   save();
   renderCollectionsSelects();
