@@ -973,7 +973,19 @@ function buildItemCell(it) {
   // Long-press
   let pressTimer = null;
   let longPressed = false;
-
+   
+// Bloquea el "click fantasma" post long-press (iOS/Safari)
+if (!window.__wiredSkipNextClick) {
+  window.__wiredSkipNextClick = true;
+  document.addEventListener("click", (e) => {
+    if (!window.__skipNextTap) return;
+    window.__skipNextTap = false;
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+  }, true);
+}
+   
   const clearPress = () => {
     if (pressTimer) {
       clearTimeout(pressTimer);
