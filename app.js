@@ -732,7 +732,8 @@ function createCollection() {
   if (!name) return alert("Escribí un nombre.");
 
   const structure = getStructType();
-
+  const newId = uid("col");
+   
   if (structure === "simple") {
     let count = parseInt(els.simpleCount?.value || "0", 10);
     if (!Number.isFinite(count) || count <= 0) return alert("Cantidad inválida.");
