@@ -266,22 +266,32 @@ function renderCollectionsSelects() {
   const cols = state.data.collections;
 
   const fill = (sel) => {
-    if (!sel) return;
-    sel.innerHTML = "";
-    if (!cols.length) {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "(Sin colecciones)";
-      sel.appendChild(opt);
-      return;
-    }
-    for (const c of cols) {
-      const opt = document.createElement("option");
-      opt.value = c.id;
-      opt.textContent = c.name;
-      sel.appendChild(opt);
-    }
-  };
+  if (!sel) return;
+
+  sel.innerHTML = "";
+
+  // Opción placeholder
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Seleccionar colección...";
+  sel.appendChild(placeholder);
+
+  if (!cols.length) return;
+
+  for (const c of cols) {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = c.name;
+    sel.appendChild(opt);
+  }
+
+  // Si hay colección actual, seleccionarla
+  if (state.current) {
+    sel.value = state.current;
+  } else {
+    sel.value = "";
+  }
+};
 
   fill(els.collectionsSelect);
   fill(els.editSelect);
