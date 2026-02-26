@@ -983,7 +983,8 @@ function buildItemCell(it) {
 
   const doLongPress = () => {
     longPressed = true;
-
+  window.__skipNextTap = true;
+     
     // si tiene repetidas -> resto
     if ((it.rep || 0) > 0) {
       it.rep = clamp((it.rep || 0) - 1, 0, 999);
@@ -1014,7 +1015,11 @@ function buildItemCell(it) {
   };
 
   const onTap = () => {
-    if (longPressed) return;
+    if (window.__skipNextTap) {
+  window.__skipNextTap = false;
+  return;
+}
+     if (longPressed) return;
 
     if (!it.have) {
       it.have = true;
