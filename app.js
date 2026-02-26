@@ -1539,3 +1539,138 @@ document.addEventListener("DOMContentLoaded", init);
     }
   }, true);
 })();
+/* =============================
+   COVER (tapa del álbum) + pct bar
+   - Guarda cover en la colección: col.cover (dataURL)
+   - Renderiza cover en el header del detalle
+============================= */
+(function () {
+  const $id = (id) => document.getElementById(id);
+
+  function getCurrentSafe() {
+    try { return (typeof getCurrent === "function") ? getCurrent() : null; }
+    catch { return null; }
+  }
+
+  function renderCoverAndPctBar() {
+    const col = getCurrentSafe();
+    if (!col) return;
+
+    const img = $id("coverImg");
+    const fb = $id("coverFallback");
+    const fill = $id("pctFill");
+
+    // cover
+    if (img && fb) {
+      const has = !!col.cover;
+      img.style.display = has ? "block" : "none";
+      fb.style.display = has ? "none" : "grid";
+
+      if (has) img.src = col.cover;
+      else {
+        // fallback: iniciales lindas
+        const name = String(col.name || "").trim();
+        const letters = name
+          .split(/\s+/).filter(Boolean).slice(0, 2)
+          .map(w => w[0].toUpperCase()).join("");
+        fb.textContent = letters || "📘";
+      }
+    }
+
+    // pct bar
+    if (fill) {
+      let total = 0, have = 0;
+      for (const it of (col.items || [])) {
+        total++;
+        if (it.have) have++;
+      }
+      const pct = total ? Math.round((have / total) * 100) : 0;
+      fill.style.width = pct + "%";
+    }
+  }
+
+  async function fileToDataURL(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result || ""));
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  // Hook del botón "Tapa"
+  document.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.("[data-action]");
+    if (!btn) return;
+    if (btn.getAttribute("data-action") !== "cover-pick") return;
+
+    const col = getCurrentSafe();
+    if (!col) return;
+
+    const input = $id("coverInput");
+    if (!input) return alert("No encuentro el selector de tapa (coverInput).");
+
+    input.click();
+  }, true);
+
+  // Cuando elige imagen
+  document.addEventListener("change", async (e) => {
+    const input = e.target;
+    if (!input || input.id !== "coverInput") return;
+
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+
+    const col = getCurrentSafe();
+    if (!col) return;
+
+    try {
+      const dataUrl = await fileToDataURL(file);
+
+      // Guardar
+      col.cover = dataUrl;
+
+      // Persistir
+      if (typeof save === "function") save();
+
+      // Re-render: si existe renderDetail lo usamos, si no, solo cover
+      if (typeof renderDetail === "function") renderDetail();
+      else renderCoverAndPctBar();
+    } catch {
+      alert("No pude cargar la imagen 😔");
+    }
+  }, true);
+
+  // Mantener sincronizado cuando se renderiza el detalle
+  const _origGoDetail = (typeof goDetail === "function") ? goDetail : null;
+  if (_origGoDetail) {
+    window.goDetail = function (id) {
+      const r = _origGoDetail(id);
+      setTimeout(renderCoverAndPctBar, 60);
+      return r;
+    };
+  }
+
+  // Si tu renderDetail existe, lo “decoramos” para que siempre pinte cover/bar
+  const _origRender = (typeof renderDetail === "function") ? renderDetail : null;
+  if (_origRender) {
+    window.renderDetail = function () {
+      const r = _origRender();
+      renderCoverAndPctBar();
+      return r;
+    };
+  }
+
+  // Migra: asegurar propiedad cover
+  document.addEventListener("DOMContentLoaded", () => {
+    try {
+      if (window.state?.data?.collections) {
+        for (const c of window.state.data.collections) {
+          if (c.cover === undefined) c.cover = null;
+        }
+        if (typeof save === "function") save();
+      }
+    } catch {}
+  });
+})();
