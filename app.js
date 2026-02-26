@@ -767,7 +767,7 @@ function createCollection() {
     }
 
     state.data.collections.unshift({
-  id: uid("col"),
+  id: newId,
   name,
   createdAt: Date.now(),
   structure: "simple",
