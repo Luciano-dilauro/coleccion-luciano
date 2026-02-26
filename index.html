@@ -1,215 +1,263 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Colecciones Lucho</title>
+  <title>Colección Lucho</title>
 
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="theme.css?v=27" />
+  <link rel="stylesheet" href="style.css?v=27" />
 </head>
 
 <body>
-  <!-- Topbar -->
-  <header class="topbar">
+  <!-- TOPBAR -->
+  <header class="topbar" role="banner">
     <button id="backBtn" class="icon-btn hidden" type="button" aria-label="Volver">←</button>
     <div id="topbarTitle" class="topbar-title">Colecciones Lucho</div>
+    <div class="topbar-spacer"></div>
   </header>
 
-  <!-- DASH -->
-  <section class="view is-active" data-view="dash">
-    <div class="card">
-      <div class="h1">Colecciones Lucho</div>
-      <div class="muted">App local para tu colección ✅</div>
+  <main class="app" role="main">
 
-      <div class="row gap" style="margin-top:14px;">
-        <button class="btn primary" type="button" data-action="dash-collections">Mis colecciones</button>
-        <button class="btn" type="button" data-action="dash-loadedit">Carga / Edición</button>
-        <button class="btn" type="button" data-action="dash-settings">Ajustes</button>
+    <!-- DASHBOARD -->
+    <section class="view is-active" data-view="dash">
+      <div class="card">
+        <div class="dash-grid">
+          <button class="dash-btn" type="button" data-action="dash-collections">
+            <div class="dash-ico">📚</div>
+            <div class="dash-txt">
+              <div class="dash-title">Mis colecciones</div>
+              <div class="dash-sub">Ver álbumes</div>
+            </div>
+          </button>
+
+          <button class="dash-btn" type="button" data-action="dash-loadedit">
+            <div class="dash-ico">✍️</div>
+            <div class="dash-txt">
+              <div class="dash-title">Carga / Edición</div>
+              <div class="dash-sub">Crear / editar</div>
+            </div>
+          </button>
+
+          <button class="dash-btn" type="button" data-action="dash-stats">
+            <div class="dash-ico">📊</div>
+            <div class="dash-txt">
+              <div class="dash-title">Estadísticas</div>
+              <div class="dash-sub">Próximamente</div>
+            </div>
+          </button>
+
+          <button class="dash-btn" type="button" data-action="dash-settings">
+            <div class="dash-ico">🧰</div>
+            <div class="dash-txt">
+              <div class="dash-title">Ajustes</div>
+              <div class="dash-sub">Backup</div>
+            </div>
+          </button>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- COLLECTIONS -->
-  <section class="view" data-view="collections">
-    <div class="card">
-      <div class="h2">Mis colecciones</div>
-      <div class="field" style="margin-top:10px;">
-        <label>Elegí una colección</label>
-        <select id="collectionsSelect" class="input"></select>
-      </div>
-      <div class="row gap" style="margin-top:10px;">
-        <button id="btnOpenCollection" class="btn primary" type="button">Abrir</button>
-        <button class="btn" type="button" data-action="go-create">Nueva</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- LOAD/EDIT -->
-  <section class="view" data-view="loadedit">
-    <div class="card">
-      <div class="h2">Carga / Edición</div>
-      <div class="muted small">Crear y editar colecciones.</div>
-
-      <div class="row gap" style="margin-top:12px;">
-        <button class="btn primary" type="button" data-action="go-create">Nueva colección</button>
-        <button class="btn" type="button" data-action="open-edit-picker">Editar colección</button>
-      </div>
-
-      <div id="editPicker" class="card hidden" style="margin-top:12px;">
+    <!-- MIS COLECCIONES -->
+    <section class="view" data-view="collections">
+      <div class="card">
         <div class="field">
-          <label>Elegí colección</label>
-          <select id="editSelect" class="input"></select>
+          <label>Seleccionar colección</label>
+          <select id="collectionsSelect" class="input"></select>
         </div>
-        <button id="btnEditOpen" class="btn primary" type="button">Abrir editor</button>
+
+        <!-- Botón abrir oculto por CSS + auto-open en JS -->
+        <div class="row gap" style="margin-top:10px;">
+          <button id="btnOpenCollection" class="btn primary" type="button">Abrir</button>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- CREATE -->
-  <section class="view" data-view="create">
-    <div class="card">
-      <div class="h2">Nueva colección</div>
+    <!-- CARGA / EDICIÓN -->
+    <section class="view" data-view="loadedit">
+      <div class="card">
+        <div class="hub-grid">
+          <button class="hub-card" type="button" data-action="go-create">
+            <div class="hub-ico">➕</div>
+            <div class="hub-text">
+              <div class="hub-title">Nueva colección</div>
+              <div class="hub-sub">Crear desde cero</div>
+            </div>
+          </button>
 
-      <div class="field">
-        <label>Nombre</label>
-        <input id="newName" class="input" type="text" placeholder="Ej: Premier League 2025" />
+          <button class="hub-card" type="button" data-action="open-edit-picker">
+            <div class="hub-ico">✏️</div>
+            <div class="hub-text">
+              <div class="hub-title">Editar colección</div>
+              <div class="hub-sub">Nombre, secciones, especiales</div>
+            </div>
+          </button>
+        </div>
+
+        <div id="editPicker" class="card inner hidden" style="margin-top:14px;">
+          <div class="field">
+            <label>Elegí cuál editar</label>
+            <select id="editSelect" class="input"></select>
+          </div>
+          <div class="row gap" style="margin-top:10px;">
+            <button id="btnEditOpen" class="btn primary" type="button">Abrir editor</button>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <div class="row gap" style="margin-top:8px;">
-        <label class="inline-check">
-          <input type="radio" name="structType" value="simple" checked />
-          <span>Simple</span>
-        </label>
-        <label class="inline-check">
-          <input type="radio" name="structType" value="sections" />
-          <span>Por secciones</span>
-        </label>
-      </div>
-
-      <div id="simpleBlock" style="margin-top:10px;">
+    <!-- CREATE -->
+    <section class="view" data-view="create">
+      <div class="card">
         <div class="field">
-          <label>Cantidad total</label>
-          <input id="simpleCount" class="input" type="number" min="1" max="5000" value="100" />
+          <label>Nombre</label>
+          <input id="newName" class="input" type="text" placeholder="Ej: Mundial 2026" />
         </div>
+
+        <div class="divider"></div>
+
         <div class="field">
-          <label>Especiales (coma)</label>
-          <input id="simpleSpecials" class="input" type="text" placeholder="7, 10, 55" />
+          <label>Estructura</label>
+          <div class="seg">
+            <label class="seg-opt">
+              <input type="radio" name="structType" value="simple" checked />
+              <span>Simple</span>
+            </label>
+            <label class="seg-opt">
+              <input type="radio" name="structType" value="sections" />
+              <span>Con secciones</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="simpleBlock">
+          <div class="field">
+            <label>Cantidad total</label>
+            <input id="simpleCount" class="input" type="number" min="1" max="5000" value="100" />
+          </div>
+
+          <div class="field">
+            <label>Especiales (coma)</label>
+            <input id="simpleSpecials" class="input" type="text" placeholder="Ej: 7, 10, 55" />
+          </div>
+        </div>
+
+        <div id="sectionsBlock" style="display:none;">
+          <div class="field">
+            <label>Modo de numeración</label>
+            <select id="numberMode" class="input">
+              <option value="global">Global (correlativa)</option>
+              <option value="perSection">Por sección (reinicia)</option>
+            </select>
+          </div>
+
+          <div id="sectionsEditor" class="stack"></div>
+
+          <button id="btnAddSection" class="btn" type="button" style="margin-top:10px;">
+            + Agregar sección
+          </button>
+        </div>
+
+        <div class="divider"></div>
+        <div class="row gap">
+          <button class="btn" type="button" data-action="create-cancel">Cancelar</button>
+          <button class="btn primary" type="button" data-action="create-save">Crear</button>
         </div>
       </div>
+    </section>
 
-      <div id="sectionsBlock" style="margin-top:10px; display:none;">
-        <div class="field">
-          <label>Modo numeración</label>
-          <select id="numberMode" class="input">
-            <option value="global">Global</option>
-            <option value="perSection">Por sección</option>
-          </select>
-        </div>
-
-        <div id="sectionsEditor"></div>
-        <button id="btnAddSection" class="btn" type="button" style="margin-top:10px;">+ Agregar sección</button>
-      </div>
-
-      <div class="row gap" style="margin-top:14px;">
-        <button class="btn" type="button" data-action="create-cancel">Cancelar</button>
-        <button class="btn primary" type="button" data-action="create-save">Guardar</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- SETTINGS -->
-  <section class="view" data-view="settings">
-    <div class="card">
-      <div class="h2">Ajustes</div>
-
-      <div class="row gap" style="margin-top:12px;">
-        <button class="btn primary" type="button" data-action="export-backup">Exportar backup</button>
-        <label class="btn">
-          Importar backup
-          <input id="importInput" type="file" accept="application/json" style="display:none;" />
-        </label>
-      </div>
-
-      <div class="muted small" style="margin-top:12px;">
-        <div id="exportMeta">—</div>
-        <div id="importMeta">—</div>
-        <div id="storageMeta">—</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- EDIT -->
-  <section class="view" data-view="edit">
-    <div class="card">
-      <div id="editTitle" class="h2">Editar</div>
-
-      <div class="field">
-        <label>Nombre</label>
-        <input id="editName" class="input" type="text" />
-      </div>
-
-      <div id="editSectionsArea" style="display:none;">
-        <div class="h3">Secciones</div>
-        <div id="editSectionsEditor"></div>
-        <button id="editAddSection" class="btn" type="button" style="margin-top:10px;">+ Agregar sección</button>
-      </div>
-
-      <div class="row gap" style="margin-top:14px;">
-        <button class="btn" type="button" data-action="edit-cancel">Cancelar</button>
-        <button class="btn primary" type="button" data-action="edit-save">Guardar</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ✅ DETAIL (nuevo layout) -->
-  <section class="view" data-view="detail">
-    <div class="card detail-header detail-hero">
-      <div class="detail-hero__left" aria-hidden="true">
-        <div class="album-cover">
-          <div class="album-cover__title">Álbum</div>
-          <div class="album-cover__sub">Colección</div>
-        </div>
-      </div>
-
-      <div class="detail-hero__right">
-        <div class="row-between detail-hero__top">
-          <h1 id="detailTitle" class="h1 detail-hero__title">Colección</h1>
-
-          <div class="row gap detail-hero__actions">
+    <!-- DETAIL -->
+    <section class="view" data-view="detail">
+      <div class="card detail-header">
+        <div class="row-between">
+          <h1 id="detailTitle" class="h1">Colección</h1>
+          <div class="row gap">
+            <!-- Editar oculto por CSS (y por diseño ya no se usa acá) -->
             <button class="btn" type="button" data-action="open-edit">Editar</button>
-            <button class="btn" type="button" data-action="export-list">Exportar</button>
+
+            <!-- ✅ NUEVO: Exportar -->
+            <button id="btnExport" class="btn primary" type="button" data-action="export-list">Exportar</button>
+
             <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
           </div>
         </div>
 
-        <div class="stats-compact">
-          <div class="stats-compact__row"><span>Total</span><b id="stTotal">0</b></div>
-          <div class="stats-compact__row"><span>Tengo</span><b id="stHave">0</b></div>
-          <div class="stats-compact__row"><span>Faltan</span><b id="stMissing">0</b></div>
+        <div class="stats">
+          <div class="stat"><span>Total</span><b id="stTotal">0</b></div>
+          <div class="stat"><span>Tengo</span><b id="stHave">0</b></div>
+          <div class="stat"><span>Faltan</span><b id="stMissing">0</b></div>
+          <div class="stat"><span>%</span><b id="stPct">0%</b></div>
         </div>
 
-        <div class="pct-mini">
-          <div class="pct-mini__bar">
-            <div id="stPctBar" class="pct-mini__fill" style="width:0%"></div>
-          </div>
-          <div class="pct-mini__label">
-            <span>Completo</span> <b id="stPct">0%</b>
-          </div>
-        </div>
-
-        <div class="seg seg-filters">
+        <div class="seg seg-filters" style="margin-top:12px;">
           <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
           <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
           <button id="fRep" class="seg-btn" type="button" data-action="filter-rep">Repetidas</button>
         </div>
       </div>
-    </div>
 
-    <div id="sectionsDetail"></div>
-  </section>
+      <div id="sectionsDetail" class="stack" style="margin-top:14px;"></div>
+    </section>
 
-  <!-- ✅ Modal export -->
+    <!-- EDIT -->
+    <section class="view" data-view="edit">
+      <div class="card">
+        <div class="row-between">
+          <h1 id="editTitle" class="h1">Editar</h1>
+          <div class="row gap">
+            <button class="btn" type="button" data-action="edit-cancel">Cancelar</button>
+            <button class="btn primary" type="button" data-action="edit-save">Guardar</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Nombre</label>
+          <input id="editName" class="input" type="text" />
+        </div>
+
+        <div id="editSectionsArea" style="display:none;">
+          <div class="divider"></div>
+
+          <div class="row-between">
+            <h2 class="h2">Secciones</h2>
+            <button id="editAddSection" class="btn" type="button">+ Agregar</button>
+          </div>
+
+          <div id="editSectionsEditor" class="stack"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" data-view="settings">
+      <div class="card">
+        <div class="grid-2" style="margin-top:10px;">
+          <button class="card-btn" type="button" data-action="export-backup">
+            <div class="card-ico">⬆️</div>
+            <div class="card-txt">
+              <div class="card-title">Exportar backup</div>
+              <div id="exportMeta" class="card-sub">Último: — · Tamaño: —</div>
+            </div>
+          </button>
+
+          <label class="card-btn" style="cursor:pointer;">
+            <div class="card-ico">⬇️</div>
+            <div class="card-txt">
+              <div class="card-title">Importar backup</div>
+              <div id="importMeta" class="card-sub">Último: — · Modo: Reemplazar</div>
+            </div>
+            <input id="importInput" type="file" accept="application/json" style="display:none;">
+          </label>
+        </div>
+
+        <div class="divider"></div>
+        <div id="storageMeta" class="muted">Datos actuales en el dispositivo: —</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ✅ Modal export (botones Faltantes / Repetidas) -->
   <div id="exportModal" class="modal hidden" aria-hidden="true">
     <div class="modal-backdrop" data-action="export-close"></div>
     <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Exportar">
@@ -225,6 +273,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=2600"></script>
+  <script src="app.js?v=2001"></script>
 </body>
 </html>
