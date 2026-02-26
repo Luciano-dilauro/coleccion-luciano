@@ -982,7 +982,7 @@ function buildItemCell(it) {
   };
 
   const doLongPress = () => {
-  window.__skipNextTap = true;
+  window.__lastLongPressAt = Date.now();
      
     // si tiene repetidas -> resto
     if ((it.rep || 0) > 0) {
