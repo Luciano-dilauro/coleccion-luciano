@@ -1017,11 +1017,9 @@ function buildItemCell(it) {
   };
 
   const onTap = () => {
-    if (window.__skipNextTap) {
-  window.__skipNextTap = false;
-  return;
-}
-
+ 
+     const now = Date.now();
+if (now - (window.__lastLongPressAt || 0) < 800) return;
     if (!it.have) {
       it.have = true;
       it.rep = 0;
