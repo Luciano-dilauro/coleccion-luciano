@@ -185,25 +185,33 @@
 <!-- DETAIL -->
 <section class="view" data-view="detail">
   <div class="card detail-header">
+
+    <!-- (1) Mantengo el h1 para que el JS siga funcionando, pero lo ocultamos luego por CSS -->
+    <h1 id="detailTitle" class="h1" style="display:none;">Colección</h1>
+
+    <!-- Botones arriba a la derecha (sin "Tapa") -->
     <div class="row-between">
-      <h1 id="detailTitle" class="h1">Colección</h1>
-
+      <div></div>
       <div class="row gap">
-        <button class="btn" type="button" data-action="open-edit">Editar</button>
-
         <button id="btnExport" class="btn primary" type="button" data-action="export-list">Exportar</button>
-
-        <button class="btn" type="button" data-action="cover-pick">Tapa</button>
-        <input id="coverInput" type="file" accept="image/*" style="display:none;" />
-
         <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
       </div>
     </div>
 
-    <div class="detail-hero">
-      <div id="coverBox" class="cover-box">
-        <img id="coverImg" alt="Tapa del álbum" />
-        <div id="coverFallback" class="cover-fallback">📘</div>
+    <!-- HERO: tapa a la izquierda, stats a la derecha -->
+    <div class="detail-hero" style="margin-top:12px;">
+      <div class="detail-left">
+        <div id="coverBox" class="cover-box">
+          <img id="coverImg" alt="Tapa del álbum" />
+          <div id="coverFallback" class="cover-fallback">📘</div>
+        </div>
+
+        <!-- (4) Filtros debajo de la tapa -->
+        <div class="seg seg-filters" style="margin-top:10px;">
+          <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
+          <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
+          <button id="fRep" class="seg-btn" type="button" data-action="filter-rep">Repetidas</button>
+        </div>
       </div>
 
       <div class="detail-side">
@@ -214,14 +222,8 @@
           <div><span>%:</span> <b id="stPct">0%</b></div>
         </div>
 
-        <div class="pctbar">
+        <div class="pctbar" style="margin-top:10px;">
           <div id="pctFill" class="pctfill"></div>
-        </div>
-
-        <div class="seg seg-filters" style="margin-top:10px;">
-          <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
-          <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
-          <button id="fRep" class="seg-btn" type="button" data-action="filter-rep">Repetidas</button>
         </div>
       </div>
     </div>
