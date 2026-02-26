@@ -1,5 +1,5 @@
 /* =============================
-   Colección Lucho — App estable (v3.0)
+   Colección Lucho — App estable (v3.0.1 CLEAN)
    - Tap:
       * si NO tengo -> tengo=true (rep=0)
       * si tengo -> rep++
@@ -13,6 +13,10 @@
    - Backup:
       * Export JSON
       * Import (REEMPLAZAR)
+   - Cover:
+      * CREATE: elegir/quitar (draft)
+      * al crear: guarda cover en la colección
+      * DETAIL: muestra tapa o fallback con nombre + barra %
 ============================= */
 
 const LS_KEY = "coleccion_luciano_v2";
@@ -162,6 +166,7 @@ function load() {
     if (!c.items) c.items = [];
     if (!c.structure) c.structure = "simple";
     if (!c.numberMode) c.numberMode = "global";
+    if (c.cover === undefined) c.cover = null;
 
     if (c.structure === "sections") {
       for (const s of c.sections) {
@@ -266,32 +271,27 @@ function renderCollectionsSelects() {
   const cols = state.data.collections;
 
   const fill = (sel) => {
-  if (!sel) return;
+    if (!sel) return;
 
-  sel.innerHTML = "";
+    sel.innerHTML = "";
 
-  // Opción placeholder
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Seleccionar colección...";
-  sel.appendChild(placeholder);
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Seleccionar colección...";
+    sel.appendChild(placeholder);
 
-  if (!cols.length) return;
+    if (!cols.length) return;
 
-  for (const c of cols) {
-    const opt = document.createElement("option");
-    opt.value = c.id;
-    opt.textContent = c.name;
-    sel.appendChild(opt);
-  }
+    for (const c of cols) {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    }
 
-  // Si hay colección actual, seleccionarla
-  if (state.current) {
-    sel.value = state.current;
-  } else {
-    sel.value = "";
-  }
-};
+    // ✅ FIX: era state.current (no existe). Debe ser currentId
+    sel.value = state.currentId || "";
+  };
 
   fill(els.collectionsSelect);
   fill(els.editSelect);
@@ -743,7 +743,7 @@ function createCollection() {
 
   const structure = getStructType();
   const newId = uid("col");
-   
+
   if (structure === "simple") {
     let count = parseInt(els.simpleCount?.value || "0", 10);
     if (!Number.isFinite(count) || count <= 0) return alert("Cantidad inválida.");
@@ -777,18 +777,17 @@ function createCollection() {
     }
 
     state.data.collections.unshift({
-  id: newId,
-  name,
-  createdAt: Date.now(),
-  structure: "simple",
-  numberMode: "global",
-  cover: window.__draftCoverDataUrl || null,   // 👈 NUEVO
-  sections,
-  items
-});
+      id: newId,
+      name,
+      createdAt: Date.now(),
+      structure: "simple",
+      numberMode: "global",
+      cover: window.__draftCoverDataUrl || null,
+      sections,
+      items
+    });
 
-// limpiar draft para la próxima creación
-window.__draftCoverDataUrl = null;
+    window.__draftCoverDataUrl = null;
 
     save();
     renderCollectionsSelects();
@@ -857,17 +856,17 @@ window.__draftCoverDataUrl = null;
   }
 
   state.data.collections.unshift({
-  id: uid("col"),
-  name,
-  createdAt: Date.now(),
-  structure: "sections",
-  numberMode,
-  cover: window.__draftCoverDataUrl || null,  // 👈 NUEVO
-  sections,
-  items
-});
+    id: newId,
+    name,
+    createdAt: Date.now(),
+    structure: "sections",
+    numberMode,
+    cover: window.__draftCoverDataUrl || null,
+    sections,
+    items
+  });
 
-window.__draftCoverDataUrl = null;
+  window.__draftCoverDataUrl = null;
 
   save();
   renderCollectionsSelects();
@@ -907,7 +906,6 @@ function renderDetail() {
   if (!els.sectionsDetail) return;
   els.sectionsDetail.innerHTML = "";
 
-  // agrupar items por sección
   const bySec = new Map();
   for (const sec of col.sections) bySec.set(sec.id, []);
   for (const it of col.items) {
@@ -928,16 +926,13 @@ function renderDetail() {
     const grid = document.createElement("div");
     grid.className = "items-grid";
 
-    for (const it of items) {
-      grid.appendChild(buildItemCell(it));
-    }
+    for (const it of items) grid.appendChild(buildItemCell(it));
 
     card.appendChild(title);
     card.appendChild(grid);
     els.sectionsDetail.appendChild(card);
   }
 
-  // sync UI filtros
   if (els.fAll && els.fMiss && els.fRep) {
     els.fAll.classList.toggle("is-active", state.filter === "all");
     els.fMiss.classList.toggle("is-active", state.filter === "miss");
@@ -946,7 +941,7 @@ function renderDetail() {
 }
 
 /* -----------------------------
-   Item cell (tap / long-press)
+   ✅ Item cell (tap / long-press) — FIX DEFINITIVO
 ----------------------------- */
 function buildItemCell(it) {
   const wrap = document.createElement("div");
@@ -956,7 +951,7 @@ function buildItemCell(it) {
   code.className = "item-code";
   code.textContent = it.label;
 
-  // Badge estable: solo si rep > 0
+  // Badge si rep > 0
   const repCount = it.rep || 0;
   if (repCount > 0) {
     const badge = document.createElement("div");
@@ -965,15 +960,14 @@ function buildItemCell(it) {
     wrap.appendChild(badge);
   }
 
-  // (mantenemos el nodo por compatibilidad, pero oculto por CSS)
+  // nodo oculto (compat)
   const repHidden = document.createElement("div");
   repHidden.className = "item-rep";
   repHidden.textContent = `Rep: ${repCount}`;
 
-  // Long-press
- let pressTimer = null;
-let longPressFired = false;
-   
+  let pressTimer = null;
+  let longPressFired = false;
+
   const clearPress = () => {
     if (pressTimer) {
       clearTimeout(pressTimer);
@@ -982,9 +976,8 @@ let longPressFired = false;
   };
 
   const doLongPress = () => {
-  longPressFired = true;
-     
-    // si tiene repetidas -> resto
+    longPressFired = true;
+
     if ((it.rep || 0) > 0) {
       it.rep = clamp((it.rep || 0) - 1, 0, 999);
       save();
@@ -992,7 +985,6 @@ let longPressFired = false;
       return;
     }
 
-    // si no tiene repetidas pero está marcada -> confirmar desmarcar
     if (it.have) {
       const ok = confirm("⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?");
       if (!ok) return;
@@ -1004,10 +996,9 @@ let longPressFired = false;
   };
 
   const onPressStart = () => {
+    longPressFired = false;
     clearPress();
-    pressTimer = setTimeout(() => {
-  doLongPress();
-}, 500);
+    pressTimer = setTimeout(doLongPress, 520);
   };
 
   const onPressEnd = () => {
@@ -1015,23 +1006,15 @@ let longPressFired = false;
   };
 
   const onTap = () => {
-  if (longPressFired) {
-    longPressFired = false;
-    return;
-  }
+    if (longPressFired) return; // ✅ si fue longpress, NO hacer tap
 
-  if (!it.have) {
-    it.have = true;
-    it.rep = 0;
-    save();
-    renderDetail();
-    return;
-  }
-
-  it.rep = clamp((it.rep || 0) + 1, 0, 999);
-  save();
-  renderDetail();
-};
+    if (!it.have) {
+      it.have = true;
+      it.rep = 0;
+      save();
+      renderDetail();
+      return;
+    }
 
     it.rep = clamp((it.rep || 0) + 1, 0, 999);
     save();
@@ -1260,12 +1243,12 @@ function handleImportFile(file) {
 
       state.data.collections = normalized.collections || [];
 
-      // saneo mínimo
       for (const c of state.data.collections) {
         if (!c.items) c.items = [];
         if (!c.sections) c.sections = [];
         if (!c.structure) c.structure = "simple";
         if (!c.numberMode) c.numberMode = "global";
+        if (c.cover === undefined) c.cover = null;
 
         if (c.structure === "sections") {
           for (const s of c.sections) {
@@ -1401,12 +1384,9 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
 /* =============================
    EXPORT v2 — modal + compartir/copiar (estable)
-   - Exporta Faltantes o Repetidas por sección
-   - Encabezados “en negrita” estilo WhatsApp: *texto*
-   - iPhone: usa navigator.share (Notas/WhatsApp/etc)
-   - Fallback: copia al portapapeles
 ============================= */
 (function () {
   function getCurrentSafe() {
@@ -1427,8 +1407,6 @@ document.addEventListener("DOMContentLoaded", init);
   }
 
   function boldWA(s) {
-    // “Negrita” que funciona en WhatsApp: *texto*
-    // En Notas se verá con asteriscos (sin caracteres raros).
     return `*${String(s || "").trim()}*`;
   }
 
@@ -1436,7 +1414,6 @@ document.addEventListener("DOMContentLoaded", init);
     const col = getCurrentSafe();
     if (!col) return "";
 
-    // Agrupar items por sección
     const bySec = new Map();
     for (const sec of (col.sections || [])) bySec.set(sec.id, { name: sec.name, items: [] });
     for (const it of (col.items || [])) {
@@ -1447,15 +1424,9 @@ document.addEventListener("DOMContentLoaded", init);
     const totalMissing = countMissing(col);
     const totalReps = countReps(col);
 
-    const title = boldWA(col.name);
-    const subtitle =
-      mode === "missing"
-        ? boldWA(`Faltantes (${totalMissing})`)
-        : boldWA(`Repetidas (${totalReps})`);
-
     const lines = [];
-    lines.push(title);
-    lines.push(subtitle);
+    lines.push(boldWA(col.name));
+    lines.push(mode === "missing" ? boldWA(`Faltantes (${totalMissing})`) : boldWA(`Repetidas (${totalReps})`));
     lines.push("");
 
     for (const sec of (col.sections || [])) {
@@ -1463,51 +1434,33 @@ document.addEventListener("DOMContentLoaded", init);
       const items = (bucket?.items || []);
 
       let list = [];
-      if (mode === "missing") {
-        list = items.filter(it => !it.have).map(it => it.label);
-      } else {
-        // repetidas: rep > 0 (solo el código, sin “x cantidad”)
-        list = items.filter(it => (it.rep || 0) > 0).map(it => it.label);
-      }
+      if (mode === "missing") list = items.filter(it => !it.have).map(it => it.label);
+      else list = items.filter(it => (it.rep || 0) > 0).map(it => it.label);
 
       if (!list.length) continue;
-
       lines.push(`${boldWA(sec.name)}: ${list.join(", ")}`);
     }
 
-    // Si no hay nada para exportar
-    if (lines.length === 3) {
-      lines.push(mode === "missing" ? "✅ No tenés faltantes" : "✅ No tenés repetidas");
-    }
-
+    if (lines.length === 3) lines.push(mode === "missing" ? "✅ No tenés faltantes" : "✅ No tenés repetidas");
     return lines.join("\n");
   }
 
   async function shareOrCopy(text) {
     if (!text) return;
 
-    // iPhone / Safari: share sheet (ideal)
     if (navigator.share) {
-      try {
-        await navigator.share({ text });
-        return; // si comparte, listo
-      } catch {
-        // si cancela, NO copiamos automáticamente
-        return;
-      }
+      try { await navigator.share({ text }); return; }
+      catch { return; } // si cancela, no copiamos
     }
 
-    // Fallback: copiar
     try {
       await navigator.clipboard.writeText(text);
       alert("Copiado ✅");
     } catch {
-      // Último recurso
       prompt("Copiá el texto:", text);
     }
   }
 
-  // ---- Modal ----
   const modal = document.getElementById("exportModal");
 
   function openModal() {
@@ -1522,8 +1475,6 @@ document.addEventListener("DOMContentLoaded", init);
     modal.setAttribute("aria-hidden", "true");
   }
 
-  // IMPORTANTE:
-  // Capturamos en modo capture y frenamos handlers viejos (si existieran)
   document.addEventListener("click", async (e) => {
     const btn = e.target.closest?.("[data-action]");
     if (!btn) return;
@@ -1539,46 +1490,30 @@ document.addEventListener("DOMContentLoaded", init);
 
     e.preventDefault();
 
-    if (a === "export-list") {
-      openModal();
-      return;
-    }
-
-    if (a === "export-close") {
-      closeModal();
-      return;
-    }
+    if (a === "export-list") return openModal();
+    if (a === "export-close") return closeModal();
 
     if (a === "export-missing") {
       closeModal();
-      const text = buildExportText("missing");
-      await shareOrCopy(text);
-      return;
+      return shareOrCopy(buildExportText("missing"));
     }
 
     if (a === "export-reps") {
       closeModal();
-      const text = buildExportText("reps");
-      await shareOrCopy(text);
-      return;
+      return shareOrCopy(buildExportText("reps"));
     }
   });
 })();
 
-// ================================
-// COVER v3 — Crear + Detalle (fallback con nombre)
-// - CREATE: elegir/quitar tapa (guarda al crear)
-// - DETAIL: muestra tapa si existe, si no muestra nombre de colección
-// ================================
+/* ================================
+   COVER v3 — Crear + Detalle
+=============================== */
 (function () {
   const $id = (id) => document.getElementById(id);
 
   function getCurrentSafe() {
-    try {
-      return typeof getCurrent === "function" ? getCurrent() : null;
-    } catch {
-      return null;
-    }
+    try { return typeof getCurrent === "function" ? getCurrent() : null; }
+    catch { return null; }
   }
 
   async function fileToDataURL(file) {
@@ -1590,9 +1525,6 @@ document.addEventListener("DOMContentLoaded", init);
     });
   }
 
-  // -----------------------------
-  // CREATE: estado temporal tapa
-  // -----------------------------
   let draftCoverDataUrl = null;
 
   function paintCreateCover() {
@@ -1604,6 +1536,7 @@ document.addEventListener("DOMContentLoaded", init);
     img.src = has ? draftCoverDataUrl : "";
     img.style.display = has ? "block" : "none";
     fb.style.display = has ? "none" : "grid";
+    fb.textContent = has ? "" : (($id("newName")?.value || "").trim() || "📘");
   }
 
   function resetCreateCoverDraft() {
@@ -1611,7 +1544,7 @@ document.addEventListener("DOMContentLoaded", init);
     paintCreateCover();
   }
 
-  // Cuando entrás a CREATE (por las dudas)
+  // al entrar a create
   const _origGoCreate = typeof goCreate === "function" ? goCreate : null;
   if (_origGoCreate) {
     window.goCreate = function () {
@@ -1619,78 +1552,54 @@ document.addEventListener("DOMContentLoaded", init);
       setTimeout(() => resetCreateCoverDraft(), 20);
       return r;
     };
-  } else {
-    // fallback: al cargar
-    document.addEventListener("DOMContentLoaded", () => resetCreateCoverDraft(), { once: true });
   }
 
-  // Botones de CREATE (elegir/quitar)
-  document.addEventListener(
-    "click",
-    (e) => {
-      const btn = e.target?.closest?.("[data-action]");
-      if (!btn) return;
-      const a = btn.getAttribute("data-action");
+  // Botones en CREATE
+  document.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.("[data-action]");
+    if (!btn) return;
+    const a = btn.getAttribute("data-action");
 
-      if (a === "create-cover-pick") {
-        const input = $id("createCoverInput");
-        if (!input) return alert("No encuentro createCoverInput.");
-        input.click();
-        return;
-      }
+    if (a === "create-cover-pick") {
+      const input = $id("createCoverInput");
+      if (!input) return alert("No encuentro createCoverInput.");
+      input.click();
+      return;
+    }
 
-      if (a === "create-cover-clear") {
-        resetCreateCoverDraft();
-        const input = $id("createCoverInput");
-        if (input) input.value = "";
-        return;
-      }
-    },
-    true
-  );
+    if (a === "create-cover-clear") {
+      resetCreateCoverDraft();
+      const input = $id("createCoverInput");
+      if (input) input.value = "";
+      return;
+    }
+  });
 
-  // Cambio archivo CREATE
-  document.addEventListener(
-    "change",
-    async (e) => {
-      const input = e.target;
-      if (!input || input.id !== "createCoverInput") return;
+  // Change archivo CREATE
+  document.addEventListener("change", async (e) => {
+    const input = e.target;
+    if (!input || input.id !== "createCoverInput") return;
 
-      const file = input.files?.[0];
-      input.value = "";
-      if (!file) return;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
 
-      try {
-        draftCoverDataUrl = await fileToDataURL(file);
-        paintCreateCover();
-      } catch {
-        alert("No pude cargar la imagen 😔");
-      }
-    },
-    true
-  );
+    try {
+      draftCoverDataUrl = await fileToDataURL(file);
+      paintCreateCover();
+    } catch {
+      alert("No pude cargar la imagen 😔");
+    }
+  });
 
-  // Hook: al CREAR, guardamos cover en la colección
-  // (interceptamos el click del create-save y dejamos que tu lógica haga el resto)
-  document.addEventListener(
-    "click",
-    (e) => {
-      const btn = e.target?.closest?.("[data-action]");
-      if (!btn) return;
-      if (btn.getAttribute("data-action") !== "create-save") return;
+  // Al crear: pasar draft a variable global para createCollection()
+  document.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.("[data-action]");
+    if (!btn) return;
+    if (btn.getAttribute("data-action") !== "create-save") return;
+    window.__draftCoverDataUrl = draftCoverDataUrl || null;
+  });
 
-      // Guardamos el draft en una variable global simple
-      // para que tu create-save la use cuando arma el objeto.
-      window.__draftCoverDataUrl = draftCoverDataUrl || null;
-
-      // (no frenamos nada: tu handler existente sigue)
-    },
-    true
-  );
-
-  // -----------------------------
-  // DETAIL: render tapa + pct bar
-  // -----------------------------
   function renderCoverAndPctBar() {
     const col = getCurrentSafe();
     if (!col) return;
@@ -1699,32 +1608,24 @@ document.addEventListener("DOMContentLoaded", init);
     const fb = $id("coverFallback");
     const fill = $id("pctFill");
 
-    // fallback: mostrar nombre si no hay tapa
+    const hasCover = !!col.cover;
+
     if (fb) {
-      const hasCover = !!col.cover;
       fb.style.display = hasCover ? "none" : "grid";
-      fb.textContent = hasCover ? "" : (col.name || "Colección");
+      fb.textContent = hasCover ? "" : ((col.name || "").trim() || "📘");
     }
+
     if (img) {
-      const hasCover = !!col.cover;
       img.src = hasCover ? col.cover : "";
       img.style.display = hasCover ? "block" : "none";
     }
 
-    // barra porcentaje (usa tus ids stTotal/stHave si existen)
-    if (fill) {
-      let total = 0, have = 0;
-      const stTotal = $id("stTotal");
-      const stHave = $id("stHave");
-      if (stTotal) total = parseInt(stTotal.textContent || "0", 10) || 0;
-      if (stHave) have = parseInt(stHave.textContent || "0", 10) || 0;
-
-      const pct = total ? Math.round((have * 100) / total) : 0;
-      fill.style.width = pct + "%";
+    if (fill && typeof computeStats === "function") {
+      const st = computeStats(col);
+      fill.style.width = (st.pct || 0) + "%";
     }
   }
 
-  // Mantener sincronizado cuando se entra al detalle
   const _origGoDetail = typeof goDetail === "function" ? goDetail : null;
   if (_origGoDetail) {
     window.goDetail = function (id) {
@@ -1734,100 +1635,21 @@ document.addEventListener("DOMContentLoaded", init);
     };
   }
 
-  // Si existe renderDetail lo decoramos
   const _origRender = typeof renderDetail === "function" ? renderDetail : null;
-  if (_origRender) {
-    window.renderDetail = function () {
-      const r = _origRender();
-      renderCoverAndPctBar();
-      return r;
-    };
-  }
-
-  // Migración: asegurar propiedad cover en colecciones viejas
-  document.addEventListener("DOMContentLoaded", () => {
-    try {
-      if (window.state?.data?.collections) {
-        for (const c of window.state.data.collections) {
-          if (c.cover === undefined) c.cover = null;
-        }
-        if (typeof save === "function") save();
-      }
-    } catch {}
-    // pinta create preview si estamos ahí
-    paintCreateCover();
-  });
-})();
-/* =============================
-   FINAL: Cover render + fallback con nombre + pct bar
-   (pegar al FINAL de app.js)
-============================= */
-(function () {
-  if (window.__coverFinalV1) return;
-  window.__coverFinalV1 = true;
-
-  function getColSafe() {
-    try { return (typeof getCurrent === "function") ? getCurrent() : null; }
-    catch { return null; }
-  }
-
-  function paintDetailCover() {
-    const col = getColSafe();
-    if (!col) return;
-
-    const img = document.getElementById("coverImg");
-    const fb  = document.getElementById("coverFallback");
-    if (!img || !fb) return;
-
-    // fallback = nombre centrado
-    const name = (col.name || "").trim();
-    fb.textContent = name || "📘";
-
-    if (col.cover) {
-      img.src = col.cover;
-      img.style.display = "block";
-      fb.style.display = "none";
-    } else {
-      img.removeAttribute("src");
-      img.style.display = "none";
-      fb.style.display = "grid";
-    }
-
-    // barra %
-    const fill = document.getElementById("pctFill");
-    if (fill && typeof computeStats === "function") {
-      const st = computeStats(col);
-      fill.style.width = (st.pct || 0) + "%";
-    }
-  }
-
-  function paintCreateFallbackName() {
-    const input = document.getElementById("newName");
-    const fb = document.getElementById("createCoverFallback");
-    if (!input || !fb) return;
-    fb.textContent = (input.value || "").trim() || "📘";
-  }
-
-  // Envolver renderDetail UNA sola vez (para repintar tapa/barra siempre)
-  if (typeof window.renderDetail === "function" && !window.renderDetail.__coverWrapped) {
-    const orig = window.renderDetail;
+  if (_origRender && !window.renderDetail.__coverWrapped) {
     const wrapped = function () {
-      const r = orig.apply(this, arguments);
-      try { paintDetailCover(); } catch {}
+      const r = _origRender.apply(this, arguments);
+      renderCoverAndPctBar();
       return r;
     };
     wrapped.__coverWrapped = true;
     window.renderDetail = wrapped;
   }
 
-  // Al cargar y cuando cambie el nombre en CREATE
   document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(paintDetailCover, 60);
-    paintCreateFallbackName();
-
-    const nameInput = document.getElementById("newName");
-    if (nameInput) {
-      nameInput.addEventListener("input", paintCreateFallbackName);
-    }
+    paintCreateCover();
+    setTimeout(renderCoverAndPctBar, 80);
+    const nameInput = $id("newName");
+    if (nameInput) nameInput.addEventListener("input", paintCreateCover);
   });
 })();
