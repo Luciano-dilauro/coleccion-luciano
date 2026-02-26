@@ -766,14 +766,18 @@ function createCollection() {
     }
 
     state.data.collections.unshift({
-      id: uid("col"),
-      name,
-      createdAt: Date.now(),
-      structure: "simple",
-      numberMode: "global",
-      sections,
-      items
-    });
+  id: uid("col"),
+  name,
+  createdAt: Date.now(),
+  structure: "simple",
+  numberMode: "global",
+  cover: window.__draftCoverDataUrl || null,   // 👈 NUEVO
+  sections,
+  items
+});
+
+// limpiar draft para la próxima creación
+window.__draftCoverDataUrl = null;
 
     save();
     renderCollectionsSelects();
