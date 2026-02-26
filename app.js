@@ -1004,7 +1004,6 @@ let longPressFired = false;
   };
 
   const onPressStart = () => {
-    longPressed = false;
     clearPress();
     pressTimer = setTimeout(() => {
   doLongPress();
