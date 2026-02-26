@@ -166,53 +166,53 @@
       </div>
     </section>
 
-    <!-- DETAIL -->
-<div class="card detail-header">
-  <div class="row-between">
-    <h1 id="detailTitle" class="h1">Colección</h1>
+<!-- DETAIL -->
+<section class="view" data-view="detail">
+  <div class="card detail-header">
+    <div class="row-between">
+      <h1 id="detailTitle" class="h1">Colección</h1>
 
-    <div class="row gap">
-      <!-- Editar (si lo seguís ocultando por CSS no molesta) -->
-      <button class="btn" type="button" data-action="open-edit">Editar</button>
+      <div class="row gap">
+        <button class="btn" type="button" data-action="open-edit">Editar</button>
 
-      <!-- Exportar -->
-      <button id="btnExport" class="btn primary" type="button" data-action="export-list">Exportar</button>
+        <button id="btnExport" class="btn primary" type="button" data-action="export-list">Exportar</button>
 
-      <!-- NUEVO: Tapa -->
-      <button class="btn" type="button" data-action="cover-pick">Tapa</button>
-      <input id="coverInput" type="file" accept="image/*" style="display:none;" />
+        <button class="btn" type="button" data-action="cover-pick">Tapa</button>
+        <input id="coverInput" type="file" accept="image/*" style="display:none;" />
 
-      <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
-    </div>
-  </div>
-
-  <!-- HERO: tapa + stats compactos -->
-  <div class="detail-hero">
-    <div id="coverBox" class="cover-box">
-      <img id="coverImg" alt="Tapa del álbum" />
-      <div id="coverFallback" class="cover-fallback">📘</div>
+        <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
+      </div>
     </div>
 
-    <div class="detail-side">
-      <div class="stats-compact">
-        <div><span>Total:</span> <b id="stTotal">0</b></div>
-        <div><span>Tengo:</span> <b id="stHave">0</b></div>
-        <div><span>Faltan:</span> <b id="stMissing">0</b></div>
-        <div><span>%:</span> <b id="stPct">0%</b></div>
+    <div class="detail-hero">
+      <div id="coverBox" class="cover-box">
+        <img id="coverImg" alt="Tapa del álbum" />
+        <div id="coverFallback" class="cover-fallback">📘</div>
       </div>
 
-      <div class="pctbar">
-        <div id="pctFill" class="pctfill"></div>
-      </div>
+      <div class="detail-side">
+        <div class="stats-compact">
+          <div><span>Total:</span> <b id="stTotal">0</b></div>
+          <div><span>Tengo:</span> <b id="stHave">0</b></div>
+          <div><span>Faltan:</span> <b id="stMissing">0</b></div>
+          <div><span>%:</span> <b id="stPct">0%</b></div>
+        </div>
 
-      <div class="seg seg-filters" style="margin-top:10px;">
-        <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
-        <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
-        <button id="fRep" class="seg-btn" type="button" data-action="filter-rep">Repetidas</button>
+        <div class="pctbar">
+          <div id="pctFill" class="pctfill"></div>
+        </div>
+
+        <div class="seg seg-filters" style="margin-top:10px;">
+          <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
+          <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
+          <button id="fRep" class="seg-btn" type="button" data-action="filter-rep">Repetidas</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
+
+  <div id="sectionsDetail" class="stack" style="margin-top:14px;"></div>
+</section>
 
     <!-- EDIT -->
     <section class="view" data-view="edit">
