@@ -1002,7 +1002,7 @@ function buildItemCell(it) {
 
   const onPressStart = () => {
     clearPress();
-    pressTimer = setTimeout(doLongPress, 500);
+    pressTimer = setTimeout(doLongPress, 350);
   };
 
   const onPressEnd = () => {
