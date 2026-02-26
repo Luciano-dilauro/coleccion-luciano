@@ -1562,7 +1562,7 @@ document.addEventListener("DOMContentLoaded", init);
       await shareOrCopy(text);
       return;
     }
-  }, true);
+  });
 })();
 
 // ================================
