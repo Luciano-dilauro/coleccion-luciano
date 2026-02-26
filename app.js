@@ -1007,7 +1007,6 @@ function buildItemCell(it) {
     longPressed = false;
     clearPress();
     pressTimer = setTimeout(() => {
-  window.__skipNextTap = true;
   doLongPress();
 }, 500);
   };
