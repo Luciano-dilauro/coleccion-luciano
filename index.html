@@ -106,65 +106,81 @@
       </div>
     </section>
 
-    <!-- CREATE -->
-    <section class="view" data-view="create">
-      <div class="card">
-        <div class="field">
-          <label>Nombre</label>
-          <input id="newName" class="input" type="text" placeholder="Ej: Mundial 2026" />
-        </div>
+<!-- CREATE -->
+<section class="view" data-view="create">
+  <div class="card">
+    <div class="field">
+      <label>Nombre</label>
+      <input id="newName" class="input" type="text" placeholder="Ej: Mundial 2026" />
+    </div>
 
-        <div class="divider"></div>
+    <!-- ✅ NUEVO: Tapa (opcional al crear) -->
+    <div class="field" style="margin-top:10px;">
+      <label>Tapa del álbum (opcional)</label>
 
-        <div class="field">
-          <label>Estructura</label>
-          <div class="seg">
-            <label class="seg-opt">
-              <input type="radio" name="structType" value="simple" checked />
-              <span>Simple</span>
-            </label>
-            <label class="seg-opt">
-              <input type="radio" name="structType" value="sections" />
-              <span>Con secciones</span>
-            </label>
-          </div>
-        </div>
-
-        <div id="simpleBlock">
-          <div class="field">
-            <label>Cantidad total</label>
-            <input id="simpleCount" class="input" type="number" min="1" max="5000" value="100" />
-          </div>
-
-          <div class="field">
-            <label>Especiales (coma)</label>
-            <input id="simpleSpecials" class="input" type="text" placeholder="Ej: 7, 10, 55" />
-          </div>
-        </div>
-
-        <div id="sectionsBlock" style="display:none;">
-          <div class="field">
-            <label>Modo de numeración</label>
-            <select id="numberMode" class="input">
-              <option value="global">Global (correlativa)</option>
-              <option value="perSection">Por sección (reinicia)</option>
-            </select>
-          </div>
-
-          <div id="sectionsEditor" class="stack"></div>
-
-          <button id="btnAddSection" class="btn" type="button" style="margin-top:10px;">
-            + Agregar sección
-          </button>
-        </div>
-
-        <div class="divider"></div>
-        <div class="row gap">
-          <button class="btn" type="button" data-action="create-cancel">Cancelar</button>
-          <button class="btn primary" type="button" data-action="create-save">Crear</button>
-        </div>
+      <div class="row gap" style="align-items:center;">
+        <button class="btn" type="button" data-action="create-cover-pick">Elegir tapa</button>
+        <button class="btn" type="button" data-action="create-cover-clear">Quitar</button>
+        <input id="createCoverInput" type="file" accept="image/*" style="display:none;" />
       </div>
-    </section>
+
+      <div id="createCoverBox" class="cover-box" style="margin-top:10px;">
+        <img id="createCoverImg" alt="Tapa del álbum" />
+        <div id="createCoverFallback" class="cover-fallback">📘</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label>Estructura</label>
+      <div class="seg">
+        <label class="seg-opt">
+          <input type="radio" name="structType" value="simple" checked />
+          <span>Simple</span>
+        </label>
+        <label class="seg-opt">
+          <input type="radio" name="structType" value="sections" />
+          <span>Con secciones</span>
+        </label>
+      </div>
+    </div>
+
+    <div id="simpleBlock">
+      <div class="field">
+        <label>Cantidad total</label>
+        <input id="simpleCount" class="input" type="number" min="1" max="5000" value="100" />
+      </div>
+
+      <div class="field">
+        <label>Especiales (coma)</label>
+        <input id="simpleSpecials" class="input" type="text" placeholder="Ej: 7, 10, 55" />
+      </div>
+    </div>
+
+    <div id="sectionsBlock" style="display:none;">
+      <div class="field">
+        <label>Modo de numeración</label>
+        <select id="numberMode" class="input">
+          <option value="global">Global (correlativa)</option>
+          <option value="perSection">Por sección (reinicia)</option>
+        </select>
+      </div>
+
+      <div id="sectionsEditor" class="stack"></div>
+
+      <button id="btnAddSection" class="btn" type="button" style="margin-top:10px;">
+        + Agregar sección
+      </button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="row gap">
+      <button class="btn" type="button" data-action="create-cancel">Cancelar</button>
+      <button class="btn primary" type="button" data-action="create-save">Crear</button>
+    </div>
+  </div>
+</section>
 
 <!-- DETAIL -->
 <section class="view" data-view="detail">
