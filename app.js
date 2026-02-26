@@ -994,7 +994,6 @@ if (!window.__wiredSkipNextClick) {
   };
 
   const doLongPress = () => {
-    longPressed = true;
   window.__skipNextTap = true;
      
     // si tiene repetidas -> resto
@@ -1031,7 +1030,6 @@ if (!window.__wiredSkipNextClick) {
   window.__skipNextTap = false;
   return;
 }
-     if (longPressed) return;
 
     if (!it.have) {
       it.have = true;
