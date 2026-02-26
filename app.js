@@ -1538,8 +1538,6 @@ document.addEventListener("DOMContentLoaded", init);
     if (!isExportAction) return;
 
     e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
 
     if (a === "export-list") {
       openModal();
