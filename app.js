@@ -971,8 +971,8 @@ function buildItemCell(it) {
   repHidden.textContent = `Rep: ${repCount}`;
 
   // Long-press
-  let pressTimer = null;
-  let longPressed = false;
+ let pressTimer = null;
+let longPressFired = false;
    
   const clearPress = () => {
     if (pressTimer) {
@@ -982,7 +982,7 @@ function buildItemCell(it) {
   };
 
   const doLongPress = () => {
-  window.__lastLongPressAt = Date.now();
+  longPressFired = true;
      
     // si tiene repetidas -> resto
     if ((it.rep || 0) > 0) {
@@ -1016,16 +1016,23 @@ function buildItemCell(it) {
   };
 
   const onTap = () => {
- 
-     const now = Date.now();
-if (now - (window.__lastLongPressAt || 0) < 800) return;
-    if (!it.have) {
-      it.have = true;
-      it.rep = 0;
-      save();
-      renderDetail();
-      return;
-    }
+  if (longPressFired) {
+    longPressFired = false;
+    return;
+  }
+
+  if (!it.have) {
+    it.have = true;
+    it.rep = 0;
+    save();
+    renderDetail();
+    return;
+  }
+
+  it.rep = clamp((it.rep || 0) + 1, 0, 999);
+  save();
+  renderDetail();
+};
 
     it.rep = clamp((it.rep || 0) + 1, 0, 999);
     save();
