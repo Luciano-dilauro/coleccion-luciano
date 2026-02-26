@@ -1751,3 +1751,76 @@ document.addEventListener("DOMContentLoaded", init);
     paintCreateCover();
   });
 })();
+/* =============================
+   FINAL: Cover render + fallback con nombre + pct bar
+   (pegar al FINAL de app.js)
+============================= */
+(function () {
+  if (window.__coverFinalV1) return;
+  window.__coverFinalV1 = true;
+
+  function getColSafe() {
+    try { return (typeof getCurrent === "function") ? getCurrent() : null; }
+    catch { return null; }
+  }
+
+  function paintDetailCover() {
+    const col = getColSafe();
+    if (!col) return;
+
+    const img = document.getElementById("coverImg");
+    const fb  = document.getElementById("coverFallback");
+    if (!img || !fb) return;
+
+    // fallback = nombre centrado
+    const name = (col.name || "").trim();
+    fb.textContent = name || "📘";
+
+    if (col.cover) {
+      img.src = col.cover;
+      img.style.display = "block";
+      fb.style.display = "none";
+    } else {
+      img.removeAttribute("src");
+      img.style.display = "none";
+      fb.style.display = "grid";
+    }
+
+    // barra %
+    const fill = document.getElementById("pctFill");
+    if (fill && typeof computeStats === "function") {
+      const st = computeStats(col);
+      fill.style.width = (st.pct || 0) + "%";
+    }
+  }
+
+  function paintCreateFallbackName() {
+    const input = document.getElementById("newName");
+    const fb = document.getElementById("createCoverFallback");
+    if (!input || !fb) return;
+    fb.textContent = (input.value || "").trim() || "📘";
+  }
+
+  // Envolver renderDetail UNA sola vez (para repintar tapa/barra siempre)
+  if (typeof window.renderDetail === "function" && !window.renderDetail.__coverWrapped) {
+    const orig = window.renderDetail;
+    const wrapped = function () {
+      const r = orig.apply(this, arguments);
+      try { paintDetailCover(); } catch {}
+      return r;
+    };
+    wrapped.__coverWrapped = true;
+    window.renderDetail = wrapped;
+  }
+
+  // Al cargar y cuando cambie el nombre en CREATE
+  document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(paintDetailCover, 60);
+    paintCreateFallbackName();
+
+    const nameInput = document.getElementById("newName");
+    if (nameInput) {
+      nameInput.addEventListener("input", paintCreateFallbackName);
+    }
+  });
+})();
