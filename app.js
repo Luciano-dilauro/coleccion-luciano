@@ -1541,29 +1541,19 @@ document.addEventListener("DOMContentLoaded", init);
 })();
 
 // ================================
-// COVER v2 — Crear + Editar + Fallback con nombre
-// Reemplazá TODO tu bloque actual (desde "// Hook del botón "Tapa"" hasta el final)
+// COVER v3 — Crear + Detalle (fallback con nombre)
+// - CREATE: elegir/quitar tapa (guarda al crear)
+// - DETAIL: muestra tapa si existe, si no muestra nombre de colección
 // ================================
 (function () {
-  // Estado temporal para tapa en "Crear"
-  let draftCoverDataUrl = null;
+  const $id = (id) => document.getElementById(id);
 
   function getCurrentSafe() {
-    try { return (typeof getCurrent === "function") ? getCurrent() : null; }
-    catch { return null; }
-  }
-
-  function ensureHiddenFileInput(id) {
-    let input = document.getElementById(id);
-    if (input) return input;
-
-    input = document.createElement("input");
-    input.id = id;
-    input.type = "file";
-    input.accept = "image/*";
-    input.style.display = "none";
-    document.body.appendChild(input);
-    return input;
+    try {
+      return typeof getCurrent === "function" ? getCurrent() : null;
+    } catch {
+      return null;
+    }
   }
 
   async function fileToDataURL(file) {
@@ -1575,140 +1565,79 @@ document.addEventListener("DOMContentLoaded", init);
     });
   }
 
-  function setCoverFallbackText(name) {
-    const el = document.getElementById("coverFallback");
-    if (!el) return;
-    const txt = (name || "Álbum").trim();
-    el.textContent = txt.length > 18 ? (txt.slice(0, 18) + "…") : txt;
-  }
-
-  function paintDetailCover(col) {
-    const img = document.getElementById("coverImg");
-    const fallback = document.getElementById("coverFallback");
-    if (!img || !fallback) return;
-
-    const has = !!col?.cover;
-    img.style.display = has ? "block" : "none";
-    fallback.style.display = has ? "none" : "flex";
-
-    if (has) {
-      img.src = col.cover;
-    } else {
-      setCoverFallbackText(col?.name);
-    }
-  }
+  // -----------------------------
+  // CREATE: estado temporal tapa
+  // -----------------------------
+  let draftCoverDataUrl = null;
 
   function paintCreateCover() {
-    // Intentamos pintar preview si existe (si no, no pasa nada)
-    const img =
-      document.getElementById("newCoverImg") ||
-      document.getElementById("coverImgCreate");
-    const fallback =
-      document.getElementById("newCoverFallback") ||
-      document.getElementById("coverFallbackCreate");
+    const img = $id("createCoverImg");
+    const fb = $id("createCoverFallback");
+    if (!img || !fb) return;
 
-    if (img && fallback) {
-      const has = !!draftCoverDataUrl;
-      img.style.display = has ? "block" : "none";
-      fallback.style.display = has ? "none" : "flex";
-      if (has) img.src = draftCoverDataUrl;
-    }
+    const has = !!draftCoverDataUrl;
+    img.src = has ? draftCoverDataUrl : "";
+    img.style.display = has ? "block" : "none";
+    fb.style.display = has ? "none" : "grid";
   }
 
-  // Input único para TODA la app
-  const fileInput = ensureHiddenFileInput("coverPicker");
+  function resetCreateCoverDraft() {
+    draftCoverDataUrl = null;
+    paintCreateCover();
+  }
 
-  // A dónde aplicar la próxima imagen elegida
-  let pickTarget = "detail"; // "detail" | "create" | "edit"
+  // Cuando entrás a CREATE (por las dudas)
+  const _origGoCreate = typeof goCreate === "function" ? goCreate : null;
+  if (_origGoCreate) {
+    window.goCreate = function () {
+      const r = _origGoCreate();
+      setTimeout(() => resetCreateCoverDraft(), 20);
+      return r;
+    };
+  } else {
+    // fallback: al cargar
+    document.addEventListener("DOMContentLoaded", () => resetCreateCoverDraft(), { once: true });
+  }
 
-  // ------------------------------
-  // CLICK actions
-  // ------------------------------
+  // Botones de CREATE (elegir/quitar)
   document.addEventListener(
     "click",
     (e) => {
       const btn = e.target?.closest?.("[data-action]");
       if (!btn) return;
+      const a = btn.getAttribute("data-action");
 
-      const action = btn.getAttribute("data-action");
-      if (!action) return;
-
-      // Elegir tapa
-      if (
-        action === "cover-pick" ||           // (por si lo dejás en detalle)
-        action === "cover-create-pick" ||    // crear
-        action === "cover-edit-pick" ||      // editar
-        action === "cover-pick-create" ||    // alias tolerante
-        action === "cover-pick-edit"         // alias tolerante
-      ) {
-        e.preventDefault();
-
-        if (action.includes("create")) pickTarget = "create";
-        else if (action.includes("edit")) pickTarget = "edit";
-        else pickTarget = "detail";
-
-        fileInput.click();
+      if (a === "create-cover-pick") {
+        const input = $id("createCoverInput");
+        if (!input) return alert("No encuentro createCoverInput.");
+        input.click();
         return;
       }
 
-      // Quitar tapa
-      if (
-        action === "cover-clear" ||
-        action === "cover-create-clear" ||
-        action === "cover-edit-clear" ||
-        action === "cover-clear-create" ||
-        action === "cover-clear-edit"
-      ) {
-        e.preventDefault();
-
-        if (action.includes("create")) {
-          draftCoverDataUrl = null;
-          paintCreateCover();
-          return;
-        }
-
-        const col = getCurrentSafe();
-        if (!col) return;
-
-        col.cover = null;
-        if (typeof save === "function") save();
-        if (typeof renderDetail === "function") renderDetail();
-        paintDetailCover(col);
+      if (a === "create-cover-clear") {
+        resetCreateCoverDraft();
+        const input = $id("createCoverInput");
+        if (input) input.value = "";
         return;
       }
     },
     true
   );
 
-  // ------------------------------
-  // Cuando elige imagen
-  // ------------------------------
-  fileInput.addEventListener(
+  // Cambio archivo CREATE
+  document.addEventListener(
     "change",
-    async () => {
-      const file = fileInput.files?.[0];
-      fileInput.value = "";
+    async (e) => {
+      const input = e.target;
+      if (!input || input.id !== "createCoverInput") return;
+
+      const file = input.files?.[0];
+      input.value = "";
       if (!file) return;
 
       try {
-        const dataUrl = await fileToDataURL(file);
-
-        // CREATE → guardamos en borrador
-        if (pickTarget === "create") {
-          draftCoverDataUrl = dataUrl;
-          paintCreateCover();
-          return;
-        }
-
-        // EDIT/DETAIL → guardamos en colección actual
-        const col = getCurrentSafe();
-        if (!col) return;
-
-        col.cover = dataUrl;
-        if (typeof save === "function") save();
-
-        if (typeof renderDetail === "function") renderDetail();
-        paintDetailCover(col);
+        draftCoverDataUrl = await fileToDataURL(file);
+        paintCreateCover();
       } catch {
         alert("No pude cargar la imagen 😔");
       }
@@ -1716,59 +1645,76 @@ document.addEventListener("DOMContentLoaded", init);
     true
   );
 
-  // ------------------------------
-  // Decoramos create-save para inyectar cover al crear
-  // ------------------------------
-  const _origCreateSave = typeof createSave === "function" ? createSave : null;
-  if (_origCreateSave) {
-    window.createSave = function () {
-      const beforeLen = window.state?.data?.collections?.length || 0;
+  // Hook: al CREAR, guardamos cover en la colección
+  // (interceptamos el click del create-save y dejamos que tu lógica haga el resto)
+  document.addEventListener(
+    "click",
+    (e) => {
+      const btn = e.target?.closest?.("[data-action]");
+      if (!btn) return;
+      if (btn.getAttribute("data-action") !== "create-save") return;
 
-      const r = _origCreateSave();
+      // Guardamos el draft en una variable global simple
+      // para que tu create-save la use cuando arma el objeto.
+      window.__draftCoverDataUrl = draftCoverDataUrl || null;
 
-      try {
-        const cols = window.state?.data?.collections || [];
-        const afterLen = cols.length;
+      // (no frenamos nada: tu handler existente sigue)
+    },
+    true
+  );
 
-        // Si se creó una colección nueva y había draftCover, se la pegamos
-        if (draftCoverDataUrl && afterLen > beforeLen) {
-          const created = cols[afterLen - 1];
-          if (created) {
-            created.cover = draftCoverDataUrl;
-            draftCoverDataUrl = null;
+  // -----------------------------
+  // DETAIL: render tapa + pct bar
+  // -----------------------------
+  function renderCoverAndPctBar() {
+    const col = getCurrentSafe();
+    if (!col) return;
 
-            if (typeof save === "function") save();
-            if (typeof renderDetail === "function") renderDetail();
-          }
-        }
-      } catch {}
+    const img = $id("coverImg");
+    const fb = $id("coverFallback");
+    const fill = $id("pctFill");
 
-      return r;
-    };
+    // fallback: mostrar nombre si no hay tapa
+    if (fb) {
+      const hasCover = !!col.cover;
+      fb.style.display = hasCover ? "none" : "grid";
+      fb.textContent = hasCover ? "" : (col.name || "Colección");
+    }
+    if (img) {
+      const hasCover = !!col.cover;
+      img.src = hasCover ? col.cover : "";
+      img.style.display = hasCover ? "block" : "none";
+    }
+
+    // barra porcentaje (usa tus ids stTotal/stHave si existen)
+    if (fill) {
+      let total = 0, have = 0;
+      const stTotal = $id("stTotal");
+      const stHave = $id("stHave");
+      if (stTotal) total = parseInt(stTotal.textContent || "0", 10) || 0;
+      if (stHave) have = parseInt(stHave.textContent || "0", 10) || 0;
+
+      const pct = total ? Math.round((have * 100) / total) : 0;
+      fill.style.width = pct + "%";
+    }
   }
 
-  // ------------------------------
-  // Decoramos renderDetail para asegurar fallback con nombre
-  // ------------------------------
-  const _origRender = typeof renderDetail === "function" ? renderDetail : null;
-  if (_origRender) {
-    window.renderDetail = function () {
-      const r = _origRender();
-      const col = getCurrentSafe();
-      if (col) paintDetailCover(col);
-      return r;
-    };
-  }
-
-  // Si existe goDetail, refrescamos cover al entrar
+  // Mantener sincronizado cuando se entra al detalle
   const _origGoDetail = typeof goDetail === "function" ? goDetail : null;
   if (_origGoDetail) {
     window.goDetail = function (id) {
       const r = _origGoDetail(id);
-      setTimeout(() => {
-        const col = getCurrentSafe();
-        if (col) paintDetailCover(col);
-      }, 60);
+      setTimeout(renderCoverAndPctBar, 60);
+      return r;
+    };
+  }
+
+  // Si existe renderDetail lo decoramos
+  const _origRender = typeof renderDetail === "function" ? renderDetail : null;
+  if (_origRender) {
+    window.renderDetail = function () {
+      const r = _origRender();
+      renderCoverAndPctBar();
       return r;
     };
   }
@@ -1783,5 +1729,7 @@ document.addEventListener("DOMContentLoaded", init);
         if (typeof save === "function") save();
       }
     } catch {}
+    // pinta create preview si estamos ahí
+    paintCreateCover();
   });
 })();
