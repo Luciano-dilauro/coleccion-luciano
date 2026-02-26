@@ -1018,7 +1018,10 @@ if (!window.__wiredSkipNextClick) {
   const onPressStart = () => {
     longPressed = false;
     clearPress();
-    pressTimer = setTimeout(doLongPress, 520);
+    pressTimer = setTimeout(() => {
+  window.__skipNextTap = true;
+  doLongPress();
+}, 500);
   };
 
   const onPressEnd = () => {
