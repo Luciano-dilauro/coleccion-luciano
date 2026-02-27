@@ -594,122 +594,103 @@ label{font-weight:800}
   background:rgba(59,130,246,.55);
   border-radius:999px;
 }
-/* =============================
-   HEADER DETAIL — v2 (limpio)
-   - Tapa grande alineada con botones
-   - Stats a la derecha (columna con aire)
-   - Barra más corta y alineada a la derecha
-   - Filtros a todo el ancho
-   Pegar al FINAL y dejar SOLO ESTE bloque
-============================= */
+/* ==========================================
+   HEADER DETAIL — versión alineada limpia
+   - Tapa rectangular alineada con botones
+   - Stats columna derecha con aire
+   - Barra más corta
+   - Filtros full width
+========================================== */
 
-/* Un poco menos de aire arriba para “subir” la tapa */
+/* Compactamos un poco el header */
 .detail-header{
   padding: 14px !important;
 }
 
-/* Entre botones y hero, más compacto */
+/* Reducimos espacio entre botones y contenido */
 .detail-header .row-between{
   margin-bottom: 8px;
 }
 
-/* Grid: tapa + columna derecha */
+/* Layout principal: tapa + columna derecha */
 .detail-hero{
   display: grid;
-  grid-template-columns: 150px 1fr; /* 👈 ESTE NÚMERO define el tamaño “perfecto” */
-  gap: 14px;
-  margin-top: 0;                  /* 👈 sube la tapa */
+  grid-template-columns: 150px 1fr; /* tamaño tapa */
+  gap: 16px;
   align-items: start;
+  margin-top: 0;
 }
 
-/* Truco: que cover y filtros sean “hijos directos” del grid */
-.detail-left{
-  display: contents;
-}
-
-/* Tapa: cuadrada, grande, prolija */
+/* TAPA rectangular tipo álbum */
 .cover-box{
-  width: 150px;                 /* mismo que la columna */
-  aspect-ratio: 1 / 1;          /* 👈 evita que se haga “remera larga” */
-  border-radius: 20px;
-  border: 1px solid var(--line);
+  width: 150px;
+  aspect-ratio: 3 / 4;  /* rectangular vertical */
+  border-radius: 18px;
   overflow: hidden;
+  border: 1px solid var(--line);
   background: #fff;
-  place-items: center;
 }
 
-/* Imagen */
 #coverImg{
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-/* Fallback */
-#coverFallback{
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  padding: 10px;
-  text-align: center;
-  font-weight: 950;
-}
-
-/* Columna derecha: pegada a la derecha */
+/* Columna derecha */
 .detail-side{
-  justify-self: end;     /* empuja todo a la derecha */
-  width: 100%;
-  max-width: 360px;      /* para que “respire” y no se estire de más */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* empuja stats a la derecha */
+  gap: 10px;
 }
 
-/* Stats: columna + buen aire */
+/* Stats en columna con respiración */
 .stats-compact{
-  display: grid;
-  grid-template-columns: 1fr;   /* columna */
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   font-weight: 900;
 }
 
-/* Cada fila: label izquierda + valor derecha */
 .stats-compact > div{
   display: flex;
   justify-content: space-between;
-  gap: 12px;
 }
 
 .stats-compact span{
   color: var(--muted);
 }
 
-/* Barra: más chica, a la derecha, con aire */
+/* Barra más corta y alineada derecha */
 .pctbar{
-  margin-top: 12px;
-  height: 8px;                 /* 👈 un toque más finita */
   width: 100%;
-  max-width: 320px;            /* 👈 más corta para que no compita */
-  margin-left: auto;           /* a la derecha */
+  max-width: 300px;
+  height: 8px;
+  margin-top: 6px;
   background: rgba(0,0,0,0.06);
   border: 1px solid rgba(0,0,0,0.06);
 }
 
-/* Filtros: a TODO el ancho del header */
+/* Filtros ocupan todo el ancho */
 .seg-filters{
-  grid-column: 1 / -1;         /* ocupa ambas columnas */
+  grid-column: 1 / -1;
   width: 100%;
-  margin-top: 12px !important;
+  margin-top: 16px !important;
 }
 
-/* Mobile: un poquito más chico */
+/* Mobile ajuste */
 @media (max-width:460px){
   .detail-hero{
-    grid-template-columns: 140px 1fr;
+    grid-template-columns: 135px 1fr;
   }
   .cover-box{
-    width: 140px;
+    width: 135px;
   }
   .detail-side{
-    max-width: 100%;
+    align-items: stretch;
   }
   .pctbar{
     max-width: 100%;
