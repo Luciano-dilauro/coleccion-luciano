@@ -965,79 +965,78 @@ function buildItemCell(it) {
   repHidden.className = "item-rep";
   repHidden.textContent = `Rep: ${repCount}`;
 
-  // Long press
-  let pressTimer = null;
-  let longPressFired = false;
+// Long-press (robusto)
+let pressTimer = null;
+let longPressFired = false;
 
-  const clearPress = () => {
-    if (pressTimer) {
-      clearTimeout(pressTimer);
-      pressTimer = null;
-    }
-  };
+const clearPress = () => {
+  if (pressTimer) {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  }
+};
 
-  const doLongPress = () => {
-    longPressFired = true;
+const doLongPress = () => {
+  longPressFired = true;
 
-    // Si tiene repetidas -> resto
-    if ((it.rep || 0) > 0) {
-      it.rep = clamp((it.rep || 0) - 1, 0, 999);
-      save();
-      renderDetail();
-      return;
-    }
-
-    // Si no tiene repetidas pero está marcada -> confirmar desmarcar
-    if (it.have) {
-      const ok = confirm(
-        "⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?"
-      );
-      if (!ok) return;
-      it.have = false;
-      it.rep = 0;
-      save();
-      renderDetail();
-    }
-  };
-
-  const onPressStart = () => {
-    clearPress();
-    pressTimer = setTimeout(doLongPress, 350);
-  };
-
-  const onPressEnd = () => {
-    clearPress();
-  };
-
-  const onTap = () => {
-    // Si venimos de long press, no ejecutar tap
-    if (longPressFired) {
-      longPressFired = false;
-      return;
-    }
-
-    // Tap normal
-    if (!it.have) {
-      it.have = true;
-      it.rep = 0;
-      save();
-      renderDetail();
-      return;
-    }
-
-    it.rep = clamp((it.rep || 0) + 1, 0, 999);
+  // si tiene repetidas -> resto
+  if ((it.rep || 0) > 0) {
+    it.rep = clamp((it.rep || 0) - 1, 0, 999);
     save();
     renderDetail();
-  };
+    return;
+  }
 
-  // Touch + mouse
-  wrap.addEventListener("touchstart", onPressStart, { passive: true });
-  wrap.addEventListener("touchend", () => { onPressEnd(); onTap(); });
-  wrap.addEventListener("touchcancel", onPressEnd);
+  // si no tiene repetidas pero está marcada -> confirmar desmarcar
+  if (it.have) {
+    const ok = confirm("⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?");
+    if (!ok) return;
+    it.have = false;
+    it.rep = 0;
+    save();
+    renderDetail();
+  }
+};
 
-  wrap.addEventListener("mousedown", onPressStart);
-  wrap.addEventListener("mouseup", () => { onPressEnd(); onTap(); });
-  wrap.addEventListener("mouseleave", onPressEnd);
+const onPressStart = () => {
+  longPressFired = false;     // 👈 clave
+  clearPress();
+  pressTimer = setTimeout(doLongPress, 500);
+};
+
+const onPressEnd = () => {
+  clearPress();
+};
+
+const onTap = () => {
+  if (!it.have) {
+    it.have = true;
+    it.rep = 0;
+    save();
+    renderDetail();
+    return;
+  }
+  it.rep = clamp((it.rep || 0) + 1, 0, 999);
+  save();
+  renderDetail();
+};
+
+// Touch + mouse (si hubo longpress, NO TAP)
+wrap.addEventListener("touchstart", onPressStart, { passive: true });
+wrap.addEventListener("touchend", () => {
+  onPressEnd();
+  if (longPressFired) return;     // 👈 clave
+  onTap();
+});
+wrap.addEventListener("touchcancel", onPressEnd);
+
+wrap.addEventListener("mousedown", onPressStart);
+wrap.addEventListener("mouseup", () => {
+  onPressEnd();
+  if (longPressFired) return;     // 👈 clave
+  onTap();
+});
+wrap.addEventListener("mouseleave", onPressEnd);
 
   wrap.appendChild(code);
   wrap.appendChild(repHidden);
