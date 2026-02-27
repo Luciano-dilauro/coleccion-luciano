@@ -635,7 +635,7 @@ label{font-weight:800}
 /* Tapa rectangular (más alta). No se deforma */
 .cover-box{
   width: 128px;
-  height: 160px;
+  height: 185px;
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid var(--line);
