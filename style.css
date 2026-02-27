@@ -595,12 +595,11 @@ label{font-weight:800}
   border-radius:999px;
 }
 /* =============================
-   HEADER DETAIL — v4 (final)
-   - Tapa rectangular
-   - Tapa ARRIBA alineada con botones (parte superior)
-   - Stats en 1 columna
-   - Barra alineada abajo con la tapa
-   - Filtros a todo el ancho
+   HEADER DETAIL — v5 (sin solaparse)
+   - Botones arriba sin absolute
+   - Tapa alineada arriba con botones
+   - Barra baja alineada al pie de la tapa
+   - Filtros full width
 ============================= */
 
 .detail-header{
@@ -610,85 +609,62 @@ label{font-weight:800}
   z-index: 40;
 }
 
-/* Botones flotantes arriba derecha (no empujan el layout) */
-.detail-header .detail-actions{
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  left: 14px;
-  z-index: 5;
-
+/* Botones arriba a la derecha */
+.detail-actions{
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 }
 
-/* HERO: 2 columnas + fila de filtros abajo */
+/* HERO: 2 columnas */
 .detail-hero{
-  margin-top: 0 !important;
-
+  margin-top: 12px;
   display: grid;
   grid-template-columns: 150px 1fr;
-  grid-template-areas:
-    "left right"
-    "filters filters";
-  column-gap: 14px;
-  row-gap: 12px;
-
-  align-items: start;
+  gap: 14px;
+  align-items: start; /* tapa y stats arriba */
 }
 
-/* Columna izquierda */
-.detail-left{ grid-area: left; }
-
 /* Tapa rectangular tipo álbum */
-.cover-box{
+.detail-left .cover-box{
   width: 150px;
   aspect-ratio: 3 / 4;
   border-radius: 18px;
   border: 1px solid var(--line);
   background: #fff;
   overflow: hidden;
-  display: grid;
-  place-items: center;
 }
+
+/* Imagen tapa */
 #coverImg{
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: none;
 }
 
-/* Columna derecha: estira para poder “pegar” la barra abajo */
+/* Columna derecha: stats arriba, barra abajo */
 .detail-side{
-  grid-area: right;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100%;
 }
 
-/* Stats: 1 columna, valor a la derecha */
+/* Stats en 1 columna, “respiran” */
 .stats-compact{
   display: grid;
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 8px;
   font-weight: 900;
 }
 .stats-compact > div{
   display: flex;
-  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
 }
-.stats-compact span{
-  color: var(--muted);
-  font-weight: 900;
-}
-.stats-compact b{
-  font-size: 20px;
-}
+.stats-compact span{ color: var(--muted); }
+.stats-compact b{ font-size: 18px; }
 
-/* Barra: se va al fondo de la columna derecha */
+/* Barra: empujada abajo para alinear con el borde inferior de la tapa */
 .pctbar{
   margin-top: auto;
   height: 10px;
@@ -704,21 +680,14 @@ label{font-weight:800}
   background: rgba(59,130,246,.55);
 }
 
-/* Filtros: fila abajo, ocupan todo el ancho */
-.detail-filters{ grid-area: filters; }
-.detail-filters .seg-filters{
+/* Filtros full width debajo del hero */
+.detail-filters{
+  margin-top: 12px;
   width: 100%;
 }
 
 /* Mobile */
 @media (max-width:460px){
-  .detail-hero{
-    grid-template-columns: 132px 1fr;
-  }
-  .cover-box{
-    width: 132px;
-  }
-  .stats-compact b{
-    font-size: 18px;
-  }
+  .detail-hero{ grid-template-columns: 140px 1fr; }
+  .detail-left .cover-box{ width: 140px; }
 }
