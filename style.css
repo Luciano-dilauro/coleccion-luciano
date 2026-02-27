@@ -595,84 +595,97 @@ label{font-weight:800}
   border-radius:999px;
 }
 /* =============================
-   HEADER DETAIL — v5 (sin solaparse)
-   - Botones arriba sin absolute
-   - Tapa alineada arriba con botones
-   - Barra baja alineada al pie de la tapa
+   HEADER DETAIL — vFINAL
+   - Tapa rectangular, MISMO ANCHO, más alta hacia ARRIBA
+   - Botones flotantes arriba
+   - Stats bajan un poco (solo derecha) para no chocar con botones
    - Filtros full width
 ============================= */
 
 .detail-header{
-  padding: 14px !important;
   position: sticky;
   top: var(--topbar-total);
   z-index: 40;
+  padding: 14px !important;
 }
 
-/* Botones arriba a la derecha */
-.detail-actions{
+/* Botones flotantes arriba a la derecha */
+.detail-header .detail-actions{
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  left: 14px;
+  z-index: 5;
+
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  pointer-events: auto;
 }
 
-/* HERO: 2 columnas */
+/* HERO: arranca arriba (sin espacio blanco) */
 .detail-hero{
-  margin-top: 12px;
+  margin-top: 0 !important;
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 128px 1fr; /* MISMO ancho tapa */
   gap: 14px;
-  align-items: start; /* tapa y stats arriba */
+  align-items: start;
 }
 
-/* Tapa rectangular tipo álbum */
-.detail-left .cover-box{
-  width: 150px;
-  aspect-ratio: 3 / 4;
+/* Tapa rectangular (más alta). No se deforma */
+.cover-box{
+  width: 128px;
+  aspect-ratio: 3 / 4;     /* rectangular */
   border-radius: 18px;
+  overflow: hidden;
   border: 1px solid var(--line);
   background: #fff;
-  overflow: hidden;
+  display: grid;
+  place-items: center;
 }
 
-/* Imagen tapa */
+/* Imagen ocupa todo */
 #coverImg{
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-/* Columna derecha: stats arriba, barra abajo */
+/* ✅ Clave:
+   La tapa queda “arriba”.
+   Solo bajamos la columna derecha para que no quede debajo de Export/Reset. */
 .detail-side{
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+  padding-top: 56px; /* ajusta si querés 52/58 */
 }
 
-/* Stats en 1 columna, “respiran” */
+/* Stats en 1 columna (respiran) */
 .stats-compact{
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
   font-weight: 900;
 }
+
 .stats-compact > div{
   display: flex;
   justify-content: space-between;
   gap: 12px;
 }
-.stats-compact span{ color: var(--muted); }
-.stats-compact b{ font-size: 18px; }
 
-/* Barra: empujada abajo para alinear con el borde inferior de la tapa */
+.stats-compact span{
+  color: var(--muted);
+}
+
+/* Barra: un poquito separada y alineada visualmente */
 .pctbar{
-  margin-top: auto;
+  margin-top: 10px;
   height: 10px;
   border-radius: 999px;
   background: rgba(0,0,0,0.06);
   overflow: hidden;
   border: 1px solid rgba(0,0,0,0.06);
 }
+
 .pctfill{
   height: 100%;
   width: 0%;
@@ -680,14 +693,14 @@ label{font-weight:800}
   background: rgba(59,130,246,.55);
 }
 
-/* Filtros full width debajo del hero */
+/* Filtros full width */
 .detail-filters{
   margin-top: 12px;
-  width: 100%;
 }
 
-/* Mobile */
+/* Mobile tweaks */
 @media (max-width:460px){
-  .detail-hero{ grid-template-columns: 140px 1fr; }
-  .detail-left .cover-box{ width: 140px; }
+  .detail-hero{ grid-template-columns: 118px 1fr; }
+  .cover-box{ width: 118px; }
+  .detail-side{ padding-top: 54px; }
 }
