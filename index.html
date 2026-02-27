@@ -186,11 +186,11 @@
 <section class="view" data-view="detail">
   <div class="card detail-header">
 
-    <!-- (1) Mantengo el h1 para que el JS siga funcionando, pero lo ocultamos luego por CSS -->
+    <!-- Mantengo el h1 para que el JS siga funcionando -->
     <h1 id="detailTitle" class="h1" style="display:none;">Colección</h1>
 
     <!-- Botones arriba a la derecha -->
-    <div class="row-between">
+    <div class="row-between detail-actions">
       <div></div>
       <div class="row gap">
         <button id="btnExport" class="btn primary" type="button" data-action="export-list">Exportar</button>
@@ -198,9 +198,9 @@
       </div>
     </div>
 
-    <!-- HERO -->
-    <div class="detail-hero" style="margin-top:12px;">
-      <!-- Col izquierda: tapa -->
+    <!-- HERO: 2 columnas + filtros abajo ocupando TODO el ancho -->
+    <div class="detail-hero">
+      <!-- Columna izquierda -->
       <div class="detail-left">
         <div id="coverBox" class="cover-box">
           <img id="coverImg" alt="Tapa del álbum" />
@@ -208,21 +208,21 @@
         </div>
       </div>
 
-      <!-- Col derecha: stats + barra -->
+      <!-- Columna derecha -->
       <div class="detail-side">
         <div class="stats-compact">
           <div><span>Total:</span> <b id="stTotal">0</b></div>
           <div><span>Tengo:</span> <b id="stHave">0</b></div>
           <div><span>Faltan:</span> <b id="stMissing">0</b></div>
-          <div class="stat-pct"><span>%:</span> <b id="stPct">0%</b></div>
+          <div><span>Progreso:</span> <b id="stPct">0%</b></div>
         </div>
 
-        <div class="pctbar" style="margin-top:10px;">
+        <div class="pctbar">
           <div id="pctFill" class="pctfill"></div>
         </div>
       </div>
 
-      <!-- ✅ Pill full width -->
+      <!-- Filtros a TODO el ancho -->
       <div class="detail-filters">
         <div class="seg seg-filters">
           <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
@@ -232,6 +232,9 @@
       </div>
     </div>
   </div>
+
+  <div id="sectionsDetail" class="stack" style="margin-top:14px;"></div>
+</section>
 
   <div id="sectionsDetail" class="stack" style="margin-top:14px;"></div>
 </section>
