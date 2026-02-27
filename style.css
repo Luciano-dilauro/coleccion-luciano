@@ -659,3 +659,9 @@ label{font-weight:800}
     width:130px;
   }
 }
+/* 🔥 KILL SWITCH cover-box */
+.detail-header .cover-box{
+  width: 150px !important;
+  height: auto !important;      /* mata height fijo viejo */
+  aspect-ratio: 3 / 4 !important;
+}
