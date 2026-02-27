@@ -594,105 +594,146 @@ label{font-weight:800}
   background:rgba(59,130,246,.55);
   border-radius:999px;
 }
-/* ==========================================
-   HEADER DETAIL — versión alineada limpia
-   - Tapa rectangular alineada con botones
-   - Stats columna derecha con aire
-   - Barra más corta
-   - Filtros full width
-========================================== */
+/* =============================
+   HEADER DETAIL — v3 (alineación tapa con botones)
+   Pegar al FINAL de style.css (y dejar SOLO este bloque de header)
+============================= */
 
-/* Compactamos un poco el header */
+/* Header compacto */
 .detail-header{
   padding: 14px !important;
+  position: sticky;
+  top: var(--topbar-total);
 }
 
-/* Reducimos espacio entre botones y contenido */
+/* Botones flotantes arriba a la derecha */
 .detail-header .row-between{
-  margin-bottom: 8px;
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  left: 14px;
+  z-index: 5;
+
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
-/* Layout principal: tapa + columna derecha */
+/* El hero ya no “baja” por los botones: arranca arriba */
 .detail-hero{
+  margin-top: 0 !important;
+
   display: grid;
-  grid-template-columns: 150px 1fr; /* tamaño tapa */
-  gap: 16px;
+  grid-template-columns: 138px 1fr;   /* tapa + columna info */
+  grid-template-rows: auto auto;      /* hero + pill full width */
+  gap: 12px 14px;
   align-items: start;
-  margin-top: 0;
 }
 
-/* TAPA rectangular tipo álbum */
+/* Clave: los hijos de .detail-left pasan a ser items del grid */
+.detail-left{
+  display: contents;
+}
+
+/* Tapa: arranca arriba y queda alineada con el TOP de los botones */
+#coverBox.cover-box,
 .cover-box{
-  width: 150px;
-  aspect-ratio: 3 / 4;  /* rectangular vertical */
+  grid-column: 1;
+  grid-row: 1;
+
+  width: 138px;
+  aspect-ratio: 3 / 4;
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid var(--line);
   background: #fff;
 }
 
+/* Imagen dentro */
 #coverImg{
-  width: 100%;
-  height: 100%;
+  width:100%;
+  height:100%;
   object-fit: cover;
 }
 
-/* Columna derecha */
+/* Columna derecha (stats + barra) */
 .detail-side{
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end; /* empuja stats a la derecha */
-  gap: 10px;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+
+  /* Esto empuja las stats para que arranquen debajo de los botones */
+  padding-top: 62px; /* ajustable fino si tus botones cambian de alto */
 }
 
-/* Stats en columna con respiración */
+/* Stats: 4 filas en columna, respirando a la derecha */
 .stats-compact{
-  width: 100%;
-  max-width: 340px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto; /* label izquierda, número derecha */
+  row-gap: 10px;
+  column-gap: 14px;
   font-weight: 900;
-}
-
-.stats-compact > div{
-  display: flex;
-  justify-content: space-between;
 }
 
 .stats-compact span{
   color: var(--muted);
 }
 
-/* Barra más corta y alineada derecha */
+.stats-compact b{
+  font-size: 22px;
+  text-align: right;
+}
+
+/* Barra: más abajo y sin quedar tapada */
 .pctbar{
-  width: 100%;
-  max-width: 300px;
-  height: 8px;
-  margin-top: 6px;
+  margin-top: 14px;
+  height: 10px;
+  border-radius: 999px;
   background: rgba(0,0,0,0.06);
+  overflow: hidden;
   border: 1px solid rgba(0,0,0,0.06);
 }
 
-/* Filtros ocupan todo el ancho */
-.seg-filters{
-  grid-column: 1 / -1;
-  width: 100%;
-  margin-top: 16px !important;
+.pctfill{
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: rgba(59,130,246,.55);
 }
 
-/* Mobile ajuste */
+/* Pill full width debajo (ocupa todo el header) */
+.seg-filters{
+  grid-column: 1 / -1;
+  grid-row: 2;
+
+  width: 100%;
+  margin-top: 4px !important;
+
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px;
+  background: #fff;
+
+  display: flex;
+  gap: 10px;
+}
+
+/* Botones del pill con mismo ancho */
+.seg-filters .seg-btn{
+  flex: 1;
+}
+
+/* Mobile: ajustito */
 @media (max-width:460px){
   .detail-hero{
-    grid-template-columns: 135px 1fr;
+    grid-template-columns: 124px 1fr;
   }
+  #coverBox.cover-box,
   .cover-box{
-    width: 135px;
+    width: 124px;
   }
+
   .detail-side{
-    align-items: stretch;
-  }
-  .pctbar{
-    max-width: 100%;
+    padding-top: 60px;
   }
 }
