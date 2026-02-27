@@ -595,145 +595,66 @@ label{font-weight:800}
   border-radius:999px;
 }
 /* =============================
-   HEADER DETAIL — v3 (alineación tapa con botones)
-   Pegar al FINAL de style.css (y dejar SOLO este bloque de header)
-============================= */
+   DETAIL HEADER — layout final (SAFE)
+   - tapa alineada con el "techo" de Export/Reset
+   - pill a todo el ancho
+   ============================= */
 
-/* Header compacto */
 .detail-header{
-  padding: 14px !important;
-  position: sticky;
-  top: var(--topbar-total);
+  padding: 14px !important; /* mantiene el header compacto */
 }
 
-/* Botones flotantes arriba a la derecha */
-.detail-header .row-between{
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  left: 14px;
-  z-index: 5;
+/* Layout 1: 2 columnas */
+.detail-hero{
+  display: grid;
+  grid-template-columns: 150px 1fr; /* tapa + contenido */
+  gap: 14px;
+  align-items: start;
+  margin-top: 0 !important; /* por si quedó inline viejo */
+}
 
+/* Columna derecha: botones arriba, stats debajo */
+.detail-right{
+  min-width: 0;
+}
+
+/* Botonera */
+.detail-actions{
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  margin-bottom: 10px;
 }
 
-/* El hero ya no “baja” por los botones: arranca arriba */
-.detail-hero{
-  margin-top: 0 !important;
-
-  display: grid;
-  grid-template-columns: 138px 1fr;   /* tapa + columna info */
-  grid-template-rows: auto auto;      /* hero + pill full width */
-  gap: 12px 14px;
-  align-items: start;
-}
-
-/* Clave: los hijos de .detail-left pasan a ser items del grid */
-.detail-left{
-  display: contents;
-}
-
-/* Tapa: arranca arriba y queda alineada con el TOP de los botones */
-#coverBox.cover-box,
-.cover-box{
-  grid-column: 1;
-  grid-row: 1;
-
-  width: 138px;
-  aspect-ratio: 3 / 4;
-  border-radius: 18px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  background: #fff;
-}
-
-/* Imagen dentro */
-#coverImg{
-  width:100%;
-  height:100%;
-  object-fit: cover;
-}
-
-/* Columna derecha (stats + barra) */
-.detail-side{
-  grid-column: 2;
-  grid-row: 1;
-  min-width: 0;
-
-  /* Esto empuja las stats para que arranquen debajo de los botones */
-  padding-top: 62px; /* ajustable fino si tus botones cambian de alto */
-}
-
-/* Stats: 4 filas en columna, respirando a la derecha */
+/* Stats en columna, con buen aire */
 .stats-compact{
   display: grid;
-  grid-template-columns: 1fr auto; /* label izquierda, número derecha */
-  row-gap: 10px;
-  column-gap: 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
   font-weight: 900;
 }
-
 .stats-compact span{
   color: var(--muted);
 }
 
-.stats-compact b{
-  font-size: 22px;
-  text-align: right;
-}
-
-/* Barra: más abajo y sin quedar tapada */
+/* Barra un poco más abajo y sin pisarse */
 .pctbar{
-  margin-top: 14px;
+  margin-top: 12px !important;
   height: 10px;
   border-radius: 999px;
-  background: rgba(0,0,0,0.06);
   overflow: hidden;
+  background: rgba(0,0,0,0.06);
   border: 1px solid rgba(0,0,0,0.06);
 }
 
-.pctfill{
-  height: 100%;
-  width: 0%;
-  border-radius: 999px;
-  background: rgba(59,130,246,.55);
-}
-
-/* Pill full width debajo (ocupa todo el header) */
-.seg-filters{
-  grid-column: 1 / -1;
-  grid-row: 2;
-
+/* Layout 2: pill full width */
+.detail-filters{
   width: 100%;
-  margin-top: 4px !important;
-
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 6px;
-  background: #fff;
-
-  display: flex;
-  gap: 10px;
+  margin-top: 12px;
 }
 
-/* Botones del pill con mismo ancho */
-.seg-filters .seg-btn{
-  flex: 1;
-}
-
-/* Mobile: ajustito */
+/* Responsive */
 @media (max-width:460px){
-  .detail-hero{
-    grid-template-columns: 124px 1fr;
-  }
-  #coverBox.cover-box,
-  .cover-box{
-    width: 124px;
-  }
-
-  .detail-side{
-    padding-top: 60px;
-  }
+  .detail-hero{ grid-template-columns: 140px 1fr; }
+  .detail-actions{ justify-content: center; } /* en móvil queda más lindo */
 }
