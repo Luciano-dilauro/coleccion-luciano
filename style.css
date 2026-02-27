@@ -688,3 +688,68 @@ label{font-weight:800}
   .detail-hero{ grid-template-columns: 118px 1fr; }
   .cover-box{ width: 118px; }
 }
+/* =============================
+   HEADER DETAIL — Ajuste fino (SAFE)
+   Mantiene altura actual
+============================= */
+
+/* 1) Topbar perfectamente centrado (sin romper nada) */
+.topbar{
+  display:grid !important;
+  grid-template-columns: 44px 1fr 44px;
+  align-items:center;
+}
+.topbar-title{
+  text-align:center;
+  justify-self:center;
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* 2) HERO: agrandar tapa sin cambiar altura total */
+.detail-hero{
+  grid-template-columns: 150px 1fr; /* antes ~128 */
+  gap:14px;
+  align-items:start; /* alinea arriba con botones */
+}
+
+/* Caja más grande pero proporcional */
+.cover-box{
+  width:150px;
+  aspect-ratio:3/4;
+}
+
+/* 3) Stats en 4 filas encolumnadas */
+.stats-compact{
+  display:grid;
+  grid-template-columns:1fr;  /* una columna */
+  gap:6px;
+  font-weight:900;
+}
+
+/* Más aire entre stats y barra */
+.pctbar{
+  margin-top:14px;
+}
+
+/* 4) Filtros ocupan todo el ancho del header */
+.seg-filters{
+  width:100%;
+  margin-top:14px;
+}
+
+.seg-filters .seg-btn{
+  flex:1;
+}
+
+/* Micro ajuste responsive para que no explote en pantallas chicas */
+@media (max-width:460px){
+  .detail-hero{
+    grid-template-columns:130px 1fr;
+  }
+  .cover-box{
+    width:130px;
+  }
+}
