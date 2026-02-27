@@ -595,73 +595,123 @@ label{font-weight:800}
   border-radius:999px;
 }
 /* =============================
-   HEADER DETAIL — Ajuste fino (SAFE)
-   Mantiene altura actual
+   HEADER DETAIL — v2 (limpio)
+   - Tapa grande alineada con botones
+   - Stats a la derecha (columna con aire)
+   - Barra más corta y alineada a la derecha
+   - Filtros a todo el ancho
+   Pegar al FINAL y dejar SOLO ESTE bloque
 ============================= */
 
-/* 1) Topbar perfectamente centrado (sin romper nada) */
-.topbar{
-  display:grid !important;
-  grid-template-columns: 44px 1fr 44px;
-  align-items:center;
-}
-.topbar-title{
-  text-align:center;
-  justify-self:center;
-  min-width:0;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+/* Un poco menos de aire arriba para “subir” la tapa */
+.detail-header{
+  padding: 14px !important;
 }
 
-/* 2) HERO: agrandar tapa sin cambiar altura total */
+/* Entre botones y hero, más compacto */
+.detail-header .row-between{
+  margin-bottom: 8px;
+}
+
+/* Grid: tapa + columna derecha */
 .detail-hero{
-  grid-template-columns: 150px 1fr; /* antes ~128 */
-  gap:14px;
-  align-items:start; /* alinea arriba con botones */
+  display: grid;
+  grid-template-columns: 150px 1fr; /* 👈 ESTE NÚMERO define el tamaño “perfecto” */
+  gap: 14px;
+  margin-top: 0;                  /* 👈 sube la tapa */
+  align-items: start;
 }
 
-/* Caja más grande pero proporcional */
+/* Truco: que cover y filtros sean “hijos directos” del grid */
+.detail-left{
+  display: contents;
+}
+
+/* Tapa: cuadrada, grande, prolija */
 .cover-box{
-  width:150px;
-  aspect-ratio:3/4;
+  width: 150px;                 /* mismo que la columna */
+  aspect-ratio: 1 / 1;          /* 👈 evita que se haga “remera larga” */
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  background: #fff;
+  place-items: center;
 }
 
-/* 3) Stats en 4 filas encolumnadas */
+/* Imagen */
+#coverImg{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Fallback */
+#coverFallback{
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  text-align: center;
+  font-weight: 950;
+}
+
+/* Columna derecha: pegada a la derecha */
+.detail-side{
+  justify-self: end;     /* empuja todo a la derecha */
+  width: 100%;
+  max-width: 360px;      /* para que “respire” y no se estire de más */
+}
+
+/* Stats: columna + buen aire */
 .stats-compact{
-  display:grid;
-  grid-template-columns:1fr;  /* una columna */
-  gap:6px;
-  font-weight:900;
+  display: grid;
+  grid-template-columns: 1fr;   /* columna */
+  gap: 10px;
+  font-weight: 900;
 }
 
-/* Más aire entre stats y barra */
+/* Cada fila: label izquierda + valor derecha */
+.stats-compact > div{
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stats-compact span{
+  color: var(--muted);
+}
+
+/* Barra: más chica, a la derecha, con aire */
 .pctbar{
-  margin-top:14px;
+  margin-top: 12px;
+  height: 8px;                 /* 👈 un toque más finita */
+  width: 100%;
+  max-width: 320px;            /* 👈 más corta para que no compita */
+  margin-left: auto;           /* a la derecha */
+  background: rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.06);
 }
 
-/* 4) Filtros ocupan todo el ancho del header */
+/* Filtros: a TODO el ancho del header */
 .seg-filters{
-  width:100%;
-  margin-top:14px;
+  grid-column: 1 / -1;         /* ocupa ambas columnas */
+  width: 100%;
+  margin-top: 12px !important;
 }
 
-.seg-filters .seg-btn{
-  flex:1;
-}
-
-/* Micro ajuste responsive para que no explote en pantallas chicas */
+/* Mobile: un poquito más chico */
 @media (max-width:460px){
   .detail-hero{
-    grid-template-columns:130px 1fr;
+    grid-template-columns: 140px 1fr;
   }
   .cover-box{
-    width:130px;
+    width: 140px;
   }
-}
-/* 🔥 KILL SWITCH cover-box */
-.detail-header .cover-box{
-  width: 150px !important;
-  height: auto !important;      /* mata height fijo viejo */
-  aspect-ratio: 3 / 4 !important;
+  .detail-side{
+    max-width: 100%;
+  }
+  .pctbar{
+    max-width: 100%;
+  }
 }
