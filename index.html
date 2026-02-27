@@ -186,16 +186,18 @@
 <section class="view" data-view="detail">
   <div class="card detail-header">
 
-    <!-- Mantengo el h1 para que el JS siga funcionando -->
     <h1 id="detailTitle" class="h1" style="display:none;">Colección</h1>
 
-    <!-- (A) Botones: arriba, en el flujo normal (NO absolute) -->
-    <div class="detail-actions">
-      <button id="btnExport" class="btn primary" type="button" data-action="export-list">Exportar</button>
-      <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
+    <!-- Botones (quedan flotando por CSS) -->
+    <div class="row-between detail-actions">
+      <div></div>
+      <div class="row gap">
+        <button id="btnExport" class="btn primary" type="button" data-action="export-list">Exportar</button>
+        <button class="btn danger" type="button" data-action="reset-collection">Reset</button>
+      </div>
     </div>
 
-    <!-- (B) HERO: tapa izquierda / stats+barra derecha -->
+    <!-- HERO: tapa izquierda, stats derecha -->
     <div class="detail-hero">
       <div class="detail-left">
         <div id="coverBox" class="cover-box">
@@ -218,20 +220,13 @@
       </div>
     </div>
 
-    <!-- (C) Filtros: ancho completo -->
+    <!-- ✅ Filtros full width -->
     <div class="seg seg-filters detail-filters">
       <button id="fAll" class="seg-btn is-active" type="button" data-action="filter-all">Todas</button>
       <button id="fMiss" class="seg-btn" type="button" data-action="filter-miss">Faltan</button>
       <button id="fRep" class="seg-btn" type="button" data-action="filter-rep">Repetidas</button>
     </div>
-
   </div>
-
-  <div id="sectionsDetail" class="stack" style="margin-top:14px;"></div>
-</section>
-
-  <div id="sectionsDetail" class="stack" style="margin-top:14px;"></div>
-</section>
 
   <div id="sectionsDetail" class="stack" style="margin-top:14px;"></div>
 </section>
