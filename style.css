@@ -634,7 +634,7 @@ label{font-weight:800}
 
   /* alineación con el inicio de los labels:
      14px (padding del header) + 128px (tapa) + 28px (margen labels) */
-  left: calc(14px + 14px + 128px + 28px);
+  left: calc(14px + 128px + 14px + 28px);
   right: 14px;
 
   display: flex;
