@@ -204,10 +204,10 @@ function setView(view) {
   for (const v of els.views) v.classList.toggle("is-active", v.dataset.view === view);
 
   if (view === "dash") {
-    if (els.topbarTitle) els.topbarTitle.textContent = "Colecciones Lucho";
+    if (els.topbarTitle) els.topbarTitle.textContent = "Principal";
     els.backBtn?.classList.add("hidden");
   } else if (view === "collections") {
-    if (els.topbarTitle) els.topbarTitle.textContent = "Mis colecciones";
+    if (els.topbarTitle) els.topbarTitle.textContent = "Colecciones";
     els.backBtn?.classList.remove("hidden");
   } else if (view === "loadedit") {
     if (els.topbarTitle) els.topbarTitle.textContent = "Carga / Edición";
