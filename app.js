@@ -235,6 +235,13 @@ function goDash() {
 }
 function goCollections() {
   renderCollectionsSelects();
+
+  // ✅ Siempre volver al placeholder al entrar a "Mis colecciones"
+  if (els.collectionsSelect) {
+    els.collectionsSelect.value = "";
+    els.collectionsSelect.selectedIndex = 0;
+  }
+
   setView("collections");
 }
 function goLoadEdit() {
