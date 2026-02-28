@@ -629,11 +629,19 @@ label{font-weight:800}
 
 /* Botones flotantes arriba a la derecha */
 .detail-header .detail-actions{
-  position: static;
+  position: absolute;
+  top: 14px;
+
+  /* alineación con el inicio de los labels:
+     14px (padding del header) + 128px (tapa) + 28px (margen labels) */
+  left: calc(14px + 128px + 28px);
+  right: 14px;
+
   display: flex;
   justify-content: space-between;
-  margin-left: 28px;
   gap: 10px;
+  pointer-events: auto;
+  z-index: 5;
 }
 
 /* HERO: arranca arriba (sin espacio blanco) */
