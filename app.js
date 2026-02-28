@@ -1292,7 +1292,7 @@ function handleImportFile(file) {
       save();
 
       renderCollectionsSelects();
-      goCollections();
+      goMain();
       alert("Backup importado ✅ (Reemplazar)");
     } catch {
       alert("Error al importar el backup.");
