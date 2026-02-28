@@ -151,6 +151,11 @@ label{font-weight:800}
   border-color:rgba(239,68,68,.35);
   background:rgba(239,68,68,.12);
   color:#b91c1c;
+  .detail-header .btn{
+  padding:8px 16px;
+  border-radius:18px;
+  font-size:15px;
+}
 }
 
 /* Dashboard */
