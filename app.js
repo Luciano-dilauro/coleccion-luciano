@@ -1292,8 +1292,11 @@ function handleImportFile(file) {
       save();
 
       renderCollectionsSelects();
-      goDash();
-      alert("Backup importado ✅ (Reemplazar)");
+goDash();
+
+setTimeout(() => {
+  alert("Backup importado ✅ (Reemplazar)");
+}, 50);
     } catch (err) {
    console.error("IMPORT ERROR:", err);
    alert("Error al importar el backup.\n\n" + err.message);
