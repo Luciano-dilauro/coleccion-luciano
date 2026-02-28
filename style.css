@@ -633,7 +633,7 @@ label{font-weight:800}
   top: 14px;
 
   /* 14 padding + 128 tapa + 14 gap + 32 corrimiento */
-  left: calc(14px + 128px + 14px + 32px);
+  left: 260px !important;
   right: 14px;
 
   display: flex;
