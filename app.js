@@ -1294,9 +1294,10 @@ function handleImportFile(file) {
       renderCollectionsSelects();
       goMain();
       alert("Backup importado ✅ (Reemplazar)");
-    } catch {
-      alert("Error al importar el backup.");
-    }
+    } catch (err) {
+   console.error("IMPORT ERROR:", err);
+   alert("Error al importar el backup.\n\n" + err.message);
+}
   };
   reader.readAsText(file);
 }
