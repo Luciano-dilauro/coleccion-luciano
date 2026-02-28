@@ -672,7 +672,7 @@ label{font-weight:800}
   grid-template-columns: 1fr;
   gap: 8px;
   font-weight: 900;
-  margin-left: 24px;
+  margin-left: 28px;
 }
 
 .stats-compact > div{
@@ -688,7 +688,7 @@ label{font-weight:800}
 /* Barra: un poquito separada y alineada visualmente */
 .pctbar{
   margin-top: 10px;
-  margin-left: 24px;
+  margin-left: 28px;
   height: 10px;
   border-radius: 999px;
   background: rgba(0,0,0,0.06);
