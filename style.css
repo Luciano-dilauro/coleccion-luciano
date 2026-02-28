@@ -632,8 +632,8 @@ label{font-weight:800}
   position: absolute;
   top: 14px;
 
-  /* 14 padding + 128 tapa + 14 gap + 28 corrimiento */
-  left: calc(14px + 128px + 14px + 28px);
+  /* 14 padding + 128 tapa + 14 gap + 32 corrimiento */
+  left: calc(14px + 128px + 14px + 32px);
   right: 14px;
 
   display: flex;
