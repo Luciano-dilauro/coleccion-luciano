@@ -37,6 +37,8 @@ body{
 
   display:flex;
   align-items:center;
+  justify-content: center;
+  position: relative;
   gap:10px;
   padding-left:16px;
   padding-right:16px;
@@ -50,6 +52,9 @@ body{
   font-weight:900;
   font-size:26px;
   letter-spacing:-.02em;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 .topbar-spacer{flex:1}
 .icon-btn{
