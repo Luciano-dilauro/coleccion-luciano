@@ -672,6 +672,7 @@ label{font-weight:800}
   grid-template-columns: 1fr;
   gap: 8px;
   font-weight: 900;
+  margin-left: 16px;
 }
 
 .stats-compact > div{
