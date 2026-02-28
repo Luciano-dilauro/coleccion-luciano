@@ -629,16 +629,11 @@ label{font-weight:800}
 
 /* Botones flotantes arriba a la derecha */
 .detail-header .detail-actions{
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  left: 14px;
-  z-index: 5;
-
+  position: static;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  margin-left: 28px;
   gap: 10px;
-  pointer-events: auto;
 }
 
 /* HERO: arranca arriba (sin espacio blanco) */
