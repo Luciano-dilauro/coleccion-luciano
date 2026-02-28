@@ -155,7 +155,10 @@ label{font-weight:800}
   padding:8px 16px;
   border-radius:18px;
   font-size:15px;
-}
+.detail-actions .btn{
+  padding: 8px 16px;
+  border-radius: 18px;
+  font-size: 15px;
 }
 
 /* Dashboard */
