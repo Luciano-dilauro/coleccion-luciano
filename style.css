@@ -632,16 +632,24 @@ label{font-weight:800}
   position: absolute;
   top: 14px;
 
-  /* alineación con el inicio de los labels:
-     14px (padding del header) + 128px (tapa) + 28px (margen labels) */
+  /* 14 padding + 128 tapa + 14 gap + 28 corrimiento */
   left: calc(14px + 128px + 14px + 28px);
   right: 14px;
 
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-end;
   pointer-events: auto;
   z-index: 5;
+}
+/* el div vacío no nos sirve */
+.detail-actions > div:first-child{ display:none; }
+
+/* este es el contenedor real de los botones */
+.detail-actions .row.gap{
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 /* HERO: arranca arriba (sin espacio blanco) */
