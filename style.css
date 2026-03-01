@@ -640,6 +640,7 @@ label{font-weight:800}
   justify-content: flex-end;
   pointer-events: auto;
   z-index: 5;
+  outline: 4px solid hotpink !important;
 }
 /* el div vacío no nos sirve */
 .detail-actions > div:first-child{ display:none; }
