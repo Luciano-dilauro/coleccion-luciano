@@ -632,15 +632,15 @@ label{font-weight:800}
   position: absolute;
   top: 14px;
 
-  /* 14 padding + 128 tapa + 14 gap + 32 corrimiento */
-  left: 260px !important;
-  right: 14px;
+  left: calc(14px + 128px + 14px + 28px);
+  right: auto; /* 👈 esto es la clave */
 
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+
   pointer-events: auto;
   z-index: 5;
-  outline: 4px solid hotpink !important;
 }
 /* el div vacío no nos sirve */
 .detail-actions > div:first-child{ display:none; }
