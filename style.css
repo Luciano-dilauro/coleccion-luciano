@@ -633,7 +633,7 @@ label{font-weight:800}
   top: 14px;
 
   left: calc(14px + 128px + 14px + 28px);
-  right: auto; /* 👈 esto es la clave */
+  right: 14px;
 
   display: flex;
   justify-content: space-between;
