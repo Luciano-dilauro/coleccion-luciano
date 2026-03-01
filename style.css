@@ -636,11 +636,13 @@ label{font-weight:800}
   right: 14px;
 
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
 
   pointer-events: auto;
   z-index: 5;
+.detail-actions .btn:last-child{
+  margin-left: auto;
 }
 /* el div vacío no nos sirve */
 .detail-actions > div:first-child{ display:none; }
