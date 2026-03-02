@@ -1067,8 +1067,13 @@ wrap.addEventListener("touchend", () => {
 });
 wrap.addEventListener("touchcancel", onPressEnd);
 
-wrap.addEventListener("mousedown", onPressStart);
+wrap.addEventListener("mousedown", () => {
+  if (isRecentTouch()) return;
+  onPressStart();
+});
+
 wrap.addEventListener("mouseup", () => {
+  if (isRecentTouch()) return;
   onPressEnd();
   if (longPressFired) return;     // 👈 clave
   onTap();
