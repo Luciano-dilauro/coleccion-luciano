@@ -997,6 +997,10 @@ function buildItemCell(it) {
 let pressTimer = null;
 let longPressFired = false;
 
+// iOS: evitar "mouse events" fantasmas después de touch
+let lastTouchTime = 0;
+const isRecentTouch = () => (Date.now() - lastTouchTime) < 900;
+
 const clearPress = () => {
   if (pressTimer) {
     clearTimeout(pressTimer);
@@ -1050,8 +1054,13 @@ const onTap = () => {
 };
 
 // Touch + mouse (si hubo longpress, NO TAP)
-wrap.addEventListener("touchstart", onPressStart, { passive: true });
+wrap.addEventListener("touchstart", () => {
+  lastTouchTime = Date.now();
+  onPressStart();
+}, { passive: true });
+
 wrap.addEventListener("touchend", () => {
+  lastTouchTime = Date.now();
   onPressEnd();
   if (longPressFired) return;     // 👈 clave
   onTap();
