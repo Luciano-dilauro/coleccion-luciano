@@ -19,6 +19,28 @@
       * DETAIL: muestra tapa o fallback con nombre + barra %
 ============================= */
 
+/* =============================
+   ÍNDICE (buscá por título)
+   - CONFIG / DOM / STATE (LS_KEY, META_KEY, els, state)
+   - HELPERS / UTILS
+   - PERSISTENCIA (load/save + migración)
+   - VIEWS / NAVEGACIÓN
+   - SELECTORES — “MIS COLECCIONES”
+   - CREATE — UI
+   - CREATE — GENERADOR RÁPIDO
+   - CREATE/EDIT — SECCIONES EDITOR + DnD
+   - CREATE — CREAR COLECCIÓN
+   - DETAIL — RENDER + FILTROS
+   - DETAIL — ITEM (tap / long-press)
+   - EDIT — RENDER + APPLY
+   - BACKUP (export/import)
+   - SETTINGS (renderSettings)
+   - EVENTS
+   - INIT
+   - EXPORT (modal + compartir/copiar)
+   - COVER (crear + detalle)
+============================= */
+
 const LS_KEY = "coleccion_luciano_v2";
 const META_KEY = "coleccion_luciano_meta_v2";
 const BACKUP_VERSION = 1;
@@ -85,9 +107,9 @@ const state = {
   },
 };
 
-/* -----------------------------
-   Helpers
------------------------------ */
+/* =============================
+   HELPERS / UTILS
+============================= */
 function uid(prefix = "id") {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
@@ -143,9 +165,9 @@ function computeStats(col) {
   return { total, have, missing, pct };
 }
 
-/* -----------------------------
-   Persistencia
------------------------------ */
+/* =============================
+   PERSISTENCIA
+============================= */
 function load() {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -196,9 +218,9 @@ function save() {
   localStorage.setItem(META_KEY, JSON.stringify(state.meta));
 }
 
-/* -----------------------------
-   Views
------------------------------ */
+/* =============================
+   VIEWS / NAVEGACIÓN
+============================= */
 function setView(view) {
   state.view = view;
   for (const v of els.views) v.classList.toggle("is-active", v.dataset.view === view);
@@ -271,9 +293,9 @@ function goEdit() {
   setView("edit");
 }
 
-/* -----------------------------
-   “Mis colecciones” selector
------------------------------ */
+/* =============================
+   SELECTORES — “MIS COLECCIONES”
+============================= */
 function renderCollectionsSelects() {
   const cols = state.data.collections;
 
@@ -318,9 +340,9 @@ function wireAutoOpenCollections() {
   });
 }
 
-/* -----------------------------
-   Create UI
------------------------------ */
+/* =============================
+   CREATE — UI
+============================= */
 function getStructType() {
   const r = els.structRadios.find(x => x.checked);
   return r ? r.value : "simple";
@@ -356,9 +378,9 @@ function resetCreateForm() {
   }
 }
 
-/* -----------------------------
-   Generador rápido por lista
------------------------------ */
+/* =============================
+   CREATE — GENERADOR RÁPIDO
+============================= */
 function ensureBulkBuilderUI() {
   if (!els.sectionsBlock || !els.sectionsEditor) return;
   if ($("bulkBuilder")) return;
@@ -459,9 +481,9 @@ function ensureBulkBuilderUI() {
   });
 }
 
-/* -----------------------------
-   Secciones editor (create/edit)
------------------------------ */
+/* =============================
+   CREATE/EDIT — SECCIONES EDITOR + DnD
+============================= */
 function openSpecialsPrompt(currentArr, hint) {
   const current = (currentArr || []).join(", ");
   const txt = prompt(
@@ -741,9 +763,9 @@ els.btnAddSection?.addEventListener("click", () => {
   enableDnD(els.sectionsEditor);
 });
 
-/* -----------------------------
-   Crear colección (nueva arriba)
------------------------------ */
+/* =============================
+   CREATE — CREAR COLECCIÓN
+============================= */
 function createCollection() {
   const name = (els.newName?.value || "").trim();
   if (!name) return alert("Escribí un nombre.");
@@ -879,10 +901,9 @@ function createCollection() {
   renderCollectionsSelects();
   goCollections();
 }
-
-/* -----------------------------
-   Detail render + filtros
------------------------------ */
+/* =============================
+   DETAIL — RENDER + FILTROS
+============================= */
 function setFilter(mode) {
   state.filter = mode;
   if (els.fAll) els.fAll.classList.toggle("is-active", mode === "all");
@@ -947,9 +968,9 @@ function renderDetail() {
   }
 }
 
-/* -----------------------------
-   ✅ Item cell (tap / long-press) — FIX DEFINITIVO
------------------------------ */
+/* =============================
+   DETAIL — ITEM (tap / long-press)
+============================= */
 function buildItemCell(it) {
   const wrap = document.createElement("div");
   wrap.className = "item" + (it.have ? " have" : "") + (it.special ? " special" : "");
@@ -1060,9 +1081,9 @@ function resetCollection() {
   renderDetail();
 }
 
-/* -----------------------------
-   Edit (se mantiene)
------------------------------ */
+/* =============================
+   EDIT — RENDER + APPLY
+============================= */
 function renderEdit() {
   const col = getCurrent();
   if (!col) return goCollections();
@@ -1199,9 +1220,9 @@ function applyEdit() {
   alert("Cambios guardados ✅");
 }
 
-/* -----------------------------
-   Backup
------------------------------ */
+/* =============================
+   BACKUP
+============================= */
 function exportBackup() {
   const payload = {
     backupVersion: BACKUP_VERSION,
@@ -1305,6 +1326,9 @@ setTimeout(() => {
   reader.readAsText(file);
 }
 
+/* =============================
+   SETTINGS
+============================= */
 function renderSettings() {
   if (els.exportMeta) {
     els.exportMeta.textContent =
@@ -1320,9 +1344,9 @@ function renderSettings() {
   }
 }
 
-/* -----------------------------
-   Eventos
------------------------------ */
+/* =============================
+   EVENTS
+============================= */
 document.addEventListener("click", (e) => {
   const btn = e.target?.closest?.("[data-action]");
   if (!btn) return;
@@ -1389,9 +1413,9 @@ els.importInput?.addEventListener("change", (e) => {
   e.target.value = "";
 });
 
-/* -----------------------------
-   Init
------------------------------ */
+/* =============================
+   INIT
+============================= */
 function init() {
   load();
   renderCollectionsSelects();
