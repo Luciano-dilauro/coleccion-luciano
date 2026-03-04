@@ -230,33 +230,7 @@ function load() {
 
   // saneo/migración suave
 state.data = sanitizeData(state.data);
-    if (!c.sections) c.sections = [];
-    if (!c.items) c.items = [];
-    if (!c.structure) c.structure = "simple";
-    if (!c.numberMode) c.numberMode = "global";
-    if (c.cover === undefined) c.cover = null;
-
-    if (c.structure === "sections") {
-      for (const s of c.sections) {
-        if (!s.format) s.format = "num";
-        if (typeof s.prefix !== "string") s.prefix = "";
-        if (typeof s.ownNumbering !== "boolean") s.ownNumbering = false;
-        if (!Array.isArray(s.specials)) s.specials = [];
-      }
-    } else {
-      if (!c.sections.length) {
-        c.sections = [{ id: uid("sec"), name: "General", format: "num", prefix: "", ownNumbering: false, specials: [] }];
-      }
-      if (!Array.isArray(c.sections[0].specials)) c.sections[0].specials = [];
-    }
-
-    for (const it of c.items) {
-      if (typeof it.special !== "boolean") it.special = false;
-      if (!it.key) it.key = `${it.sectionId}|${it.label}`;
-      if (typeof it.have !== "boolean") it.have = false;
-      if (!Number.isFinite(it.rep)) it.rep = 0;
-    }
-  }
+}
 }
 
 function save() {
