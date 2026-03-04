@@ -43,3 +43,10 @@ body{
   border: 1px solid var(--line);
   background: #fff;
 }
+.input{
+  width:100%;
+  padding:10px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  margin-top:10px;
+}
