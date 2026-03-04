@@ -11,10 +11,21 @@
     <h1>Colección Lucho — v4</h1>
     <p class="muted">Sandbox seguro. No toca tu app actual.</p>
 
-    <div class="card">
-      <div id="status">Cargando...</div>
-      <button id="btnTest" class="btn">Probar botón</button>
-    </div>
+<div class="card">
+  <div id="status">Cargando...</div>
+
+  <input
+    id="newCollectionName"
+    class="input"
+    placeholder="Nombre de la colección"
+  />
+
+  <button id="createCollectionBtn" class="btn">
+    Crear colección
+  </button>
+
+  <div id="collectionsList"></div>
+</div>
   </main>
 
   <script src="./app.js"></script>
