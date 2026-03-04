@@ -4,6 +4,7 @@ const LS_KEY = "coleccion_luciano_v4";
 
 const state = {
   data: { collections: [] },
+  currentCollection: null
 };
 
 const $ = (id) => document.getElementById(id);
@@ -23,6 +24,16 @@ function load() {
 
 function save() {
   localStorage.setItem(LS_KEY, JSON.stringify(state.data));
+}
+function openCollection(id) {
+
+  const col = state.data.collections.find(c => c.id === id);
+  if (!col) return;
+
+  state.currentCollection = col;
+
+  alert("Abriste la colección: " + col.name);
+
 }
 
 /* =============================
@@ -55,12 +66,16 @@ function renderCollections() {
 
   list.innerHTML = "";
 
-  for (const col of state.data.collections) {
-    const div = document.createElement("div");
-    div.className = "card";
-    div.textContent = col.name;
-    list.appendChild(div);
-  }
+for (const col of state.data.collections) {
+
+  const div = document.createElement("div");
+  div.className = "card";
+  div.textContent = col.name;
+
+  div.addEventListener("click", () => openCollection(col.id));
+
+  list.appendChild(div);
+}
 
   const status = $("status");
   if (status) {
