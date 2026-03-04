@@ -996,6 +996,7 @@ function buildItemCell(it) {
 // Long-press (robusto)
 let pressTimer = null;
 let longPressFired = false;
+let suppressTapUntil = 0;
 
 // iOS: evitar "mouse events" fantasmas después de touch
 let lastTouchTime = 0;
@@ -1021,7 +1022,8 @@ const doLongPress = () => {
 
   // si no tiene repetidas pero está marcada -> confirmar desmarcar
   if (it.have) {
-    const ok = confirm("⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?");
+    suppressTapUntil = Date.now() + 900;
+     const ok = confirm("⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?");
     if (!ok) return;
     it.have = false;
     it.rep = 0;
@@ -1041,7 +1043,8 @@ const onPressEnd = () => {
 };
 
 const onTap = () => {
-  if (!it.have) {
+ if (Date.now() < suppressTapUntil) return;
+   if (!it.have) {
     it.have = true;
     it.rep = 0;
     save();
