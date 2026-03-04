@@ -164,8 +164,6 @@ function computeStats(col) {
   const pct = total ? Math.round((have / total) * 100) : 0;
   return { total, have, missing, pct };
 }
-return { total, have, missing, pct };
-}
 
 function sanitizeData(data) {
 
