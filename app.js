@@ -229,7 +229,7 @@ function load() {
   } catch {}
 
   // saneo/migración suave
-  for (const c of state.data.collections) {
+state.data = sanitizeData(state.data);
     if (!c.sections) c.sections = [];
     if (!c.items) c.items = [];
     if (!c.structure) c.structure = "simple";
