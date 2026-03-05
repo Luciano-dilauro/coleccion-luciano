@@ -161,9 +161,14 @@ function renderStickers() {
 
 if (it.rep > 0) {
   const badge = document.createElement("div");
-  badge.className = "rep-badge";
-  badge.textContent = it.rep;
-  cell.appendChild(badge);
+badge.className = "rep-badge";
+badge.textContent = it.rep;
+
+if (it.rep === 1) {
+  badge.classList.add("pop");
+}
+
+cell.appendChild(badge);
 }
 
 cell.addEventListener("click", () => {
