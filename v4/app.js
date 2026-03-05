@@ -167,6 +167,14 @@ function renderStickers() {
 
     grid.appendChild(cell);
   }
+   const owned = col.items.filter(i => i.have).length;
+const total = col.items.length;
+
+const progress = $("progressText");
+if(progress){
+  const percent = Math.round((owned/total)*100);
+  progress.textContent = `Progreso: ${owned} / ${total} (${percent}%)`;
+}
 }
 
 /* -----------------------------
