@@ -159,12 +159,21 @@ function renderStickers() {
     cell.className = "item" + (it.have ? " have" : "");
     cell.textContent = it.label;
 
-    cell.addEventListener("click", () => {
-      it.have = !it.have;
-      if (!it.have) it.rep = 0;
-      save();
-      renderStickers();
-    });
+cell.addEventListener("click", () => {
+  // 3 estados: NO TENGO -> TENGO -> REPETIDA -> NO TENGO
+  if (!it.have) {
+    it.have = true;
+    it.rep = 0;
+  } else if (it.rep === 0) {
+    it.rep = 1;
+  } else {
+    it.have = false;
+    it.rep = 0;
+  }
+
+  save();
+  renderStickers();
+});
 
     grid.appendChild(cell);
   }
