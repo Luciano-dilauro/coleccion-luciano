@@ -86,7 +86,7 @@ body{
   font-weight: 700;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
-.rep-badge {
+.rep-badge.pop {
   animation: pop 0.18s ease-out;
 }
 
