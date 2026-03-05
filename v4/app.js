@@ -173,7 +173,7 @@ const total = col.items.length;
 const progress = $("progressText");
 if(progress){
   const percent = Math.round((owned/total)*100);
-  progress.textContent = `Progreso: ${owned} / ${total} (${percent}%)`;
+  progress.textContent = `Progreso: ${owned} / ${total} (${percent}%) • Faltan: ${total-owned}`;
 }
 }
 
