@@ -127,6 +127,7 @@ function renderCollectionView() {
       <button id="backBtn" class="btn">← Volver</button>
       <h2>${escapeHtml(col.name)}</h2>
       <p class="muted">Colección abierta</p>
+      <p class="muted" id="repsText"></p>
       <div id="stickersGrid" class="items-grid"></div>
       <p class="muted" id="progressText"></p>
     </div>
