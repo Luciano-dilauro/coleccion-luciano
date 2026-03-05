@@ -35,7 +35,7 @@ function save() {
 function makePrefixCollection(name) {
   // Default fácil: una sola sección A con 24 figuritas (A1..A24)
   const sections = [
-    { id: crypto.randomUUID(), name: "Sección A", format: "alfa", prefix: "A", count: 24 }
+    { id: crypto.randomUUID(), name: "Sección A", format: "alfa", prefix: "A", count: 24 },
   ];
 
   const items = [];
@@ -64,7 +64,7 @@ function makePrefixCollection(name) {
 
 function getCurrent() {
   if (!state.currentId) return null;
-  return state.data.collections.find(c => c.id === state.currentId) || null;
+  return state.data.collections.find((c) => c.id === state.currentId) || null;
 }
 
 /* -----------------------------
@@ -80,23 +80,19 @@ function renderCollections() {
     const div = document.createElement("div");
     div.className = "card";
     div.textContent = col.name;
-
     div.addEventListener("click", () => openCollection(col.id));
-
     list.appendChild(div);
   }
 
   const status = $("status");
-  if (status) {
-    status.textContent = `v4 lista ✅ (colecciones: ${state.data.collections.length})`;
-  }
+  if (status) status.textContent = `v4 lista ✅ (colecciones: ${state.data.collections.length})`;
 }
 
 /* -----------------------------
    Abrir colección (vista simple)
 ----------------------------- */
 function openCollection(id) {
-  const col = state.data.collections.find(c => c.id === id);
+  const col = state.data.collections.find((c) => c.id === id);
   if (!col) return;
 
   state.currentId = id;
@@ -123,23 +119,45 @@ function renderCollectionView() {
   }
 
   view.innerHTML = `
-  <div class="card">
-    <button id="backBtn" class="btn">← Volver</button>
-    <h2>${escapeHtml(col.name)}</h2>
+    <div class="card">
+      <button id="backBtn" class="btn">← Volver</button>
+      <h2>${escapeHtml(col.name)}</h2>
 
-    <p class="muted">Colección abierta</p>
-    <p class="muted" id="repsText"></p>
+      <p class="muted">Colección abierta</p>
+      <p class="muted" id="repsText"></p>
 
-    <div class="row gap" style="margin: 10px 0 12px;">
-      <button id="btnMissingSimple" class="btn">Copiar faltantes (lista)</button>
-      <button id="btnMissingBySection" class="btn">Copiar faltantes (por sección)</button>
+      <div class="row gap" style="margin: 10px 0 12px;">
+        <button id="btnMissingSimple" class="btn">Copiar faltantes (lista)</button>
+        <button id="btnMissingBySection" class="btn">Copiar faltantes (por sección)</button>
+      </div>
+
+      <div id="stickersGrid" class="items-grid"></div>
+      <p class="muted" id="progressText"></p>
     </div>
+  `;
 
-    <div id="stickersGrid" class="items-grid"></div>
+  // Volver
+  $("backBtn")?.addEventListener("click", () => {
+    const list = $("collectionsList");
+    const view = $("collectionView");
+    if (view) view.style.display = "none";
+    if (list) list.style.display = "block";
+    state.currentId = null;
+  });
 
-    <p class="muted" id="progressText"></p>
-  </div>
-`;
+  // Copiar faltantes (lista simple)
+  $("btnMissingSimple")?.addEventListener("click", () => {
+    const col = getCurrent();
+    if (!col) return;
+    copyText(buildMissingTextSimple(col));
+  });
+
+  // Copiar faltantes (por sección)
+  $("btnMissingBySection")?.addEventListener("click", () => {
+    const col = getCurrent();
+    if (!col) return;
+    copyText(buildMissingTextBySection(col));
+  });
 
   renderStickers();
 }
@@ -154,51 +172,103 @@ function renderStickers() {
 
   grid.innerHTML = "";
 
-  for (const it of (col.items || [])) {
+  for (const it of col.items || []) {
     const cell = document.createElement("div");
     cell.className = "item" + (it.have ? " have" : "");
     cell.textContent = it.label;
 
-if (it.rep > 0) {
-  const badge = document.createElement("div");
-badge.className = "rep-badge";
-badge.textContent = it.rep;
+    // Badge repetidas
+    if ((it.rep || 0) > 0) {
+      const badge = document.createElement("div");
+      badge.className = "rep-badge";
+      badge.textContent = String(it.rep);
+      cell.appendChild(badge);
+    }
 
-if (it.rep === 1) {
-  badge.classList.add("pop");
-}
-
-cell.appendChild(badge);
-}
-
-cell.addEventListener("click", () => {
-// TAP: marcar y sumar repetidas
-if (!it.have) {
-  it.have = true;
-  it.rep = 0;
-} else {
-  it.rep = (it.rep || 0) + 1;
-}
-  save();
-  renderStickers();
-});
+    cell.addEventListener("click", () => {
+      // TAP: marcar y sumar repetidas
+      if (!it.have) {
+        it.have = true;
+        it.rep = 0;
+      } else {
+        it.rep = (it.rep || 0) + 1;
+      }
+      save();
+      renderStickers();
+    });
 
     grid.appendChild(cell);
   }
-   const owned = col.items.filter(i => i.have).length;
-const total = col.items.length;
 
-const progress = $("progressText");
-if(progress){
-  const percent = Math.round((owned/total)*100);
-  progress.textContent = `Progreso: ${owned} / ${total} (${percent}%) • Faltan: ${total-owned}`;
-}
-   const reps = col.items.reduce((sum, i) => sum + (i.rep || 0), 0);
+  // Progreso
+  const owned = col.items.filter((i) => i.have).length;
+  const total = col.items.length;
 
-const repsEl = $("repsText");
-if (repsEl) {
-  repsEl.textContent = `Repetidas: ${reps}`;
+  const progress = $("progressText");
+  if (progress) {
+    const percent = total ? Math.round((owned / total) * 100) : 0;
+    progress.textContent = `Progreso: ${owned} / ${total} (${percent}%) • Faltan: ${total - owned}`;
+  }
+
+  // Repetidas
+  const reps = col.items.reduce((sum, i) => sum + (i.rep || 0), 0);
+  const repsEl = $("repsText");
+  if (repsEl) repsEl.textContent = `Repetidas: ${reps}`;
 }
+
+/* -----------------------------
+   Exportar faltantes
+----------------------------- */
+function buildMissingTextSimple(col) {
+  const missing = (col.items || [])
+    .filter((it) => !it.have)
+    .map((it) => it.label);
+
+  return `${col.name}
+
+Me faltan
+
+${missing.join(", ")}`;
+}
+
+function buildMissingTextBySection(col) {
+  const lines = [];
+  lines.push(col.name);
+  lines.push("");
+  lines.push("Me faltan");
+  lines.push("");
+
+  const sections = col.sections || [];
+  const items = col.items || [];
+
+  for (const sec of sections) {
+    const missing = items
+      .filter((it) => it.sectionId === sec.id && !it.have)
+      .map((it) => it.label);
+
+    if (missing.length) lines.push(`${sec.name}: ${missing.join(", ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("Lista copiada 📋");
+  } catch {
+    // Fallback
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    alert("Lista copiada 📋");
+  }
 }
 
 /* -----------------------------
@@ -210,8 +280,8 @@ function createCollection() {
   if (!name) return;
 
   const col = makePrefixCollection(name);
-
   state.data.collections.push(col);
+
   save();
   renderCollections();
 
@@ -237,8 +307,7 @@ function init() {
   load();
   renderCollections();
 
-  const btn = $("createCollectionBtn");
-  btn?.addEventListener("click", createCollection);
+  $("createCollectionBtn")?.addEventListener("click", createCollection);
 }
 
 document.addEventListener("DOMContentLoaded", init);
