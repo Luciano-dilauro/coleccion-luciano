@@ -159,6 +159,10 @@ function renderStickers() {
     cell.className = "item" + (it.have ? " have" : "");
     cell.textContent = it.label;
 
+if (it.rep > 0) {
+  cell.textContent += " (" + it.rep + ")";
+}
+
 cell.addEventListener("click", () => {
 // TAP: marcar y sumar repetidas
 if (!it.have) {
