@@ -1,22 +1,25 @@
-/* Colección Lucho — v4 */
+/* Colección Lucho — v4 (sandbox) */
 
 const LS_KEY = "coleccion_luciano_v4";
 
+/* -----------------------------
+   Estado
+----------------------------- */
 const state = {
   data: { collections: [] },
-  currentCollection: null
+  currentId: null,
 };
 
 const $ = (id) => document.getElementById(id);
 
-/* =============================
+/* -----------------------------
    Persistencia
-============================= */
+----------------------------- */
 function load() {
   try {
     const raw = localStorage.getItem(LS_KEY);
     state.data = raw ? JSON.parse(raw) : { collections: [] };
-    if (!state.data.collections) state.data.collections = [];
+    if (!state.data || !Array.isArray(state.data.collections)) state.data = { collections: [] };
   } catch {
     state.data = { collections: [] };
   }
@@ -25,94 +28,63 @@ function load() {
 function save() {
   localStorage.setItem(LS_KEY, JSON.stringify(state.data));
 }
-function openCollection(id) {
 
-  const col = state.data.collections.find(c => c.id === id);
-  if (!col) return;
+/* -----------------------------
+   Helpers de modelo (modo "B-ready")
+----------------------------- */
+function makePrefixCollection(name) {
+  // Default fácil: una sola sección A con 24 figuritas (A1..A24)
+  const sections = [
+    { id: crypto.randomUUID(), name: "Sección A", format: "alfa", prefix: "A", count: 24 }
+  ];
 
-  state.currentCollection = col;
-
-  const list = $("collectionsList");
-  const view = $("collectionView");
-
-  if (list) list.style.display = "none";
-  if (view) view.style.display = "block";
-
-  view.innerHTML = `
-    <div class="card">
-    <button id="backBtn" class="btn">← Volver</button>
-    <h2>${col.name}</h2>
-    <p class="muted">Colección abierta</p>
-    <div id="stickersGrid"></div>
-    </div>
-  `;
-renderStickers();
-  $("backBtn")?.addEventListener("click", () => {
-
-    if (view) view.style.display = "none";
-    if (list) list.style.display = "block";
-
-    state.currentCollection = null;
-
-  });
-
-}
- 
-function renderStickers(){
-
-  const grid = $("stickersGrid");
-  if(!grid) return;
-
-  grid.innerHTML = "";
-    for(let i=1;i<=24;i++){
-    const sticker = document.createElement("div");
-    sticker.className = "card";
-    sticker.textContent = "A" + i;
-
-    grid.appendChild(sticker);
+  const items = [];
+  for (let i = 1; i <= 24; i++) {
+    items.push({
+      id: crypto.randomUUID(),
+      sectionId: sections[0].id,
+      label: `A${i}`,
+      have: false,
+      rep: 0,
+      special: false,
+    });
   }
-}
 
-/* =========================
-   Crear colección
-========================= */
-function createCollection() {
-  const input = $("newCollectionName");
-  const name = (input?.value || "").trim();
-  if (!name) return;
-
-  const col = {
+  return {
     id: crypto.randomUUID(),
     name,
-    items: []
+    structure: "sections",
+    numberMode: "perSection",
+    sections,
+    items,
+    cover: null,
+    createdAt: Date.now(),
   };
-
-  state.data.collections.push(col);
-  save();
-  renderCollections();
-
-  input.value = "";
 }
 
-/* =============================
-   Render colecciones
-============================= */
+function getCurrent() {
+  if (!state.currentId) return null;
+  return state.data.collections.find(c => c.id === state.currentId) || null;
+}
+
+/* -----------------------------
+   UI: lista de colecciones
+----------------------------- */
 function renderCollections() {
   const list = $("collectionsList");
   if (!list) return;
 
   list.innerHTML = "";
 
-for (const col of state.data.collections) {
+  for (const col of state.data.collections) {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.textContent = col.name;
 
-  const div = document.createElement("div");
-  div.className = "card";
-  div.textContent = col.name;
+    div.addEventListener("click", () => openCollection(col.id));
 
-  div.addEventListener("click", () => openCollection(col.id));
-
-  list.appendChild(div);
-}
+    list.appendChild(div);
+  }
 
   const status = $("status");
   if (status) {
@@ -120,9 +92,114 @@ for (const col of state.data.collections) {
   }
 }
 
-/* =============================
+/* -----------------------------
+   Abrir colección (vista simple)
+----------------------------- */
+function openCollection(id) {
+  const col = state.data.collections.find(c => c.id === id);
+  if (!col) return;
+
+  state.currentId = id;
+
+  const list = $("collectionsList");
+  const view = $("collectionView");
+
+  if (list) list.style.display = "none";
+  if (view) view.style.display = "block";
+
+  renderCollectionView();
+}
+
+function renderCollectionView() {
+  const col = getCurrent();
+  const view = $("collectionView");
+  if (!view) return;
+
+  if (!col) {
+    view.style.display = "none";
+    const list = $("collectionsList");
+    if (list) list.style.display = "block";
+    return;
+  }
+
+  view.innerHTML = `
+    <div class="card">
+      <button id="backBtn" class="btn">← Volver</button>
+      <h2>${escapeHtml(col.name)}</h2>
+      <p class="muted">Colección abierta</p>
+      <div id="stickersGrid" class="items-grid"></div>
+    </div>
+  `;
+
+  $("backBtn")?.addEventListener("click", () => {
+    const list = $("collectionsList");
+    const view = $("collectionView");
+    if (view) view.style.display = "none";
+    if (list) list.style.display = "block";
+    state.currentId = null;
+  });
+
+  renderStickers();
+}
+
+/* -----------------------------
+   Render figuritas (tap = tengo sí/no)
+----------------------------- */
+function renderStickers() {
+  const col = getCurrent();
+  const grid = $("stickersGrid");
+  if (!grid || !col) return;
+
+  grid.innerHTML = "";
+
+  for (const it of (col.items || [])) {
+    const cell = document.createElement("div");
+    cell.className = "item" + (it.have ? " have" : "");
+    cell.textContent = it.label;
+
+    cell.addEventListener("click", () => {
+      it.have = !it.have;
+      if (!it.have) it.rep = 0;
+      save();
+      renderStickers();
+    });
+
+    grid.appendChild(cell);
+  }
+}
+
+/* -----------------------------
+   Crear colección (modo prefijos)
+----------------------------- */
+function createCollection() {
+  const input = $("newCollectionName");
+  const name = (input?.value || "").trim();
+  if (!name) return;
+
+  const col = makePrefixCollection(name);
+
+  state.data.collections.push(col);
+  save();
+  renderCollections();
+
+  if (input) input.value = "";
+}
+
+/* -----------------------------
+   Utils
+----------------------------- */
+function escapeHtml(s) {
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+/* -----------------------------
    Init
-============================= */
+----------------------------- */
 function init() {
   load();
   renderCollections();
