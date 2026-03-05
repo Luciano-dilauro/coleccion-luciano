@@ -128,6 +128,7 @@ function renderCollectionView() {
       <h2>${escapeHtml(col.name)}</h2>
       <p class="muted">Colección abierta</p>
       <div id="stickersGrid" class="items-grid"></div>
+      <p class="muted" id="progressText"></p>
     </div>
   `;
 
