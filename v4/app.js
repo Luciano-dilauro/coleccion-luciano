@@ -123,23 +123,23 @@ function renderCollectionView() {
   }
 
   view.innerHTML = `
-    <div class="card">
-      <button id="backBtn" class="btn">← Volver</button>
-      <h2>${escapeHtml(col.name)}</h2>
-      <p class="muted">Colección abierta</p>
-      <p class="muted" id="repsText"></p>
-      <div id="stickersGrid" class="items-grid"></div>
-      <p class="muted" id="progressText"></p>
-    </div>
-  `;
+  <div class="card">
+    <button id="backBtn" class="btn">← Volver</button>
+    <h2>${escapeHtml(col.name)}</h2>
 
-  $("backBtn")?.addEventListener("click", () => {
-    const list = $("collectionsList");
-    const view = $("collectionView");
-    if (view) view.style.display = "none";
-    if (list) list.style.display = "block";
-    state.currentId = null;
-  });
+    <p class="muted">Colección abierta</p>
+    <p class="muted" id="repsText"></p>
+
+    <div class="row gap" style="margin: 10px 0 12px;">
+      <button id="btnMissingSimple" class="btn">Copiar faltantes (lista)</button>
+      <button id="btnMissingBySection" class="btn">Copiar faltantes (por sección)</button>
+    </div>
+
+    <div id="stickersGrid" class="items-grid"></div>
+
+    <p class="muted" id="progressText"></p>
+  </div>
+`;
 
   renderStickers();
 }
