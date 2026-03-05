@@ -40,16 +40,13 @@ function openCollection(id) {
 
   view.innerHTML = `
     <div class="card">
-
-      <button id="backBtn" class="btn">← Volver</button>
-
-      <h2>${col.name}</h2>
-
-      <p class="muted">Colección abierta</p>
-
+    <button id="backBtn" class="btn">← Volver</button>
+    <h2>${col.name}</h2>
+    <p class="muted">Colección abierta</p>
+    <div id="stickersGrid"></div>
     </div>
   `;
-
+renderStickers();
   $("backBtn")?.addEventListener("click", () => {
 
     if (view) view.style.display = "none";
@@ -60,10 +57,25 @@ function openCollection(id) {
   });
 
 }
+ 
+function renderStickers(){
 
-/* =============================
+  const grid = $("stickersGrid");
+  if(!grid) return;
+
+  grid.innerHTML = "";
+    for(let i=1;i<=24;i++){
+    const sticker = document.createElement("div");
+    sticker.className = "card";
+    sticker.textContent = "A" + i;
+
+    grid.appendChild(sticker);
+  }
+}
+
+/* =========================
    Crear colección
-============================= */
+========================= */
 function createCollection() {
   const input = $("newCollectionName");
   const name = (input?.value || "").trim();
