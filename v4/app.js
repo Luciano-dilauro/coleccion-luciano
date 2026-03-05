@@ -185,6 +185,12 @@ if(progress){
   const percent = Math.round((owned/total)*100);
   progress.textContent = `Progreso: ${owned} / ${total} (${percent}%) • Faltan: ${total-owned}`;
 }
+   const reps = col.items.reduce((sum, i) => sum + (i.rep || 0), 0);
+
+const repsEl = $("repsText");
+if (repsEl) {
+  repsEl.textContent = `Repetidas: ${reps}`;
+}
 }
 
 /* -----------------------------
