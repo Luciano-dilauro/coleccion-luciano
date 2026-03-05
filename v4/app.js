@@ -160,17 +160,13 @@ function renderStickers() {
     cell.textContent = it.label;
 
 cell.addEventListener("click", () => {
-  // 3 estados: NO TENGO -> TENGO -> REPETIDA -> NO TENGO
-  if (!it.have) {
-    it.have = true;
-    it.rep = 0;
-  } else if (it.rep === 0) {
-    it.rep = 1;
-  } else {
-    it.have = false;
-    it.rep = 0;
-  }
-
+// TAP: marcar y sumar repetidas
+if (!it.have) {
+  it.have = true;
+  it.rep = 0;
+} else {
+  it.rep = (it.rep || 0) + 1;
+}
   save();
   renderStickers();
 });
