@@ -160,7 +160,10 @@ function renderStickers() {
     cell.textContent = it.label;
 
 if (it.rep > 0) {
-  cell.textContent += " (" + it.rep + ")";
+  const badge = document.createElement("div");
+  badge.className = "rep-badge";
+  badge.textContent = it.rep;
+  cell.appendChild(badge);
 }
 
 cell.addEventListener("click", () => {
