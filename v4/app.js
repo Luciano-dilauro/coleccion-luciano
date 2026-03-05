@@ -32,7 +32,32 @@ function openCollection(id) {
 
   state.currentCollection = col;
 
-  alert("Abriste la colección: " + col.name);
+  const list = $("collectionsList");
+  const view = $("collectionView");
+
+  if (list) list.style.display = "none";
+  if (view) view.style.display = "block";
+
+  view.innerHTML = `
+    <div class="card">
+
+      <button id="backBtn" class="btn">← Volver</button>
+
+      <h2>${col.name}</h2>
+
+      <p class="muted">Colección abierta</p>
+
+    </div>
+  `;
+
+  $("backBtn")?.addEventListener("click", () => {
+
+    if (view) view.style.display = "none";
+    if (list) list.style.display = "block";
+
+    state.currentCollection = null;
+
+  });
 
 }
 
