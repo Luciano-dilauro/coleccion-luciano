@@ -155,12 +155,6 @@ $("btnRepeatedBySection")?.addEventListener("click", () => {
   if (!col) return;
   copyText(buildRepeatedTextBySection(col));
 });
-  // Copiar faltantes (lista simple)
-  $("btnMissingSimple")?.addEventListener("click", () => {
-    const col = getCurrent();
-    if (!col) return;
-    copyText(buildMissingTextSimple(col));
-  });
 
   // Copiar faltantes (por sección)
   $("btnMissingBySection")?.addEventListener("click", () => {
