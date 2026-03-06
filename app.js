@@ -231,7 +231,6 @@ function load() {
   // saneo/migración suave
 state.data = sanitizeData(state.data);
 }
-}
 
 function save() {
   localStorage.setItem(LS_KEY, JSON.stringify(state.data));
