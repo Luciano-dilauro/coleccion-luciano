@@ -1,41 +1,426 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Colección Lucho — v4</title>
-<link rel="stylesheet" href="./style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Colección Lucho — v4</title>
+  <style>
+    :root{
+      --bg:#f6f7f9;
+      --card:#ffffff;
+      --text:#111;
+      --muted:#6b7280;
+      --line:#e6e8ee;
+      --shadow:0 14px 35px rgba(0,0,0,.08);
+      --have:#bfe6b8;
+      --rep:#e54848;
+      --radius:18px;
+      --accent:#2563eb;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    .wrap{
+      max-width:760px;
+      margin:0 auto;
+      padding:20px 16px 40px;
+    }
+    h1{
+      margin:0 0 8px;
+      font-size:clamp(34px,7vw,58px);
+      line-height:1.02;
+      letter-spacing:-.02em;
+    }
+    h2{
+      margin:0 0 8px;
+      font-size:clamp(24px,5vw,38px);
+      letter-spacing:-.02em;
+    }
+    .muted{color:var(--muted)}
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px;
+      margin-top:18px;
+    }
+    .input{
+      width:100%;
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px 16px;
+      font-size:16px;
+      background:#fff;
+      color:var(--text);
+      margin-top:10px;
+    }
+    .btn{
+      appearance:none;
+      border:1px solid #d7dbe2;
+      background:#fff;
+      color:var(--accent);
+      border-radius:18px;
+      padding:12px 16px;
+      font-size:16px;
+      font-weight:700;
+      cursor:pointer;
+      margin-top:10px;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin:10px 0 12px;
+    }
+    .stack > * + *{margin-top:12px}
+    .collection-card{
+      cursor:pointer;
+      font-weight:700;
+    }
+    .items-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:10px;
+      margin-top:10px;
+    }
+    .item{
+      position:relative;
+      background:#efefef;
+      border-radius:18px;
+      min-height:82px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:14px;
+      font-size:18px;
+      font-weight:800;
+      text-align:center;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    .item.have{
+      background:var(--have);
+    }
+    .rep-badge{
+      position:absolute;
+      top:-7px;
+      right:-7px;
+      min-width:24px;
+      height:24px;
+      padding:0 7px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      background:var(--rep);
+      color:#fff;
+      border-radius:999px;
+      font-size:14px;
+      font-weight:800;
+      box-shadow:0 2px 8px rgba(0,0,0,.18);
+    }
+    @media (max-width:560px){
+      .btn{width:100%}
+      .item{min-height:74px}
+    }
+  </style>
 </head>
-
 <body>
+  <main class="wrap">
+    <h1>Colección Lucho — v4</h1>
+    <p class="muted">Sandbox seguro. No toca tu app actual.</p>
 
-<main class="wrap">
+    <section class="card">
+      <div id="status">v4 lista ✅</div>
 
-<h1>Colección Lucho — v4</h1>
-<p class="muted">Sandbox seguro. No toca tu app actual.</p>
+      <input
+        id="newCollectionName"
+        class="input"
+        placeholder="Nombre de la colección"
+      />
 
-<div class="card">
+      <button id="createCollectionBtn" class="btn" type="button">
+        Crear colección
+      </button>
 
-<div id="status">v4 lista ✅</div>
+      <div id="collectionsList" class="stack"></div>
+      <div id="collectionView" style="display:none"></div>
+    </section>
+  </main>
 
-<input
-id="newCollectionName"
-class="input"
-placeholder="Nombre de la colección"
-/>
+  <script>
+    const LS_KEY = "coleccion_luciano_v4";
+    const state = {
+      data: { collections: [] },
+      currentId: null
+    };
 
-<button id="createCollectionBtn" class="btn" type="button" onclick="createCollection()">
-Crear colección
-</button>
+    const $ = (id) => document.getElementById(id);
 
-<div id="collectionsList"></div>
-<div id="collectionView" style="display:none"></div>
+    function uid() {
+      return crypto.randomUUID();
+    }
 
-</div>
+    function load() {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        state.data = raw ? JSON.parse(raw) : { collections: [] };
+        if (!state.data || !Array.isArray(state.data.collections)) {
+          state.data = { collections: [] };
+        }
+      } catch {
+        state.data = { collections: [] };
+      }
+    }
 
-</main>
+    function save() {
+      localStorage.setItem(LS_KEY, JSON.stringify(state.data));
+    }
 
-<script src="./app.js?v=2"></script>
+    function getCurrent() {
+      if (!state.currentId) return null;
+      return state.data.collections.find(c => c.id === state.currentId) || null;
+    }
 
+    function buildDefaultCollection(name) {
+      const sectionId = uid();
+      const items = [];
+
+      for (let i = 1; i <= 24; i++) {
+        items.push({
+          id: uid(),
+          sectionId,
+          label: `A${i}`,
+          have: false,
+          rep: 0
+        });
+      }
+
+      return {
+        id: uid(),
+        name,
+        sections: [
+          { id: sectionId, name: "Sección A" }
+        ],
+        items,
+        createdAt: Date.now()
+      };
+    }
+
+    function renderCollections() {
+      const list = $("collectionsList");
+      if (!list) return;
+
+      list.innerHTML = "";
+
+      for (const col of state.data.collections) {
+        const div = document.createElement("div");
+        div.className = "card collection-card";
+        div.textContent = col.name;
+        div.addEventListener("click", () => openCollection(col.id));
+        list.appendChild(div);
+      }
+
+      const status = $("status");
+      if (status) {
+        status.textContent = `v4 lista ✅ (colecciones: ${state.data.collections.length})`;
+      }
+    }
+
+    function createCollection() {
+      const input = $("newCollectionName");
+      if (!input) {
+        alert("No encuentro el campo de nombre.");
+        return;
+      }
+
+      const name = (input.value || "").trim();
+
+      if (!name) {
+        alert("Poné un nombre para la colección.");
+        return;
+      }
+
+      const col = buildDefaultCollection(name);
+      state.data.collections.push(col);
+      save();
+      renderCollections();
+      input.value = "";
+    }
+
+    function openCollection(id) {
+      const col = state.data.collections.find(c => c.id === id);
+      if (!col) return;
+
+      state.currentId = id;
+      $("collectionsList").style.display = "none";
+      $("collectionView").style.display = "block";
+      renderCollectionView();
+    }
+
+    function closeCollection() {
+      $("collectionView").style.display = "none";
+      $("collectionsList").style.display = "block";
+      state.currentId = null;
+    }
+
+    function buildMissingTextBySection(col) {
+      const lines = [];
+      lines.push(`*${col.name}*`);
+      lines.push("");
+      lines.push(`*Me faltan*`);
+      lines.push("");
+
+      for (const sec of (col.sections || [])) {
+        const missing = (col.items || [])
+          .filter(it => it.sectionId === sec.id && !it.have)
+          .map(it => it.label);
+
+        if (missing.length) {
+          lines.push(`${sec.name}: ${missing.join(", ")}`);
+        }
+      }
+
+      return lines.join("\\n");
+    }
+
+    function buildRepeatedTextBySection(col) {
+      const lines = [];
+      lines.push(`*${col.name}*`);
+      lines.push("");
+      lines.push(`*Repetidas*`);
+      lines.push("");
+
+      for (const sec of (col.sections || [])) {
+        const repeated = (col.items || [])
+          .filter(it => it.sectionId === sec.id && (it.rep || 0) > 0)
+          .map(it => `${it.label} (${it.rep})`);
+
+        if (repeated.length) {
+          lines.push(`${sec.name}: ${repeated.join(", ")}`);
+        }
+      }
+
+      return lines.join("\\n");
+    }
+
+    async function copyText(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          alert("Lista copiada 📋");
+          return;
+        }
+      } catch {}
+
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        if (ok) {
+          alert("Lista copiada 📋");
+          return;
+        }
+      } catch {}
+
+      prompt("Copiá el texto:", text);
+    }
+
+    function renderCollectionView() {
+      const col = getCurrent();
+      const view = $("collectionView");
+      if (!view || !col) return;
+
+      view.innerHTML = `
+        <div class="card">
+          <button id="backBtn" class="btn" type="button">← Volver</button>
+          <h2>${col.name}</h2>
+
+          <p class="muted">Colección abierta</p>
+          <p class="muted" id="repsText"></p>
+
+          <div class="row">
+            <button id="copyMissing" class="btn" type="button">Copiar faltantes</button>
+            <button id="copyRepeated" class="btn" type="button">Copiar repetidas</button>
+          </div>
+
+          <div id="grid" class="items-grid"></div>
+          <p class="muted" id="progressText"></p>
+        </div>
+      `;
+
+      $("backBtn").onclick = closeCollection;
+      $("copyMissing").onclick = () => copyText(buildMissingTextBySection(col));
+      $("copyRepeated").onclick = () => copyText(buildRepeatedTextBySection(col));
+
+      renderGrid();
+    }
+
+    function renderGrid() {
+      const col = getCurrent();
+      const grid = $("grid");
+      if (!col || !grid) return;
+
+      grid.innerHTML = "";
+
+      for (const it of col.items) {
+        const cell = document.createElement("div");
+        cell.className = "item" + (it.have ? " have" : "");
+        cell.textContent = it.label;
+
+        if ((it.rep || 0) > 0) {
+          const badge = document.createElement("div");
+          badge.className = "rep-badge";
+          badge.textContent = String(it.rep);
+          cell.appendChild(badge);
+        }
+
+        cell.onclick = () => {
+          if (!it.have) {
+            it.have = true;
+            it.rep = 0;
+          } else {
+            it.rep += 1;
+          }
+
+          save();
+          renderGrid();
+        };
+
+        grid.appendChild(cell);
+      }
+
+      const owned = col.items.filter(i => i.have).length;
+      const total = col.items.length;
+      const reps = col.items.reduce((sum, i) => sum + (i.rep || 0), 0);
+      const percent = total ? Math.round((owned / total) * 100) : 0;
+
+      $("progressText").textContent = `Progreso: ${owned}/${total} (${percent}%) • Faltan: ${total - owned}`;
+      $("repsText").textContent = `Repetidas: ${reps}`;
+    }
+
+    function init() {
+      load();
+      renderCollections();
+
+      const btn = $("createCollectionBtn");
+      if (btn) {
+        btn.onclick = createCollection;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
+  </script>
 </body>
 </html>
