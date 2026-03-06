@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Colección Lucho — v4</title>
+  <link rel="stylesheet" href="./theme.css" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
@@ -11,22 +12,54 @@
     <h1>Colección Lucho — v4</h1>
     <p class="muted">Sandbox seguro. No toca tu app actual.</p>
 
-<div class="card">
-  <div id="status">Cargando...</div>
+    <section class="card">
+      <div id="status" class="status">Lista ✅</div>
 
-  <input
-    id="newCollectionName"
-    class="input"
-    placeholder="Nombre de la colección"
-  />
+      <div class="builder">
+        <label class="label">Nombre de la colección</label>
+        <input id="newCollectionName" class="input" placeholder="Ej: Mundial 2022" />
 
-  <button id="createCollectionBtn" class="btn">
-    Crear colección
-  </button>
+        <div class="row two">
+          <div>
+            <label class="label">Modo</label>
+            <select id="buildMode" class="input">
+              <option value="simple">Simple</option>
+              <option value="sections">Por secciones</option>
+            </select>
+          </div>
 
-  <div id="collectionsList"></div>
-  <div id="collectionView" style="display:none"></div>
-</div>
+          <div>
+            <label class="label">Numeración</label>
+            <select id="numberMode" class="input">
+              <option value="perSection">Por sección</option>
+              <option value="global">Global</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="simpleBuilder">
+          <label class="label">Cantidad total</label>
+          <input id="simpleCount" class="input" type="number" min="1" value="24" />
+        </div>
+
+        <div id="sectionsBuilder" class="hidden">
+          <label class="label">Secciones</label>
+          <textarea id="sectionsInput" class="input textarea" placeholder="Formato: Nombre|Prefijo|Cantidad
+Ejemplos:
+Argentina|ARG|24
+Brasil|BRA|24
+Especiales||12"></textarea>
+          <p class="hint">Si dejás el prefijo vacío y usás “Global”, numera seguido: 1, 2, 3...</p>
+        </div>
+
+        <div class="row gap">
+          <button id="createCollectionBtn" class="btn" type="button">Crear colección</button>
+        </div>
+      </div>
+
+      <div id="collectionsList" class="stack"></div>
+      <div id="collectionView" style="display:none"></div>
+    </section>
   </main>
 
   <script src="./app.js"></script>
