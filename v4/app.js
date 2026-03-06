@@ -144,7 +144,17 @@ function renderCollectionView() {
     if (list) list.style.display = "block";
     state.currentId = null;
   });
+$("btnMissingBySection")?.addEventListener("click", () => {
+  const col = getCurrent();
+  if (!col) return;
+  copyText(buildMissingTextBySection(col));
+});
 
+$("btnRepeatedBySection")?.addEventListener("click", () => {
+  const col = getCurrent();
+  if (!col) return;
+  copyText(buildRepeatedTextBySection(col));
+});
   // Copiar faltantes (lista simple)
   $("btnMissingSimple")?.addEventListener("click", () => {
     const col = getCurrent();
