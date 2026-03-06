@@ -251,7 +251,28 @@ function buildMissingTextBySection(col) {
 
   return lines.join("\n");
 }
+function buildRepeatedTextBySection(col) {
+  const lines = [];
+  lines.push(col.name);
+  lines.push("");
+  lines.push("Repetidas");
+  lines.push("");
 
+  const sections = col.sections || [];
+  const items = col.items || [];
+
+  for (const sec of sections) {
+    const repeated = items
+      .filter(it => it.sectionId === sec.id && (it.rep || 0) > 0)
+      .map(it => `${it.label} (${it.rep})`);
+
+    if (repeated.length) {
+      lines.push(`${sec.name}: ${repeated.join(", ")}`);
+    }
+  }
+
+  return lines.join("\n");
+}
 async function copyText(text) {
   try {
     await navigator.clipboard.writeText(text);
