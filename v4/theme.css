@@ -1,0 +1,20 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #111111;
+  --muted: #6b7280;
+  --line: #e6e8ee;
+  --shadow: 0 14px 35px rgba(0, 0, 0, 0.08);
+
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+
+  --have: #bfe6b8;
+  --rep: #ef4444;
+  --rep-text: #ffffff;
+
+  --item-bg: #f1f3f5;
+  --danger: #dc2626;
+
+  --radius: 18px;
+}
