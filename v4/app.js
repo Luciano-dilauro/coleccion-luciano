@@ -126,10 +126,10 @@ function renderCollectionView() {
       <p class="muted">Colección abierta</p>
       <p class="muted" id="repsText"></p>
 
-      <div class="row gap" style="margin: 10px 0 12px;">
-        <button id="btnMissingSimple" class="btn">Copiar faltantes (lista)</button>
-        <button id="btnMissingBySection" class="btn">Copiar faltantes (por sección)</button>
-      </div>
+<div class="row gap" style="margin: 10px 0 12px;">
+  <button id="btnMissingBySection" class="btn">Copiar faltantes</button>
+  <button id="btnRepeatedBySection" class="btn">Copiar repetidas</button>
+</div>
 
       <div id="stickersGrid" class="items-grid"></div>
       <p class="muted" id="progressText"></p>
