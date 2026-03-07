@@ -1674,7 +1674,7 @@ document.addEventListener("DOMContentLoaded", init);
 }
 
 if (a === "edit-cover-clear") {
-  const col = getCurrentSafe();
+  const col = getCurrent();
   if (!col) return;
   col.cover = null;
   save();
