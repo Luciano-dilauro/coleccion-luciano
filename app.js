@@ -1656,21 +1656,22 @@ document.addEventListener("DOMContentLoaded", init);
   });
 
   // Change archivo CREATE
-  document.addEventListener("change", async (e) => {
-    const input = e.target;
-    if (!input || input.id !== "createCoverInput") return;
+document.addEventListener("change", async (e) => {
+  const input = e.target;
+  if (!input || input.id !== "createCoverInput") return;
 
-    const file = input.files?.[0];
-    input.value = "";
-    if (!file) return;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
 
-    try {
-      draftCoverDataUrl = await fileToDataURL(file);
-      paintCreateCover();
-    } catch {
-      alert("No pude cargar la imagen 😔");
-    }
-  });
+  try {
+    draftCoverDataUrl = await fileToDataURL(file);
+    window.__draftCoverDataUrl = draftCoverDataUrl;
+    paintCreateCover();
+  } catch {
+    alert("No pude cargar la imagen 😔");
+  }
+});
 
   // Al crear: pasar draft a variable global para createCollection()
   document.addEventListener("click", (e) => {
