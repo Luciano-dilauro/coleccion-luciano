@@ -1436,8 +1436,14 @@ els.backBtn?.addEventListener("click", () => {
 
 // abrir editor desde picker
 els.btnEditOpen?.addEventListener("click", () => {
-  const id = els.editSelect?.value;
-  if (!id) return;
+  let id = els.editSelect?.value;
+
+  if (!id) {
+    const first = state.data.collections?.[0];
+    if (!first) return;
+    id = first.id;
+  }
+
   state.currentId = id;
   goEdit();
 });
