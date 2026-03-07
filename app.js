@@ -1620,6 +1620,7 @@ document.addEventListener("DOMContentLoaded", init);
 
   function resetCreateCoverDraft() {
     draftCoverDataUrl = null;
+   window.__draftCoverDataUrl = null;
     paintCreateCover();
   }
 
