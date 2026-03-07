@@ -1147,6 +1147,8 @@ function renderEdit() {
     }
     enableDnD(els.editSectionsEditor);
   }
+
+  paintEditCover();
 }
 
 els.editAddSection?.addEventListener("click", () => {
@@ -1255,7 +1257,6 @@ function applyEdit() {
   goDetail(col.id);
   alert("Cambios guardados ✅");
 }
-
 /* =============================
    BACKUP
 ============================= */
