@@ -1607,6 +1607,18 @@ document.addEventListener("DOMContentLoaded", init);
   let draftCoverDataUrl = null;
 
   function paintCreateCover() {
+     function paintEditCover() {
+  const col = getCurrentSafe();
+  const img = $id("editCoverImg");
+  const fb = $id("editCoverFallback");
+  if (!img || !fb || !col) return;
+
+  const has = !!col.cover;
+  img.src = has ? col.cover : "";
+  img.style.display = has ? "block" : "none";
+  fb.style.display = has ? "none" : "grid";
+  fb.textContent = has ? "" : ((col.name || "").trim() || "📘");
+}
     const img = $id("createCoverImg");
     const fb = $id("createCoverFallback");
     if (!img || !fb) return;
