@@ -231,20 +231,6 @@
 </section>
     
     <!-- EDIT -->
-    <div class="field" style="margin-top:10px;">
-  <label>Tapa del álbum</label>
-
-  <div class="row gap" style="align-items:center;">
-    <button class="btn" type="button" data-action="edit-cover-pick">Elegir tapa</button>
-    <button class="btn" type="button" data-action="edit-cover-clear">Quitar</button>
-    <input id="editCoverInput" type="file" accept="image/*" style="display:none;" />
-  </div>
-
-  <div id="editCoverBox" class="cover-box" style="margin-top:10px;">
-    <img id="editCoverImg" alt="Tapa del álbum" />
-    <div id="editCoverFallback" class="cover-fallback">📘</div>
-  </div>
-</div>
     <section class="view" data-view="edit">
       <div class="card">
         <div class="row-between">
@@ -259,7 +245,20 @@
           <label>Nombre</label>
           <input id="editName" class="input" type="text" />
         </div>
+<div class="field" style="margin-top:10px;">
+  <label>Tapa del álbum</label>
 
+  <div class="row gap" style="align-items:center;">
+    <button class="btn" type="button" data-action="edit-cover-pick">Elegir tapa</button>
+    <button class="btn" type="button" data-action="edit-cover-clear">Quitar</button>
+    <input id="editCoverInput" type="file" accept="image/*" style="display:none;" />
+  </div>
+
+  <div id="editCoverBox" class="cover-box" style="margin-top:10px;">
+    <img id="editCoverImg" alt="Tapa del álbum" />
+    <div id="editCoverFallback" class="cover-fallback">📘</div>
+  </div>
+</div>
         <div id="editSectionsArea" style="display:none;">
           <div class="divider"></div>
 
