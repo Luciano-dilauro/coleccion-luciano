@@ -1491,7 +1491,7 @@ document.addEventListener("DOMContentLoaded", init);
   }
 
   function buildExportText(mode) {
-    const col = getCurrentSafe();
+    const col = getCurrent();
     if (!col) return "";
 
     const bySec = new Map();
