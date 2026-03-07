@@ -338,7 +338,7 @@ function renderCollectionsSelects() {
     }
 
     // ✅ FIX: era state.current (no existe). Debe ser currentId
-sel.value = state.currentId || (cols[0]?.id || "");
+sel.value = state.currentId || "";
   };
 
   fill(els.collectionsSelect);
