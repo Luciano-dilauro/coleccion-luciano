@@ -739,3 +739,14 @@ label{font-weight:800}
   .cover-box{ width: 118px; }
   .detail-side{ padding-top: 54px; }
 }
+#createCoverImg{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: none;
+}
+
+#createCoverBox{
+  width: 128px;
+  height: 185px;
+}
