@@ -1653,23 +1653,62 @@ document.addEventListener("DOMContentLoaded", init);
       if (input) input.value = "";
       return;
     }
+     if (a === "edit-cover-pick") {
+  const input = $id("editCoverInput");
+  if (!input) return alert("No encuentro editCoverInput.");
+  input.click();
+  return;
+}
+
+if (a === "edit-cover-clear") {
+  const col = getCurrentSafe();
+  if (!col) return;
+  col.cover = null;
+  save();
+  paintEditCover();
+  if (typeof renderDetail === "function" && state.view === "detail") renderDetail();
+  const input = $id("editCoverInput");
+  if (input) input.value = "";
+  return;
+}
   });
 
   // Change archivo CREATE
 document.addEventListener("change", async (e) => {
   const input = e.target;
-  if (!input || input.id !== "createCoverInput") return;
+  if (!input) return;
 
-  const file = input.files?.[0];
-  input.value = "";
-  if (!file) return;
+  if (input.id === "createCoverInput") {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
 
-  try {
-    draftCoverDataUrl = await fileToDataURL(file);
-    window.__draftCoverDataUrl = draftCoverDataUrl;
-    paintCreateCover();
-  } catch {
-    alert("No pude cargar la imagen 😔");
+    try {
+      draftCoverDataUrl = await fileToDataURL(file);
+      window.__draftCoverDataUrl = draftCoverDataUrl;
+      paintCreateCover();
+    } catch {
+      alert("No pude cargar la imagen 😔");
+    }
+    return;
+  }
+
+  if (input.id === "editCoverInput") {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+
+    const col = getCurrentSafe();
+    if (!col) return;
+
+    try {
+      col.cover = await fileToDataURL(file);
+      save();
+      paintEditCover();
+      if (typeof renderDetail === "function" && state.view === "detail") renderDetail();
+    } catch {
+      alert("No pude cargar la imagen 😔");
+    }
   }
 });
 
