@@ -1597,7 +1597,7 @@ document.addEventListener("DOMContentLoaded", init);
 })();
 
 /* ================================
-   COVER v3 — Crear + Detalle
+   COVER v3 — Crear + Detalle + Editar
 =============================== */
 (function () {
   const $id = (id) => document.getElementById(id);
@@ -1619,18 +1619,6 @@ document.addEventListener("DOMContentLoaded", init);
   let draftCoverDataUrl = null;
 
   function paintCreateCover() {
-     function paintEditCover() {
-  const col = getCurrent();
-  const img = document.getElementById("editCoverImg");
-  const fb = document.getElementById("editCoverFallback");
-  if (!img || !fb || !col) return;
-
-  const has = !!col.cover;
-  img.src = has ? col.cover : "";
-  img.style.display = has ? "block" : "none";
-  fb.style.display = has ? "none" : "grid";
-  fb.textContent = has ? "" : ((col.name || "").trim() || "📘");
-}
     const img = $id("createCoverImg");
     const fb = $id("createCoverFallback");
     if (!img || !fb) return;
@@ -1642,9 +1630,22 @@ document.addEventListener("DOMContentLoaded", init);
     fb.textContent = has ? "" : (($id("newName")?.value || "").trim() || "📘");
   }
 
+  function paintEditCover() {
+    const col = getCurrent();
+    const img = $id("editCoverImg");
+    const fb = $id("editCoverFallback");
+    if (!img || !fb || !col) return;
+
+    const has = !!col.cover;
+    img.src = has ? col.cover : "";
+    img.style.display = has ? "block" : "none";
+    fb.style.display = has ? "none" : "grid";
+    fb.textContent = has ? "" : ((col.name || "").trim() || "📘");
+  }
+
   function resetCreateCoverDraft() {
     draftCoverDataUrl = null;
-   window.__draftCoverDataUrl = null;
+    window.__draftCoverDataUrl = null;
     paintCreateCover();
   }
 
@@ -1658,7 +1659,7 @@ document.addEventListener("DOMContentLoaded", init);
     };
   }
 
-  // Botones en CREATE
+  // Botones en CREATE + EDIT
   document.addEventListener("click", (e) => {
     const btn = e.target?.closest?.("[data-action]");
     if (!btn) return;
@@ -1677,64 +1678,65 @@ document.addEventListener("DOMContentLoaded", init);
       if (input) input.value = "";
       return;
     }
-     if (a === "edit-cover-pick") {
-  const input = $id("editCoverInput");
-  if (!input) return alert("No encuentro editCoverInput.");
-  input.click();
-  return;
-}
 
-if (a === "edit-cover-clear") {
-  const col = getCurrent();
-  if (!col) return;
-  col.cover = null;
-  save();
-  paintEditCover();
-  if (typeof renderDetail === "function" && state.view === "detail") renderDetail();
-  const input = $id("editCoverInput");
-  if (input) input.value = "";
-  return;
-}
-  });
-
-  // Change archivo CREATE
-document.addEventListener("change", async (e) => {
-  const input = e.target;
-  if (!input) return;
-
-  if (input.id === "createCoverInput") {
-    const file = input.files?.[0];
-    input.value = "";
-    if (!file) return;
-
-    try {
-      draftCoverDataUrl = await fileToDataURL(file);
-      window.__draftCoverDataUrl = draftCoverDataUrl;
-      paintCreateCover();
-    } catch {
-      alert("No pude cargar la imagen 😔");
+    if (a === "edit-cover-pick") {
+      const input = $id("editCoverInput");
+      if (!input) return alert("No encuentro editCoverInput.");
+      input.click();
+      return;
     }
-    return;
-  }
 
-  if (input.id === "editCoverInput") {
-    const file = input.files?.[0];
-    input.value = "";
-    if (!file) return;
-
-    const col = getCurrentSafe();
-    if (!col) return;
-
-    try {
-      col.cover = await fileToDataURL(file);
+    if (a === "edit-cover-clear") {
+      const col = getCurrent();
+      if (!col) return;
+      col.cover = null;
       save();
       paintEditCover();
       if (typeof renderDetail === "function" && state.view === "detail") renderDetail();
-    } catch {
-      alert("No pude cargar la imagen 😔");
+      const input = $id("editCoverInput");
+      if (input) input.value = "";
+      return;
     }
-  }
-});
+  });
+
+  // Change archivo CREATE + EDIT
+  document.addEventListener("change", async (e) => {
+    const input = e.target;
+    if (!input) return;
+
+    if (input.id === "createCoverInput") {
+      const file = input.files?.[0];
+      input.value = "";
+      if (!file) return;
+
+      try {
+        draftCoverDataUrl = await fileToDataURL(file);
+        window.__draftCoverDataUrl = draftCoverDataUrl;
+        paintCreateCover();
+      } catch {
+        alert("No pude cargar la imagen 😔");
+      }
+      return;
+    }
+
+    if (input.id === "editCoverInput") {
+      const file = input.files?.[0];
+      input.value = "";
+      if (!file) return;
+
+      const col = getCurrent();
+      if (!col) return;
+
+      try {
+        col.cover = await fileToDataURL(file);
+        save();
+        paintEditCover();
+        if (typeof renderDetail === "function" && state.view === "detail") renderDetail();
+      } catch {
+        alert("No pude cargar la imagen 😔");
+      }
+    }
+  });
 
   // Al crear: pasar draft a variable global para createCollection()
   document.addEventListener("click", (e) => {
