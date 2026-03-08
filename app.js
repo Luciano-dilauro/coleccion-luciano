@@ -1420,6 +1420,11 @@ document.addEventListener("click", (e) => {
   if (action === "open-edit-picker") {
     if (els.editPicker) els.editPicker.classList.toggle("hidden");
     renderCollectionsSelects();
+
+     if (els.editSelect) {
+    els.editSelect.value = "";
+    els.editSelect.selectedIndex = 0;
+     }
     return;
   }
 });
