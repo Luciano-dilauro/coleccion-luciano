@@ -1620,9 +1620,9 @@ document.addEventListener("DOMContentLoaded", init);
 
   function paintCreateCover() {
      function paintEditCover() {
-  const col = getCurrentSafe();
-  const img = $id("editCoverImg");
-  const fb = $id("editCoverFallback");
+  const col = getCurrent();
+  const img = document.getElementById("editCoverImg");
+  const fb = document.getElementById("editCoverFallback");
   if (!img || !fb || !col) return;
 
   const has = !!col.cover;
