@@ -1012,113 +1012,109 @@ function buildItemCell(it) {
   repHidden.className = "item-rep";
   repHidden.textContent = `Rep: ${repCount}`;
 
-  // Long-press robusto
-  let pressTimer = null;
-  let longPressFired = false;
+// Long-press (robusto)
+let pressTimer = null;
+let longPressFired = false;
+let suppressTapUntil = 0;
 
-  // Bloqueo anti-rebote después de longpress/confirm
-  if (!state.longPressLockUntil) state.longPressLockUntil = 0;
+// iOS: evitar "mouse events" fantasmas después de touch
+let lastTouchTime = 0;
+const isRecentTouch = () => (Date.now() - lastTouchTime) < 900;
 
-  // iOS: evitar mouse events fantasma después de touch
-  let lastTouchTime = 0;
-  const isRecentTouch = () => (Date.now() - lastTouchTime) < 1200;
+const clearPress = () => {
+  if (pressTimer) {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  }
+};
 
-  const clearPress = () => {
-    if (pressTimer) {
-      clearTimeout(pressTimer);
-      pressTimer = null;
-    }
-  };
+const doLongPress = () => {
+  longPressFired = true;
 
-  const lockTaps = (ms = 1200) => {
-    state.longPressLockUntil = Date.now() + ms;
-  };
-
-  const doLongPress = () => {
-    longPressFired = true;
-    lockTaps();
-
-    // si tiene repetidas -> resto
-    if ((it.rep || 0) > 0) {
-      it.rep = clamp((it.rep || 0) - 1, 0, 999);
-      save();
-      renderDetail();
-      return;
-    }
-
-    // si no tiene repetidas pero está marcada -> confirmar desmarcar
-    if (it.have) {
-      const ok = confirm("⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?");
-      if (!ok) return;
-
-      it.have = false;
-      it.rep = 0;
-      save();
-      renderDetail();
-    }
-  };
-
-  const onPressStart = () => {
-    longPressFired = false;
-    clearPress();
-    pressTimer = setTimeout(doLongPress, 500);
-  };
-
-  const onPressEnd = () => {
-    clearPress();
-  };
-
-  const onTap = () => {
-    if (Date.now() < (state.longPressLockUntil || 0)) return;
-
-    if (!it.have) {
-      it.have = true;
-      it.rep = 0;
-      save();
-      renderDetail();
-      return;
-    }
-
-    it.rep = clamp((it.rep || 0) + 1, 0, 999);
+  // si tiene repetidas -> resto
+  if ((it.rep || 0) > 0) {
+    it.rep = clamp((it.rep || 0) - 1, 0, 999);
     save();
     renderDetail();
-  };
+    return;
+  }
 
-  // Touch + mouse (si hubo longpress, NO TAP)
-  wrap.addEventListener("touchstart", () => {
-    lastTouchTime = Date.now();
-    onPressStart();
-  }, { passive: true });
+  // si no tiene repetidas pero está marcada -> confirmar desmarcar
+  if (it.have) {
+    suppressTapUntil = Date.now() + 900;
+     const ok = confirm("⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?");
+    if (!ok) return;
+    it.have = false;
+    it.rep = 0;
+    save();
+    renderDetail();
+  }
+};
 
-  wrap.addEventListener("touchend", () => {
-    lastTouchTime = Date.now();
-    onPressEnd();
-    if (longPressFired) return;
-    onTap();
-  });
+const onPressStart = () => {
+  longPressFired = false;     // 👈 clave
+  clearPress();
+  pressTimer = setTimeout(doLongPress, 500);
+};
 
-  wrap.addEventListener("touchcancel", () => {
-    onPressEnd();
-    lockTaps(400);
-  });
+const onPressEnd = () => {
+  clearPress();
+};
 
-  wrap.addEventListener("mousedown", () => {
-    if (isRecentTouch()) return;
-    onPressStart();
-  });
+const onTap = () => {
+ if (Date.now() < suppressTapUntil) return;
+   if (!it.have) {
+    it.have = true;
+    it.rep = 0;
+    save();
+    renderDetail();
+    return;
+  }
+  it.rep = clamp((it.rep || 0) + 1, 0, 999);
+  save();
+  renderDetail();
+};
 
-  wrap.addEventListener("mouseup", () => {
-    if (isRecentTouch()) return;
-    onPressEnd();
-    if (longPressFired) return;
-    onTap();
-  });
+// Touch + mouse (si hubo longpress, NO TAP)
+wrap.addEventListener("touchstart", () => {
+  lastTouchTime = Date.now();
+  onPressStart();
+}, { passive: true });
 
-  wrap.addEventListener("mouseleave", onPressEnd);
+wrap.addEventListener("touchend", () => {
+  lastTouchTime = Date.now();
+  onPressEnd();
+  if (longPressFired) return;     // 👈 clave
+  onTap();
+});
+wrap.addEventListener("touchcancel", onPressEnd);
+
+wrap.addEventListener("mousedown", () => {
+  if (isRecentTouch()) return;
+  onPressStart();
+});
+
+wrap.addEventListener("mouseup", () => {
+  if (isRecentTouch()) return;
+  onPressEnd();
+  if (longPressFired) return;     // 👈 clave
+  onTap();
+});
+wrap.addEventListener("mouseleave", onPressEnd);
 
   wrap.appendChild(code);
   wrap.appendChild(repHidden);
   return wrap;
+}
+
+function resetCollection() {
+  const col = getCurrent();
+  if (!col) return;
+  const ok = confirm(`Resetear "${col.name}"?\n\nSe borran Tengo y Repetidas de todos los ítems.`);
+  if (!ok) return;
+  for (const it of col.items) { it.have = false; it.rep = 0; }
+  save();
+  renderDetail();
 }
 
 /* =============================
@@ -1131,23 +1127,19 @@ function renderEdit() {
   if (els.editTitle) els.editTitle.textContent = `Editar: ${col.name}`;
   if (els.editName) els.editName.value = col.name;
 
-  // pintar tapa correctamente
+  // portada correcta de la colección actual
   const editImg = document.getElementById("editCoverImg");
   const editFallback = document.getElementById("editCoverFallback");
-
   if (editImg && editFallback) {
     const has = !!col.cover;
-
     editImg.src = has ? col.cover : "";
     editImg.style.display = has ? "block" : "none";
-
     editFallback.style.display = has ? "none" : "grid";
     editFallback.textContent = has ? "" : ((col.name || "").trim() || "📘");
   }
 
   const isSections = col.structure === "sections";
-
-if (els.editSectionsArea) els.editSectionsArea.style.display = isSections ? "block" : "none";
+  if (els.editSectionsArea) els.editSectionsArea.style.display = isSections ? "block" : "none";
   if (!els.editSectionsEditor) return;
 
   els.editSectionsEditor.innerHTML = "";
@@ -1170,6 +1162,7 @@ if (els.editSectionsArea) els.editSectionsArea.style.display = isSections ? "blo
 
     enableDnD(els.editSectionsEditor);
   }
+}
 
 els.editAddSection?.addEventListener("click", () => {
   addSectionRow(els.editSectionsEditor, {
@@ -1190,6 +1183,12 @@ function applyEdit() {
   const newName = (els.editName?.value || "").trim();
   if (!newName) return alert("Nombre inválido.");
   col.name = newName;
+
+  // mantener coherente el fallback si no hay tapa
+  const editFallback = document.getElementById("editCoverFallback");
+  if (editFallback && !col.cover) {
+    editFallback.textContent = col.name || "📘";
+  }
 
   if (col.structure !== "sections") {
     save();
@@ -1277,6 +1276,7 @@ function applyEdit() {
   goDetail(col.id);
   alert("Cambios guardados ✅");
 }
+
 /* =============================
    BACKUP
 ============================= */
@@ -1461,11 +1461,12 @@ els.backBtn?.addEventListener("click", () => {
 
 // abrir editor desde picker
 els.btnEditOpen?.addEventListener("click", () => {
-  const id = els.editSelect?.value;
+  let id = els.editSelect?.value;
 
   if (!id) {
-    alert("Elegí una colección primero.");
-    return;
+    const first = state.data.collections?.[0];
+    if (!first) return;
+    id = first.id;
   }
 
   state.currentId = id;
@@ -1662,8 +1663,6 @@ document.addEventListener("DOMContentLoaded", init);
     fb.textContent = has ? "" : ((col.name || "").trim() || "📘");
   }
 
-   window.paintEditCover = paintEditCover;
-   
   function resetCreateCoverDraft() {
     draftCoverDataUrl = null;
     window.__draftCoverDataUrl = null;
