@@ -1147,9 +1147,7 @@ function renderEdit() {
 
   const isSections = col.structure === "sections";
 
-  if (els.editSectionsArea)
-    els.editSectionsArea.style.display = isSections ? "block" : "none";
-
+if (els.editSectionsArea) els.editSectionsArea.style.display = isSections ? "block" : "none";
   if (!els.editSectionsEditor) return;
 
   els.editSectionsEditor.innerHTML = "";
