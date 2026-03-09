@@ -1131,14 +1131,33 @@ function renderEdit() {
   if (els.editTitle) els.editTitle.textContent = `Editar: ${col.name}`;
   if (els.editName) els.editName.value = col.name;
 
+  // pintar tapa correctamente
+  const editImg = document.getElementById("editCoverImg");
+  const editFallback = document.getElementById("editCoverFallback");
+
+  if (editImg && editFallback) {
+    const has = !!col.cover;
+
+    editImg.src = has ? col.cover : "";
+    editImg.style.display = has ? "block" : "none";
+
+    editFallback.style.display = has ? "none" : "grid";
+    editFallback.textContent = has ? "" : ((col.name || "").trim() || "📘");
+  }
+
   const isSections = col.structure === "sections";
-  if (els.editSectionsArea) els.editSectionsArea.style.display = isSections ? "block" : "none";
+
+  if (els.editSectionsArea)
+    els.editSectionsArea.style.display = isSections ? "block" : "none";
+
   if (!els.editSectionsEditor) return;
+
   els.editSectionsEditor.innerHTML = "";
 
   if (isSections) {
     for (const sec of col.sections) {
       const count = col.items.filter(it => it.sectionId === sec.id).length;
+
       const row = addSectionRow(els.editSectionsEditor, {
         name: sec.name,
         format: sec.format || "num",
@@ -1147,13 +1166,12 @@ function renderEdit() {
         ownNumbering: !!sec.ownNumbering,
         specials: Array.isArray(sec.specials) ? sec.specials : []
       });
+
       row.dataset.secId = sec.id;
     }
+
     enableDnD(els.editSectionsEditor);
   }
-
-  if (typeof window.paintEditCover === "function") window.paintEditCover();
-}
 
 els.editAddSection?.addEventListener("click", () => {
   addSectionRow(els.editSectionsEditor, {
