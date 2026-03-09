@@ -1441,12 +1441,11 @@ els.backBtn?.addEventListener("click", () => {
 
 // abrir editor desde picker
 els.btnEditOpen?.addEventListener("click", () => {
-  let id = els.editSelect?.value;
+  const id = els.editSelect?.value;
 
   if (!id) {
-    const first = state.data.collections?.[0];
-    if (!first) return;
-    id = first.id;
+    alert("Elegí una colección primero.");
+    return;
   }
 
   state.currentId = id;
