@@ -801,5 +801,5 @@ label{font-weight:800}
 }
 /* --- FIX GAP UNDER TOPBAR (EDIT) --- */
 .view[data-view="edit"]{
-  margin-top: -22px;
+  margin-top: -38px;
 }
