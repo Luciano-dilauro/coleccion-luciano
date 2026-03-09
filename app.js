@@ -1148,7 +1148,7 @@ function renderEdit() {
     enableDnD(els.editSectionsEditor);
   }
 
-  paintEditCover();
+  if (typeof window.paintEditCover === "function") window.paintEditCover();
 }
 
 els.editAddSection?.addEventListener("click", () => {
