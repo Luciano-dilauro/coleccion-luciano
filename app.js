@@ -1646,6 +1646,8 @@ document.addEventListener("DOMContentLoaded", init);
     fb.textContent = has ? "" : ((col.name || "").trim() || "📘");
   }
 
+   window.paintEditCover = paintEditCover;
+   
   function resetCreateCoverDraft() {
     draftCoverDataUrl = null;
     window.__draftCoverDataUrl = null;
