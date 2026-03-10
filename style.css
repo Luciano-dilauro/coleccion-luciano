@@ -799,16 +799,3 @@ label{font-weight:800}
 .view[data-view="edit"] .field:has(#editCoverBox) .btn{
   width:140px;
 }
-/* --- FIX SPACE UNDER TOPBAR --- */
-
-.view > .card:first-child{
-  margin-top: -8px;
-}
-/* --- FIX GAP UNDER TOPBAR (EDIT) --- */
-.view[data-view="edit"]{
-  margin-top: -52px;
-}
-/* --- GLOBAL: pegar tarjetas al topbar --- */
-.view > .card:first-child{
-  margin-top: -16px;
-}
