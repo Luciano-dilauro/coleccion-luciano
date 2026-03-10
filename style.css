@@ -75,7 +75,7 @@ body{
 
 main.app{
   padding:16px;
-  padding-top: calc(var(--topbar-total) - 36px);
+  padding-top: calc(var(--topbar-total) + 8px);
   max-width:720px;
   margin:0 auto;
 }
