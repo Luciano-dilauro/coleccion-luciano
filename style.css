@@ -808,3 +808,7 @@ label{font-weight:800}
 .view[data-view="edit"]{
   margin-top: -52px;
 }
+/* --- GLOBAL: pegar tarjetas al topbar --- */
+.view > .card:first-child{
+  margin-top: -16px;
+}
