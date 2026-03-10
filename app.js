@@ -1144,24 +1144,39 @@ function renderEdit() {
 
   els.editSectionsEditor.innerHTML = "";
 
-  if (isSections) {
-    for (const sec of col.sections) {
-      const count = col.items.filter(it => it.sectionId === sec.id).length;
+if (isSections) {
 
-      const row = addSectionRow(els.editSectionsEditor, {
-        name: sec.name,
-        format: sec.format || "num",
-        prefix: sec.prefix || "",
-        count,
-        ownNumbering: !!sec.ownNumbering,
-        specials: Array.isArray(sec.specials) ? sec.specials : []
-      });
+  for (const sec of col.sections) {
+    const count = col.items.filter(it => it.sectionId === sec.id).length;
 
-      row.dataset.secId = sec.id;
-    }
+    const row = addSectionRow(els.editSectionsEditor, {
+      name: sec.name,
+      format: sec.format || "num",
+      prefix: sec.prefix || "",
+      count,
+      ownNumbering: !!sec.ownNumbering,
+      specials: Array.isArray(sec.specials) ? sec.specials : []
+    });
 
-    enableDnD(els.editSectionsEditor);
+    row.dataset.secId = sec.id;
   }
+
+  enableDnD(els.editSectionsEditor);
+
+} else {
+
+  const count = col.items.length;
+
+  addSectionRow(els.editSectionsEditor, {
+    name: "General",
+    format: "num",
+    prefix: "",
+    count,
+    ownNumbering: false,
+    specials: []
+  });
+
+}
 }
 
 els.editAddSection?.addEventListener("click", () => {
