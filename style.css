@@ -28,25 +28,30 @@ body{
 ========================= */
 .topbar{
   position: fixed;
-  top: 0; left: 0; right: 0;
-  z-index: 9999;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 99999;
 
   height: var(--topbar-h);
   padding-top: var(--safe-top);
   box-sizing: border-box;
 
-  display:flex;
-  align-items:center;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  position: relative;
-  gap:10px;
-  padding-left:16px;
-  padding-right:16px;
+  gap: 10px;
+  padding-left: 16px;
+  padding-right: 16px;
 
-  background:rgba(246,247,249,.92);
+  background: rgba(246,247,249,.96);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom:1px solid rgba(0,0,0,.08);
+  border-bottom: 1px solid rgba(0,0,0,.08);
+
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
 }
 .topbar-title{
   font-weight:900;
