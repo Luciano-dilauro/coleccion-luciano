@@ -807,9 +807,9 @@ label{font-weight:800}
 }
 /* Compactar botones del header */
 .detail-actions .btn{
-  padding: 8px 12px;
-  font-size: 14px;
-  border-radius: 16px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 14px;
   min-width: 0;
   white-space: nowrap;
 }
