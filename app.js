@@ -1834,3 +1834,57 @@ document.addEventListener("DOMContentLoaded", init);
     if (nameInput) nameInput.addEventListener("input", paintCreateCover);
   });
 })();
+
+/* ===== MODO SIMPLE TEMPORAL (sin longtap ni repetidas) ===== */
+/* Tap = marcar | Tap en marcada = confirmar y desmarcar      */
+/* Este bloque pisa el comportamiento actual sin borrar código */
+
+(function(){
+
+  const originalBuildItemCell = window.buildItemCell;
+
+  if(!originalBuildItemCell) return;
+
+  window.buildItemCell = function(item){
+
+    const el = originalBuildItemCell(item);
+
+    if(!el) return el;
+
+    el.onclick = null;
+    el.oncontextmenu = null;
+    el.onpointerdown = null;
+    el.onpointerup = null;
+
+    el.addEventListener("click", function(e){
+
+      const col = getCurrent();
+      if(!col) return;
+
+      const it = col.items.find(x => x.id === item.id);
+      if(!it) return;
+
+      if(!it.have){
+
+        it.have = true;
+        saveCollections();
+        renderCollection();
+
+      } else {
+
+        const ok = confirm("¿Desmarcar figurita?");
+        if(!ok) return;
+
+        it.have = false;
+        saveCollections();
+        renderCollection();
+
+      }
+
+    });
+
+    return el;
+  };
+
+})();
+
