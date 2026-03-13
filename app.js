@@ -1442,7 +1442,23 @@ document.addEventListener("click", (e) => {
 
   // reset
   if (action === "reset-collection") return resetCollection();
+if (action === "complete-collection") {
 
+  const col = getCurrent();
+  if (!col) return;
+
+  const ok = confirm("¿Marcar toda la colección como completa?");
+  if (!ok) return;
+
+  for (const it of (col.items || [])) {
+    it.have = true;
+    it.rep = 0;
+  }
+
+  save();
+  renderDetail();
+  return;
+}
   // backup
   if (action === "export-backup") return exportBackup();
 
