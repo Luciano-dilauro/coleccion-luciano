@@ -636,7 +636,7 @@ label{font-weight:800}
 .detail-header .detail-actions{
   position: static;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   margin: 0 0 12px 0;
 }
