@@ -667,6 +667,20 @@ label{font-weight:800}
 .detail-hero > :nth-child(2){
   padding-top: 0px;
 }
+.detail-actions{
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.detail-actions .btn{
+  padding: 10px 16px;
+  font-size: 15px;
+  border-radius: 14px;
+}
+
+.detail-actions .btn.primary{
+  padding: 10px 18px;
+}
 /* Tapa rectangular (más alta). No se deforma */
 .cover-box{
   width: 128px;
