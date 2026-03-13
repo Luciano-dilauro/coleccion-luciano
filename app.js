@@ -962,7 +962,7 @@ function renderDetail() {
 
   for (const sec of col.sections) {
     const items = (bySec.get(sec.id) || []).filter(itemVisible);
-
+    if (state.filter === "missing" && items.length === 0) continue;
     const card = document.createElement("div");
     card.className = "section-card";
 
