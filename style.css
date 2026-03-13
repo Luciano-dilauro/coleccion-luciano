@@ -632,29 +632,28 @@ label{font-weight:800}
   padding: 14px !important;
 }
 
-/* Botones alineados con stats */
+/* Botones dentro de la columna derecha */
 .detail-header .detail-actions{
   position: static;
-  margin-bottom: 10px;
-}
-.detail-actions .btn:first-child{
-  margin-right: 28px;
-}
-  display: flex;
-  gap: 10px;
-
-  pointer-events: auto;
-  z-index: 5;
-}
-/* el div vacío no nos sirve */
-.detail-actions > div:first-child{ display:none; }
-
-/* este es el contenedor real de los botones */
-.detail-actions .row.gap{
-  width: 100%;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  margin: 0 0 12px 0;
+}
+
+.detail-actions > div:first-child{
+  display: none;
+}
+
+.detail-actions .row.gap{
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  width: auto;
+}
+
+.detail-actions .btn:first-child{
+  margin-right: 0;
 }
 
 /* HERO: arranca arriba (sin espacio blanco) */
