@@ -797,3 +797,11 @@ label{font-weight:800}
 .view[data-view="edit"] .field:has(#editCoverBox) .btn{
   width:140px;
 }
+/* Botones detalle más compactos */
+.detail-actions .btn{
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 16px;
+  min-width: 0;
+  white-space: nowrap;
+}
