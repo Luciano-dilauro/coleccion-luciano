@@ -632,11 +632,10 @@ label{font-weight:800}
   padding: 14px !important;
 }
 
-/* Botones flotantes arriba a la derecha */
+/* Botones alineados con stats */
 .detail-header .detail-actions{
-  position: absolute;
-  top: 14px;
-  right: 14px;
+  position: static;
+  margin-bottom: 10px;
 }
 .detail-actions .btn:first-child{
   margin-right: 28px;
@@ -654,7 +653,7 @@ label{font-weight:800}
 .detail-actions .row.gap{
   width: 100%;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
 }
 
