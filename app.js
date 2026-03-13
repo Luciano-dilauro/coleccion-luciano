@@ -1842,49 +1842,43 @@ document.addEventListener("DOMContentLoaded", init);
 (function(){
 
   const originalBuildItemCell = window.buildItemCell;
-
-  if(!originalBuildItemCell) return;
+  if (!originalBuildItemCell) return;
 
   window.buildItemCell = function(item){
-
     const el = originalBuildItemCell(item);
+    if (!el) return el;
 
-    if(!el) return el;
+    // clonar para eliminar listeners anteriores
+    const clean = el.cloneNode(true);
 
-    el.onclick = null;
-    el.oncontextmenu = null;
-    el.onpointerdown = null;
-    el.onpointerup = null;
-
-    el.addEventListener("click", function(e){
+    clean.addEventListener("click", function(e){
+      e.preventDefault();
+      e.stopPropagation();
 
       const col = getCurrent();
-      if(!col) return;
+      if (!col) return;
 
       const it = col.items.find(x => x.id === item.id);
-      if(!it) return;
+      if (!it) return;
 
-      if(!it.have){
-
+      if (!it.have) {
         it.have = true;
-        saveCollections();
-        renderCollection();
-
-      } else {
-
-        const ok = confirm("¿Desmarcar figurita?");
-        if(!ok) return;
-
-        it.have = false;
-        saveCollections();
-        renderCollection();
-
+        it.rep = 0;
+        save();
+        renderDetail();
+        return;
       }
 
+      const ok = confirm("¿Desmarcar figurita?");
+      if (!ok) return;
+
+      it.have = false;
+      it.rep = 0;
+      save();
+      renderDetail();
     });
 
-    return el;
+    return clean;
   };
 
 })();
-
