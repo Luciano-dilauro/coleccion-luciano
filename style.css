@@ -666,7 +666,7 @@ label{font-weight:800}
   align-items: start;
 }
 .detail-hero > :nth-child(2){
-  padding-top: 56px;
+  padding-top: 0px;
 }
 /* Tapa rectangular (más alta). No se deforma */
 .cover-box{
