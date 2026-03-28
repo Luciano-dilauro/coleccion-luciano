@@ -210,6 +210,12 @@ label{font-weight:800}
 .hub-card-delete{
   text-align:center;
   justify-content:center;
+  border:1px solid #ef4444;
+  background:#fff5f5;
+}
+
+.hub-card-delete .hub-title{
+  color:#ef4444;
 }
 .hub-ico{
   width:46px;height:46px;border-radius:16px;
