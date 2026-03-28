@@ -1478,8 +1478,8 @@ if (action === "complete-collection") {
      }
     return;
   }
+   if (action === "open-delete-picker") return alert("Paso siguiente: abrir selector para eliminar");
 });
-if (action === "open-delete-picker") return alert("Paso siguiente: abrir selector para eliminar");
 els.backBtn?.addEventListener("click", () => {
   if (state.view === "detail") return goCollections();
   if (state.view === "collections") return setView("dash");
