@@ -1207,7 +1207,7 @@ function applyEdit() {
 
   if (col.structure !== "sections") {
     save();
-    goDetail(col.id);
+    goDash();
     alert("Cambios guardados ✅");
     return;
   }
@@ -1288,7 +1288,7 @@ function applyEdit() {
   col.items = newItems;
 
   save();
-  goDetail(col.id);
+  goDash();
   alert("Cambios guardados ✅");
 }
 
