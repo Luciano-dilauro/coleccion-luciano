@@ -195,14 +195,16 @@ label{font-weight:800}
   gap:14px;
 }
 .hub-card{
-  text-align:left;
+  text-align:center;
   padding:16px;
   border-radius:22px;
   border:1px solid var(--line);
   background:#fff;
   display:flex;
-  gap:12px;
+  flex-direction:column;
+  gap:8px;
   align-items:center;
+  justify-content:center;
 }
 .hub-card-wide{
   grid-column: span 2;
