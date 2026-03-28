@@ -204,6 +204,9 @@ label{font-weight:800}
   gap:12px;
   align-items:center;
 }
+.hub-card-wide{
+  grid-column: span 2;
+}
 .hub-ico{
   width:46px;height:46px;border-radius:16px;
   display:grid;place-items:center;
