@@ -1437,7 +1437,7 @@ document.addEventListener("click", (e) => {
 
   // edit
   if (action === "open-edit") return goEdit();
-  if (action === "edit-cancel") return goDetail(state.currentId);
+  if (action === "edit-cancel") return goDash();
   if (action === "edit-save") return applyEdit();
 
   // reset
