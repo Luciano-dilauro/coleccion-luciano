@@ -291,8 +291,11 @@ function goCollections() {
 }
 function goLoadEdit() {
   renderCollectionsSelects();
+
   if (els.editPicker) els.editPicker.classList.add("hidden");
+  if (els.deletePicker) els.deletePicker.classList.add("hidden");
   if (els.loadeditHub) els.loadeditHub.classList.remove("hidden");
+
   setView("loadedit");
 }
 function goCreate() {
