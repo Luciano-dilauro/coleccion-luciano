@@ -1497,7 +1497,28 @@ if (action === "complete-collection") {
 
   return;
 }
-   if (action === "open-delete-picker") return alert("Paso siguiente: abrir selector para eliminar");
+   if (action === "open-delete-picker") {
+  if (els.deletePicker && els.loadeditHub) {
+    const isHidden = els.deletePicker.classList.contains("hidden");
+
+    if (isHidden) {
+      els.deletePicker.classList.remove("hidden");
+      els.loadeditHub.classList.add("hidden");
+    } else {
+      els.deletePicker.classList.add("hidden");
+      els.loadeditHub.classList.remove("hidden");
+    }
+  }
+
+  renderCollectionsSelects();
+
+  if (els.deleteSelect) {
+    els.deleteSelect.value = "";
+    els.deleteSelect.selectedIndex = 0;
+  }
+
+  return;
+}
 });
 els.backBtn?.addEventListener("click", () => {
   if (state.view === "detail") return goCollections();
