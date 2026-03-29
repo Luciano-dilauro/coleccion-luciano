@@ -54,6 +54,7 @@ const els = {
 
   // Pickers
   collectionsSelect: $("collectionsSelect"),
+  loadeditHub: $("loadeditHub"),
   editPicker: $("editPicker"),
   editSelect: $("editSelect"),
   btnEditOpen: $("btnEditOpen"),
