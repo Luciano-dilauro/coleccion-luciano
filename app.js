@@ -57,8 +57,11 @@ const els = {
   loadeditHub: $("loadeditHub"),
   editPicker: $("editPicker"),
   editSelect: $("editSelect"),
-  btnEditOpen: $("btnEditOpen"),
-
+  btnEditOpen: $("btnEditOpen"), 
+  deletePicker: $("deletePicker"),
+  deleteSelect: $("deleteSelect"),
+  btnDeleteOpen: $("btnDeleteOpen"),
+   
   // Create
   newName: $("newName"),
   structRadios: Array.from(document.querySelectorAll('input[name="structType"]')),
