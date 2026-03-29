@@ -80,6 +80,8 @@ body{
 
   flex: 0 0 44px;
 }
+.hidden{display:none!important}
+
 
 /* 🔥 CLAVE TOTAL */
 .topbar .icon-btn.hidden{
