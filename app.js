@@ -1566,6 +1566,9 @@ els.btnEditOpen?.addEventListener("click", () => {
   state.currentId = id;
   goEdit();
 });
+els.btnDeleteOpen?.addEventListener("click", () => {
+  deleteCollection();
+});
 
 // import
 els.importInput?.addEventListener("change", (e) => {
