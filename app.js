@@ -319,7 +319,26 @@ function goEdit() {
   renderEdit();
   setView("edit");
 }
+function deleteCollection(){
+  const id = els.deleteSelect?.value;
 
+  if(!id){
+    alert("Seleccioná una colección");
+    return;
+  }
+
+  const ok = confirm("¿Eliminar esta colección?");
+  if(!ok) return;
+
+  state.data.collections = state.data.collections.filter(
+    c => c.id !== id
+  );
+
+  state.currentId = null;
+
+  save();
+  goLoadEdit();
+}
 /* =============================
    SELECTORES — “MIS COLECCIONES”
 ============================= */
