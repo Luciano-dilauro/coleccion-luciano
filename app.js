@@ -255,7 +255,7 @@ function setView(view) {
     if (els.topbarTitle) els.topbarTitle.textContent = "Colecciones";
     els.backBtn?.classList.remove("hidden");
   } else if (view === "loadedit") {
-    if (els.topbarTitle) els.topbarTitle.textContent = "Carga / Edición";
+    if (els.topbarTitle) els.topbarTitle.textContent = "Carga / Edición / Eliminación";
     els.backBtn?.classList.remove("hidden");
   } else if (view === "create") {
     if (els.topbarTitle) els.topbarTitle.textContent = "Nueva colección";
