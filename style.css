@@ -57,9 +57,9 @@ body{
   font-weight:900;
   font-size:18px;
   letter-spacing:-.02em;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .topbar-spacer{
   flex: 1;
