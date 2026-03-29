@@ -1470,15 +1470,19 @@ if (action === "complete-collection") {
 
   // load/edit picker
  if (action === "open-edit-picker") {
-  if (els.editPicker) {
-    els.editPicker.classList.toggle("hidden");
+  if (els.editPicker && els.loadeditHub) {
+  const isHidden = els.editPicker.classList.contains("hidden");
 
-    if (!els.editPicker.classList.contains("hidden")) {
-      els.loadeditHub.classList.add("hidden");
-    } else {
-      els.loadeditHub.classList.remove("hidden");
-    }
+  if (isHidden) {
+    // abrir editor
+    els.editPicker.classList.remove("hidden");
+    els.loadeditHub.classList.add("hidden");
+  } else {
+    // cerrar editor
+    els.editPicker.classList.add("hidden");
+    els.loadeditHub.classList.remove("hidden");
   }
+}
 
   renderCollectionsSelects();
 
