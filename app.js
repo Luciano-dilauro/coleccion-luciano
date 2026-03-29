@@ -1469,16 +1469,26 @@ if (action === "complete-collection") {
   if (action === "filter-rep") return setFilter("rep");
 
   // load/edit picker
-  if (action === "open-edit-picker") {
-    if (els.editPicker) els.editPicker.classList.toggle("hidden");
-    renderCollectionsSelects();
+ if (action === "open-edit-picker") {
+  if (els.editPicker) {
+    els.editPicker.classList.toggle("hidden");
 
-     if (els.editSelect) {
+    if (!els.editPicker.classList.contains("hidden")) {
+      els.loadeditHub.classList.add("hidden");
+    } else {
+      els.loadeditHub.classList.remove("hidden");
+    }
+  }
+
+  renderCollectionsSelects();
+
+  if (els.editSelect) {
     els.editSelect.value = "";
     els.editSelect.selectedIndex = 0;
-     }
-    return;
   }
+
+  return;
+}
    if (action === "open-delete-picker") return alert("Paso siguiente: abrir selector para eliminar");
 });
 els.backBtn?.addEventListener("click", () => {
