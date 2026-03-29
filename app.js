@@ -351,6 +351,7 @@ sel.value = state.currentId || "";
 
   fill(els.collectionsSelect);
   fill(els.editSelect);
+  fill(els.deleteSelect);
 }
 
 /* Auto-abrir colección al seleccionar */
