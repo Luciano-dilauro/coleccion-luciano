@@ -39,7 +39,6 @@ body{
 
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   padding-left: 16px;
   padding-right: 16px;
@@ -53,6 +52,7 @@ body{
   -webkit-transform: translateZ(0);
   will-change: transform;
 }
+
 .topbar-title{
   font-weight:900;
   font-size:18px;
@@ -62,20 +62,30 @@ body{
   text-align: center;
 
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
+
 .topbar-spacer{
-  flex: 1;
+  flex: 0 0 44px;
+  width: 44px;
   min-width: 44px;
 }
+
 .icon-btn{
-  width:44px;height:44px;border-radius:999px;
+  width:44px;
+  height:44px;
+  border-radius:999px;
   border:1px solid var(--line);
   background:#fff;
   font-size:20px;
+
+  flex: 0 0 44px;
 }
-.hidden{display:none!important}
+
+/* 🔥 CLAVE TOTAL */
+.topbar .icon-btn.hidden{
+  visibility: hidden !important;
+  display: block !important;
+}
 
 main.app{
   padding:16px;
