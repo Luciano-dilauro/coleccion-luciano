@@ -1713,6 +1713,17 @@ function closeConfirmModal(){
       a === "export-missing" ||
       a === "export-reps";
 
+     if (a === "confirm-cancel") {
+  closeConfirmModal();
+  return;
+}
+
+if (a === "confirm-ok") {
+  if (confirmCallback) confirmCallback();
+  closeConfirmModal();
+  return;
+}
+     
     if (!isExportAction) return;
 
     e.preventDefault();
