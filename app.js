@@ -1025,14 +1025,9 @@ let __confirmModalOnCancel = null;
 
 function openConfirmModal({ message = "¿Confirmar?", onConfirm = null, onCancel = null } = {}) {
   const modal = document.getElementById("confirmModal");
-  const text = document.getElementById("confirmModalText");
-  const btnOk = document.getElementById("confirmModalOk");
-  const btnCancel = document.getElementById("confirmModalCancel");
+  const text = modal?.querySelector(".modal-sub");
 
-  if (!modal || !text || !btnOk || !btnCancel) {
-    console.warn("Falta el modal propio en el HTML");
-    return;
-  }
+  if (!modal || !text) return;
 
   __confirmModalBusy = true;
   __confirmModalOnConfirm = onConfirm;
@@ -1053,6 +1048,7 @@ function closeConfirmModal() {
   if (!modal) return;
 
   modal.classList.add("hidden");
+
   __confirmModalOnConfirm = null;
   __confirmModalOnCancel = null;
 
@@ -1063,13 +1059,10 @@ function closeConfirmModal() {
 
 function wireConfirmModal() {
   const modal = document.getElementById("confirmModal");
-  const btnOk = document.getElementById("confirmModalOk");
-  const btnCancel = document.getElementById("confirmModalCancel");
-  const backdrop = document.getElementById("confirmModalBackdrop");
+  if (!modal) return;
 
-  if (!modal || !btnOk || !btnCancel || !backdrop) return;
-  if (modal.dataset.wired === "1") return;
-  modal.dataset.wired = "1";
+  const cancelEls = modal.querySelectorAll('[data-action="confirm-cancel"]');
+  const okEls = modal.querySelectorAll('[data-action="confirm-ok"]');
 
   const stopAll = (e) => {
     e.preventDefault();
@@ -1092,14 +1085,15 @@ function wireConfirmModal() {
     if (typeof cb === "function") cb();
   };
 
-  ["click", "touchend"].forEach(evt => {
-    btnCancel.addEventListener(evt, handleCancel, { passive: false });
-    btnOk.addEventListener(evt, handleConfirm, { passive: false });
-    backdrop.addEventListener(evt, handleCancel, { passive: false });
-  });
+  ["click", "touchend"].forEach((evt) => {
+    cancelEls.forEach((el) => {
+      el.addEventListener(evt, handleCancel, { passive: false });
+    });
 
-  modal.addEventListener("click", stopAll, { passive: false });
-  modal.addEventListener("touchend", stopAll, { passive: false });
+    okEls.forEach((el) => {
+      el.addEventListener(evt, handleConfirm, { passive: false });
+    });
+  });
 }
 
 function buildItemCell(it) {
