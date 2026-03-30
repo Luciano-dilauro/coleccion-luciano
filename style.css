@@ -868,8 +868,7 @@ label{font-weight:800}
 }
 
 #confirmModal .modal-sheet {
-  width: 90%;
-  max-width: 420px;
+  width: min(420px, 90vw);
   border-radius: 16px;
   margin: 0 auto !important;
 }
