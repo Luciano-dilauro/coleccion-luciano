@@ -1948,8 +1948,9 @@ if (a === "confirm-ok") {
 })();
 
 /* ===== MODO SIMPLE TEMPORAL (sin longtap ni repetidas) ===== */
-/* Tap = marcar | Tap en marcada = confirmar y desmarcar      */
-/* Este bloque pisa el comportamiento actual sin borrar código */
+/* 🔴 BLOQUE DESACTIVADO TEMPORALMENTE */
+
+if (false) {
 
 (function(){
 
@@ -1960,7 +1961,6 @@ if (a === "confirm-ok") {
     const el = originalBuildItemCell(item);
     if (!el) return el;
 
-    // clonar para eliminar listeners anteriores
     const clean = el.cloneNode(true);
 
     clean.addEventListener("click", function(e){
@@ -1982,15 +1982,18 @@ if (a === "confirm-ok") {
       }
 
       openConfirmModal(() => {
-  it.have = false;
-  it.rep = 0;
-  save();
-  renderDetail();
-});
-return;
+        it.have = false;
+        it.rep = 0;
+        save();
+        renderDetail();
+      });
+
+      return;
     });
 
     return clean;
   };
 
 })();
+
+}
