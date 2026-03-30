@@ -1679,6 +1679,7 @@ function init() {
   resetCreateForm();
   ensureBulkBuilderUI();
   wireAutoOpenCollections();
+  wireConfirmModal();
   setView("dash");
 }
 
