@@ -1702,7 +1702,18 @@ function closeConfirmModal(){
     if (!btn) return;
 
     const a = btn.getAttribute("data-action");
-    const isExportAction =
+   // 👇 confirm modal actions
+if (a === "confirm-cancel") {
+  closeConfirmModal();
+  return;
+}
+
+if (a === "confirm-ok") {
+  if (confirmCallback) confirmCallback();
+  closeConfirmModal();
+  return;
+}
+     const isExportAction =
       a === "export-list" ||
       a === "export-close" ||
       a === "export-missing" ||
