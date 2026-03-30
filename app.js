@@ -1917,7 +1917,6 @@ document.addEventListener("DOMContentLoaded", init);
   });
 })();
 
-if (false) {
 /* ===== MODO SIMPLE TEMPORAL (sin longtap ni repetidas) ===== */
 /* Tap = marcar | Tap en marcada = confirmar y desmarcar      */
 /* Este bloque pisa el comportamiento actual sin borrar código */
@@ -1952,20 +1951,16 @@ if (false) {
         return;
       }
 
-     const ok = confirm("¿Desmarcar figurita?");
-  if (!ok) {
-  suppressTapUntil = Date.now() + 500;
-  return;
-}
+      const ok = confirm("¿Desmarcar figurita?");
+      if (!ok) return;
 
-suppressTapUntil = Date.now() + 500;
+      it.have = false;
+      it.rep = 0;
+      save();
+      renderDetail();
+    });
 
-it.have = false;
-it.rep = 0;
-save();
-renderDetail();
-return;
+    return clean;
   };
 
 })();
-}
