@@ -1682,49 +1682,19 @@ document.addEventListener("DOMContentLoaded", init);
     modal.classList.add("hidden");
     modal.setAttribute("aria-hidden", "true");
   }
-let confirmCallback = null;
 
-function openConfirmModal(onConfirm){
-  confirmCallback = onConfirm;
-  const modal = document.getElementById("confirmModal");
-  if (!modal) return;
-  modal.classList.remove("hidden");
-}
-
-function closeConfirmModal(){
-  const modal = document.getElementById("confirmModal");
-  if (!modal) return;
-  modal.classList.add("hidden");
-  confirmCallback = null;
-}
   document.addEventListener("click", async (e) => {
     const btn = e.target.closest?.("[data-action]");
     if (!btn) return;
 
     const a = btn.getAttribute("data-action");
-   // 👇 confirm modal actions
-if (a === "confirm-cancel") {
-  closeConfirmModal();
-  return;
-}
-
-if (a === "confirm-ok") {
-  if (confirmCallback) confirmCallback();
-  closeConfirmModal();
-  return;
-}
-     const isExportAction =
+    const isExportAction =
       a === "export-list" ||
       a === "export-close" ||
       a === "export-missing" ||
       a === "export-reps";
 
-    // permitir export O confirm
-const isConfirmAction =
-  a === "confirm-cancel" ||
-  a === "confirm-ok";
-
-if (!isExportAction && !isConfirmAction) return;
+    if (!isExportAction) return;
 
     e.preventDefault();
 
@@ -1981,13 +1951,13 @@ if (!isExportAction && !isConfirmAction) return;
         return;
       }
 
-      openConfirmModal(() => {
-  it.have = false;
-  it.rep = 0;
-  save();
-  renderDetail();
-});
-return;
+      const ok = confirm("¿Desmarcar figurita?");
+      if (!ok) return;
+
+      it.have = false;
+      it.rep = 0;
+      save();
+      renderDetail();
     });
 
     return clean;
