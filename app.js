@@ -1976,13 +1976,13 @@ if (a === "confirm-ok") {
         return;
       }
 
-      const ok = confirm("¿Desmarcar figurita?");
-      if (!ok) return;
-
-      it.have = false;
-      it.rep = 0;
-      save();
-      renderDetail();
+      openConfirmModal(() => {
+  it.have = false;
+  it.rep = 0;
+  save();
+  renderDetail();
+});
+return;
     });
 
     return clean;
