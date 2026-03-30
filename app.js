@@ -1069,14 +1069,21 @@ const doLongPress = () => {
 
   // si no tiene repetidas pero está marcada -> confirmar desmarcar
   if (it.have) {
-    suppressTapUntil = Date.now() + 900;
-     const ok = confirm("⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?");
-    if (!ok) return;
-    it.have = false;
-    it.rep = 0;
-    save();
-    renderDetail();
-  }
+  suppressTapUntil = Date.now() + 1200;
+
+  openConfirmModal({
+    message: "⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?",
+    onConfirm: () => {
+      it.have = false;
+      it.rep = 0;
+      save();
+      renderDetail();
+    },
+    onCancel: () => {
+      suppressTapUntil = Date.now() + 400;
+    }
+  });
+}
 };
 
 const onPressStart = () => {
