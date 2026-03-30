@@ -1719,7 +1719,12 @@ if (a === "confirm-ok") {
       a === "export-missing" ||
       a === "export-reps";
 
-    if (!isExportAction) return;
+    // permitir export O confirm
+const isConfirmAction =
+  a === "confirm-cancel" ||
+  a === "confirm-ok";
+
+if (!isExportAction && !isConfirmAction) return;
 
     e.preventDefault();
 
