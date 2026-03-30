@@ -859,20 +859,21 @@ label{font-weight:800}
 #confirmModal {
   position: fixed;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 #confirmModal .modal-content {
   width: 90%;
   max-width: 420px;
   border-radius: 16px;
+  margin: 0 auto !important;
 }
 
 [data-action="confirm-ok"] {
-  background: #e53935;
-  color: white;
+  background: #e53935 !important;
+  color: white !important;
 }
 
 [data-action="confirm-ok"]:active {
