@@ -1952,16 +1952,19 @@ if (false) {
         return;
       }
 
-      const ok = confirm("¿Desmarcar figurita?");
-      if (!ok) return;
+     const ok = confirm("¿Desmarcar figurita?");
+  if (!ok) {
+  suppressTapUntil = Date.now() + 500;
+  return;
+}
 
-      it.have = false;
-      it.rep = 0;
-      save();
-      renderDetail();
-    });
+suppressTapUntil = Date.now() + 500;
 
-    return clean;
+it.have = false;
+it.rep = 0;
+save();
+renderDetail();
+return;
   };
 
 })();
