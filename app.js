@@ -1954,11 +1954,11 @@ if (false) {
 
      const ok = confirm("¿Desmarcar figurita?");
   if (!ok) {
-  globalSuppressTapUntil = Date.now() + 700;
+  suppressTapUntil = Date.now() + 500;
   return;
 }
 
-globalSuppressTapUntil = Date.now() + 700;
+suppressTapUntil = Date.now() + 500;
 
 it.have = false;
 it.rep = 0;
