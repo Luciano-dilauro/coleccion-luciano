@@ -1917,7 +1917,7 @@ document.addEventListener("DOMContentLoaded", init);
   });
 })();
 
-/*
+if (false) {
 /* ===== MODO SIMPLE TEMPORAL (sin longtap ni repetidas) ===== */
 /* Tap = marcar | Tap en marcada = confirmar y desmarcar      */
 /* Este bloque pisa el comportamiento actual sin borrar código */
@@ -1965,4 +1965,4 @@ document.addEventListener("DOMContentLoaded", init);
   };
 
 })();
-*/
+}
