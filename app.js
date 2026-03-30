@@ -45,6 +45,8 @@ const LS_KEY = "coleccion_luciano_v2";
 const META_KEY = "coleccion_luciano_meta_v2";
 const BACKUP_VERSION = 1;
 
+let globalSuppressTapUntil = 0;
+
 const $ = (id) => document.getElementById(id);
 
 const els = {
