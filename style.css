@@ -859,6 +859,9 @@ label{font-weight:800}
 #confirmModal {
   position: fixed;
   inset: 0;
+}
+
+#confirmModal:not(.hidden) {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
