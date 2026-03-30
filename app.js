@@ -1092,7 +1092,7 @@ const onPressEnd = () => {
 };
 
 const onTap = () => {
- if (Date.now() < suppressTapUntil) return;
+ if (Date.now() < globalSuppressTapUntil) return;
    if (!it.have) {
     it.have = true;
     it.rep = 0;
