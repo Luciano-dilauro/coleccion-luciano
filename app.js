@@ -1018,6 +1018,90 @@ function renderDetail() {
 /* =============================
    DETAIL — ITEM (tap / long-press)
 ============================= */
+
+let __confirmModalBusy = false;
+let __confirmModalOnConfirm = null;
+let __confirmModalOnCancel = null;
+
+function openConfirmModal({ message = "¿Confirmar?", onConfirm = null, onCancel = null } = {}) {
+  const modal = document.getElementById("confirmModal");
+  const text = document.getElementById("confirmModalText");
+  const btnOk = document.getElementById("confirmModalOk");
+  const btnCancel = document.getElementById("confirmModalCancel");
+
+  if (!modal || !text || !btnOk || !btnCancel) {
+    console.warn("Falta el modal propio en el HTML");
+    return;
+  }
+
+  __confirmModalBusy = true;
+  __confirmModalOnConfirm = onConfirm;
+  __confirmModalOnCancel = onCancel;
+
+  text.textContent = message;
+  modal.classList.remove("hidden");
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      __confirmModalBusy = false;
+    });
+  });
+}
+
+function closeConfirmModal() {
+  const modal = document.getElementById("confirmModal");
+  if (!modal) return;
+
+  modal.classList.add("hidden");
+  __confirmModalOnConfirm = null;
+  __confirmModalOnCancel = null;
+
+  setTimeout(() => {
+    __confirmModalBusy = false;
+  }, 80);
+}
+
+function wireConfirmModal() {
+  const modal = document.getElementById("confirmModal");
+  const btnOk = document.getElementById("confirmModalOk");
+  const btnCancel = document.getElementById("confirmModalCancel");
+  const backdrop = document.getElementById("confirmModalBackdrop");
+
+  if (!modal || !btnOk || !btnCancel || !backdrop) return;
+  if (modal.dataset.wired === "1") return;
+  modal.dataset.wired = "1";
+
+  const stopAll = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleCancel = (e) => {
+    stopAll(e);
+    if (__confirmModalBusy) return;
+    const cb = __confirmModalOnCancel;
+    closeConfirmModal();
+    if (typeof cb === "function") cb();
+  };
+
+  const handleConfirm = (e) => {
+    stopAll(e);
+    if (__confirmModalBusy) return;
+    const cb = __confirmModalOnConfirm;
+    closeConfirmModal();
+    if (typeof cb === "function") cb();
+  };
+
+  ["click", "touchend"].forEach(evt => {
+    btnCancel.addEventListener(evt, handleCancel, { passive: false });
+    btnOk.addEventListener(evt, handleConfirm, { passive: false });
+    backdrop.addEventListener(evt, handleCancel, { passive: false });
+  });
+
+  modal.addEventListener("click", stopAll, { passive: false });
+  modal.addEventListener("touchend", stopAll, { passive: false });
+}
+
 function buildItemCell(it) {
   const wrap = document.createElement("div");
   wrap.className = "item" + (it.have ? " have" : "") + (it.special ? " special" : "");
