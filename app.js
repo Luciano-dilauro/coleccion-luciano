@@ -1683,6 +1683,25 @@ document.addEventListener("DOMContentLoaded", init);
     modal.setAttribute("aria-hidden", "true");
   }
 
+   let confirmCallback = null;
+
+function openConfirmModal(onOk){
+  confirmCallback = onOk;
+
+  const modal = document.getElementById("confirmModal");
+  if (!modal) return;
+
+  modal.classList.remove("hidden");
+}
+
+function closeConfirmModal(){
+  const modal = document.getElementById("confirmModal");
+  if (!modal) return;
+
+  modal.classList.add("hidden");
+  confirmCallback = null;
+}
+   
   document.addEventListener("click", async (e) => {
     const btn = e.target.closest?.("[data-action]");
     if (!btn) return;
