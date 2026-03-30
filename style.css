@@ -867,7 +867,7 @@ label{font-weight:800}
   justify-content: center !important;
 }
 
-#confirmModal .modal-content {
+#confirmModal .modal-sheet {
   width: 90%;
   max-width: 420px;
   border-radius: 16px;
@@ -875,10 +875,11 @@ label{font-weight:800}
 }
 
 [data-action="confirm-ok"] {
-  background: #e53935 !important;
-  color: white !important;
+  background: #f3d6d6 !important;
+  color: #b3261e !important;
+  border: 1px solid #e5a4a4;
 }
 
 [data-action="confirm-ok"]:active {
-  background: #c62828;
+  background: #eac2c2 !important;
 }
