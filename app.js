@@ -57,11 +57,11 @@ const els = {
   loadeditHub: $("loadeditHub"),
   editPicker: $("editPicker"),
   editSelect: $("editSelect"),
-  btnEditOpen: $("btnEditOpen"),
+  btnEditOpen: $("btnEditOpen"), 
   deletePicker: $("deletePicker"),
   deleteSelect: $("deleteSelect"),
   btnDeleteOpen: $("btnDeleteOpen"),
-
+   
   // Create
   newName: $("newName"),
   structRadios: Array.from(document.querySelectorAll('input[name="structType"]')),
@@ -233,7 +233,7 @@ function load() {
   } catch {}
 
   // saneo/migración suave
-  state.data = sanitizeData(state.data);
+state.data = sanitizeData(state.data);
 }
 
 function save() {
@@ -319,16 +319,16 @@ function goEdit() {
   renderEdit();
   setView("edit");
 }
-function deleteCollection() {
+function deleteCollection(){
   const id = els.deleteSelect?.value;
 
-  if (!id) {
+  if(!id){
     alert("Seleccioná una colección");
     return;
   }
 
   const ok = confirm("¿Eliminar esta colección?");
-  if (!ok) return;
+  if(!ok) return;
 
   state.data.collections = state.data.collections.filter(
     c => c.id !== id
@@ -339,7 +339,6 @@ function deleteCollection() {
   save();
   goLoadEdit();
 }
-
 /* =============================
    SELECTORES — “MIS COLECCIONES”
 ============================= */
@@ -365,7 +364,8 @@ function renderCollectionsSelects() {
       sel.appendChild(opt);
     }
 
-    sel.value = state.currentId || "";
+    // ✅ FIX: era state.current (no existe). Debe ser currentId
+sel.value = state.currentId || "";
   };
 
   fill(els.collectionsSelect);
@@ -386,6 +386,7 @@ function wireAutoOpenCollections() {
     setTimeout(() => goDetail(id), 80); // iOS: deja cerrar el select
   });
 }
+
 /* =============================
    CREATE — UI
 ============================= */
@@ -761,6 +762,7 @@ function enableDnD(container) {
     }
   });
 }
+
 function readSections(container) {
   const rows = Array.from(container.querySelectorAll("[data-section-row]"));
   const out = [];
@@ -946,7 +948,6 @@ function createCollection() {
   renderCollectionsSelects();
   goCollections();
 }
-
 /* =============================
    DETAIL — RENDER + FILTROS
 ============================= */
@@ -1017,6 +1018,7 @@ function renderDetail() {
 /* =============================
    DETAIL — ITEM (tap / long-press)
 ============================= */
+
 let __confirmModalBusy = false;
 let __confirmModalOnConfirm = null;
 let __confirmModalOnCancel = null;
@@ -1033,7 +1035,6 @@ function openConfirmModal({ message = "¿Confirmar?", onConfirm = null, onCancel
 
   text.textContent = message;
   modal.classList.remove("hidden");
-  modal.setAttribute("aria-hidden", "false");
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -1047,7 +1048,6 @@ function closeConfirmModal() {
   if (!modal) return;
 
   modal.classList.add("hidden");
-  modal.setAttribute("aria-hidden", "true");
 
   __confirmModalOnConfirm = null;
   __confirmModalOnCancel = null;
@@ -1095,6 +1095,229 @@ function wireConfirmModal() {
     });
   });
 }
+
+function buildItemCell(it) {
+  const wrap = document.createElement("div");
+  wrap.className = "item sticker" + (it.have ? " have" : "") + (it.special ? " special" : "");
+
+  const code = document.createElement("div");
+  code.className = "item-code";
+  code.textContent = it.label;
+
+  // Badge: solo si rep > 0
+  const repCount = it.rep || 0;
+  if (repCount > 0) {
+    const badge = document.createElement("div");
+    badge.className = "rep-badge";
+    badge.textContent = repCount > 99 ? "99+" : String(repCount);
+    wrap.appendChild(badge);
+  }
+
+  // Nodo oculto por compatibilidad
+  const repHidden = document.createElement("div");
+  repHidden.className = "item-rep";
+  repHidden.textContent = `Rep: ${repCount}`;
+
+// Long-press (robusto)
+let pressTimer = null;
+let longPressFired = false;
+let suppressTapUntil = 0;
+
+// iOS: evitar "mouse events" fantasmas después de touch
+let lastTouchTime = 0;
+const isRecentTouch = () => (Date.now() - lastTouchTime) < 900;
+
+const clearPress = () => {
+  if (pressTimer) {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  }
+};
+
+const doLongPress = () => {
+  longPressFired = true;
+
+  // si tiene repetidas -> resto
+  if ((it.rep || 0) > 0) {
+    it.rep = clamp((it.rep || 0) - 1, 0, 999);
+    save();
+    renderDetail();
+    return;
+  }
+
+  // si no tiene repetidas pero está marcada -> confirmar desmarcar
+  if (it.have) {
+  suppressTapUntil = Date.now() + 1200;
+
+  openConfirmModal({
+    message: "⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?",
+    onConfirm: () => {
+      it.have = false;
+      it.rep = 0;
+      save();
+      renderDetail();
+    },
+    onCancel: () => {
+      suppressTapUntil = Date.now() + 400;
+    }
+  });
+}
+};
+
+const onPressStart = () => {
+  longPressFired = false;     // 👈 clave
+  clearPress();
+  pressTimer = setTimeout(doLongPress, 500);
+};
+
+const onPressEnd = () => {
+  clearPress();
+};
+
+const onTap = () => {
+ if (Date.now() < suppressTapUntil) return;
+   if (!it.have) {
+    it.have = true;
+    it.rep = 0;
+    save();
+    renderDetail();
+    return;
+  }
+  it.rep = clamp((it.rep || 0) + 1, 0, 999);
+  save();
+  renderDetail();
+};
+
+// Touch + mouse (si hubo longpress, NO TAP)
+wrap.addEventListener("touchstart", () => {
+  lastTouchTime = Date.now();
+  onPressStart();
+}, { passive: true });
+
+wrap.addEventListener("touchend", () => {
+  lastTouchTime = Date.now();
+  onPressEnd();
+  if (longPressFired) return;     // 👈 clave
+  onTap();
+});
+wrap.addEventListener("touchcancel", onPressEnd);
+
+wrap.addEventListener("mousedown", () => {
+  if (isRecentTouch()) return;
+  onPressStart();
+});
+
+wrap.addEventListener("mouseup", () => {
+  if (isRecentTouch()) return;
+  onPressEnd();
+  if (longPressFired) return;     // 👈 clave
+  onTap();
+});
+wrap.addEventListener("mouseleave", onPressEnd);
+
+  wrap.appendChild(code);
+  wrap.appendChild(repHidden);
+  return wrap;
+}
+
+function resetCollection() {
+  const col = getCurrent();
+  if (!col) return;
+  const ok = confirm(`Resetear "${col.name}"?\n\nSe borran Tengo y Repetidas de todos los ítems.`);
+  if (!ok) return;
+  for (const it of col.items) { it.have = false; it.rep = 0; }
+  save();
+  renderDetail();
+}
+
+/* =============================
+   EDIT — RENDER + APPLY
+============================= */
+function renderEdit() {
+  const col = getCurrent();
+  if (!col) return goCollections();
+
+  if (els.editTitle) els.editTitle.textContent = `Editar: ${col.name}`;
+  if (els.editName) els.editName.value = col.name;
+
+  // portada correcta de la colección actual
+  const editImg = document.getElementById("editCoverImg");
+  const editFallback = document.getElementById("editCoverFallback");
+  if (editImg && editFallback) {
+    const has = !!col.cover;
+    editImg.src = has ? col.cover : "";
+    editImg.style.display = has ? "block" : "none";
+    editFallback.style.display = has ? "none" : "grid";
+    editFallback.textContent = has ? "" : ((col.name || "").trim() || "📘");
+  }
+
+  const isSections = col.structure === "sections";
+  if (els.editSectionsArea) els.editSectionsArea.style.display = "block";
+  if (!els.editSectionsEditor) return;
+
+  els.editSectionsEditor.innerHTML = "";
+
+if (isSections) {
+
+  for (const sec of col.sections) {
+    const count = col.items.filter(it => it.sectionId === sec.id).length;
+
+    const row = addSectionRow(els.editSectionsEditor, {
+      name: sec.name,
+      format: sec.format || "num",
+      prefix: sec.prefix || "",
+      count,
+      ownNumbering: !!sec.ownNumbering,
+      specials: Array.isArray(sec.specials) ? sec.specials : []
+    });
+
+    row.dataset.secId = sec.id;
+  }
+
+  enableDnD(els.editSectionsEditor);
+
+} else {
+
+  const count = col.items.length;
+
+  addSectionRow(els.editSectionsEditor, {
+    name: "General",
+    format: "num",
+    prefix: "",
+    count,
+    ownNumbering: false,
+    specials: []
+  });
+
+}
+}
+
+els.editAddSection?.addEventListener("click", () => {
+  addSectionRow(els.editSectionsEditor, {
+    name: `Sección ${els.editSectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
+    format: "num",
+    prefix: "",
+    count: 10,
+    ownNumbering: false,
+    specials: []
+  });
+  enableDnD(els.editSectionsEditor);
+});
+
+function applyEdit() {
+  const col = getCurrent();
+  if (!col) return goCollections();
+
+  const newName = (els.editName?.value || "").trim();
+  if (!newName) return alert("Nombre inválido.");
+  col.name = newName;
+
+  // mantener coherente el fallback si no hay tapa
+  const editFallback = document.getElementById("editCoverFallback");
+  if (editFallback && !col.cover) {
+    editFallback.textContent = col.name || "📘";
+  }
+
   if (col.structure !== "sections") {
     save();
     goDash();
@@ -1275,15 +1498,15 @@ function handleImportFile(file) {
       save();
 
       renderCollectionsSelects();
-      goDash();
+goDash();
 
-      setTimeout(() => {
-        alert("Backup importado ✅ (Reemplazar)");
-      }, 50);
+setTimeout(() => {
+  alert("Backup importado ✅ (Reemplazar)");
+}, 50);
     } catch (err) {
-      console.error("IMPORT ERROR:", err);
-      alert("Error al importar el backup.\n\n" + err.message);
-    }
+   console.error("IMPORT ERROR:", err);
+   alert("Error al importar el backup.\n\n" + err.message);
+}
   };
   reader.readAsText(file);
 }
@@ -1312,41 +1535,132 @@ function renderSettings() {
 document.addEventListener("click", (e) => {
   const btn = e.target?.closest?.("[data-action]");
   if (!btn) return;
-
   const action = btn.getAttribute("data-action");
 
-  // DASH
+  // dashboard
   if (action === "dash-collections") return goCollections();
   if (action === "dash-loadedit") return goLoadEdit();
   if (action === "dash-settings") return goSettings();
+  if (action === "dash-stats") return alert("Estadísticas: próximamente 😉");
 
-  // CREATE
+  // create
   if (action === "go-create") return goCreate();
   if (action === "create-cancel") return goLoadEdit();
   if (action === "create-save") return createCollection();
 
-  // EDIT
+  // edit
   if (action === "open-edit") return goEdit();
   if (action === "edit-cancel") return goDash();
   if (action === "edit-save") return applyEdit();
 
-  // DELETE
-  if (action === "delete-confirm") return deleteCollection();
+  // reset
+  if (action === "reset-collection") return resetCollection();
+if (action === "complete-collection") {
 
-  // FILTERS
+  const col = getCurrent();
+  if (!col) return;
+
+  const ok = confirm("¿Marcar toda la colección como completa?");
+  if (!ok) return;
+
+  for (const it of (col.items || [])) {
+    it.have = true;
+    it.rep = 0;
+  }
+
+  save();
+  renderDetail();
+  return;
+}
+  // backup
+  if (action === "export-backup") return exportBackup();
+
+  // filtros
   if (action === "filter-all") return setFilter("all");
   if (action === "filter-miss") return setFilter("miss");
   if (action === "filter-rep") return setFilter("rep");
 
-  // BACK
-  if (action === "back") {
-    if (state.view === "collections") return goDash();
-    if (state.view === "loadedit") return goDash();
-    if (state.view === "create") return goLoadEdit();
-    if (state.view === "settings") return goDash();
-    if (state.view === "edit") return goLoadEdit();
-    if (state.view === "detail") return goCollections();
+  // load/edit picker
+ if (action === "open-edit-picker") {
+  if (els.editPicker && els.loadeditHub) {
+  const isHidden = els.editPicker.classList.contains("hidden");
+
+  if (isHidden) {
+    // abrir editor
+    els.editPicker.classList.remove("hidden");
+    els.loadeditHub.classList.add("hidden");
+  } else {
+    // cerrar editor
+    els.editPicker.classList.add("hidden");
+    els.loadeditHub.classList.remove("hidden");
   }
+}
+
+  renderCollectionsSelects();
+
+  if (els.editSelect) {
+    els.editSelect.value = "";
+    els.editSelect.selectedIndex = 0;
+  }
+
+  return;
+}
+   if (action === "open-delete-picker") {
+  if (els.deletePicker && els.loadeditHub) {
+    const isHidden = els.deletePicker.classList.contains("hidden");
+
+    if (isHidden) {
+      els.deletePicker.classList.remove("hidden");
+      els.loadeditHub.classList.add("hidden");
+    } else {
+      els.deletePicker.classList.add("hidden");
+      els.loadeditHub.classList.remove("hidden");
+    }
+  }
+
+  renderCollectionsSelects();
+
+  if (els.deleteSelect) {
+    els.deleteSelect.value = "";
+    els.deleteSelect.selectedIndex = 0;
+  }
+
+  return;
+}
+});
+els.backBtn?.addEventListener("click", () => {
+  if (state.view === "detail") return goCollections();
+  if (state.view === "collections") return setView("dash");
+  if (state.view === "loadedit") return setView("dash");
+  if (state.view === "settings") return setView("dash");
+  if (state.view === "create") return goLoadEdit();
+  if (state.view === "edit") return goDetail(state.currentId);
+  return setView("dash");
+});
+
+// abrir editor desde picker
+els.btnEditOpen?.addEventListener("click", () => {
+  let id = els.editSelect?.value;
+
+  if (!id) {
+    const first = state.data.collections?.[0];
+    if (!first) return;
+    id = first.id;
+  }
+
+  state.currentId = id;
+  goEdit();
+});
+els.btnDeleteOpen?.addEventListener("click", () => {
+  deleteCollection();
+});
+
+// import
+els.importInput?.addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  handleImportFile(file);
+  e.target.value = "";
 });
 
 /* =============================
@@ -1363,174 +1677,178 @@ function init() {
   setView("dash");
 }
 
-init();
+document.addEventListener("DOMContentLoaded", init);
 
 /* =============================
-   EXPORT (modal + compartir/copiar)
+   EXPORT v2 — modal + compartir/copiar (estable)
 ============================= */
-(function setupExportModal(){
-  const $id = (id) => document.getElementById(id);
+(function () {
+  function getCurrentSafe() {
+    try { return (typeof getCurrent === "function") ? getCurrent() : null; }
+    catch { return null; }
+  }
 
-  const modal = $id("exportModal");
-  const titleEl = $id("exportModalTitle");
-  const subEl = $id("exportModalSub");
-  const textEl = $id("exportText");
-  const btnCopy = $id("exportCopyBtn");
-  const btnShare = $id("exportShareBtn");
-  const btnClose = $id("exportCloseBtn");
+  function countMissing(col) {
+    let n = 0;
+    for (const it of (col.items || [])) if (!it.have) n++;
+    return n;
+  }
 
-  if (!modal || !textEl || !btnCopy || !btnShare || !btnClose) return;
+  function countReps(col) {
+    let n = 0;
+    for (const it of (col.items || [])) if ((it.rep || 0) > 0) n++;
+    return n;
+  }
 
-  let currentText = "";
-  let currentFilename = "export.txt";
+  function boldWA(s) {
+    return `*${String(s || "").trim()}*`;
+  }
 
-  function openExportModal({ title = "Exportar", subtitle = "", text = "", filename = "export.txt" } = {}) {
-    currentText = String(text || "");
-    currentFilename = filename || "export.txt";
+  function buildExportText(mode) {
+    const col = getCurrent();
+    if (!col) return "";
 
-    if (titleEl) titleEl.textContent = title;
-    if (subEl) subEl.textContent = subtitle || "";
-    textEl.value = currentText;
+    const bySec = new Map();
+    for (const sec of (col.sections || [])) bySec.set(sec.id, { name: sec.name, items: [] });
+    for (const it of (col.items || [])) {
+      if (!bySec.has(it.sectionId)) bySec.set(it.sectionId, { name: "Sección", items: [] });
+      bySec.get(it.sectionId).items.push(it);
+    }
 
+    const totalMissing = countMissing(col);
+    const totalReps = countReps(col);
+
+    const lines = [];
+    lines.push(boldWA(col.name));
+    lines.push(mode === "missing" ? boldWA(`Faltantes (${totalMissing})`) : boldWA(`Repetidas (${totalReps})`));
+    lines.push("");
+
+    for (const sec of (col.sections || [])) {
+      const bucket = bySec.get(sec.id);
+      const items = (bucket?.items || []);
+
+      let list = [];
+      if (mode === "missing") list = items.filter(it => !it.have).map(it => it.label);
+      else list = items.filter(it => (it.rep || 0) > 0).map(it => it.label);
+
+      if (!list.length) continue;
+      lines.push(`${boldWA(sec.name)}: ${list.join(", ")}`);
+    }
+
+    if (lines.length === 3) lines.push(mode === "missing" ? "✅ No tenés faltantes" : "✅ No tenés repetidas");
+    return lines.join("\n");
+  }
+
+  async function shareOrCopy(text) {
+    if (!text) return;
+
+    if (navigator.share) {
+      try { await navigator.share({ text }); return; }
+      catch { return; } // si cancela, no copiamos
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("Copiado ✅");
+    } catch {
+      prompt("Copiá el texto:", text);
+    }
+  }
+
+  const modal = document.getElementById("exportModal");
+
+  function openModal() {
+    if (!modal) return;
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
   }
 
-  function closeExportModal() {
+  function closeModal() {
+    if (!modal) return;
     modal.classList.add("hidden");
     modal.setAttribute("aria-hidden", "true");
   }
 
-  async function doCopy() {
-    try {
-      await navigator.clipboard.writeText(currentText);
-      alert("Texto copiado ✅");
-    } catch {
-      try {
-        textEl.focus();
-        textEl.select();
-        document.execCommand("copy");
-        alert("Texto copiado ✅");
-      } catch {
-        alert("No se pudo copiar automáticamente. Podés copiarlo manualmente.");
-      }
-    }
-  }
+   let confirmCallback = null;
 
-  async function doShare() {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: currentFilename,
-          text: currentText
-        });
-        return;
-      } catch (err) {
-        if (err && err.name === "AbortError") return;
-      }
-    }
+function openConfirmModal(onOk){
+  confirmCallback = onOk;
 
-    // fallback: copiar
-    await doCopy();
-  }
+  const modal = document.getElementById("confirmModal");
+  if (!modal) return;
 
-  btnCopy.addEventListener("click", doCopy);
-  btnShare.addEventListener("click", doShare);
-  btnClose.addEventListener("click", closeExportModal);
+  modal.classList.remove("hidden");
+}
 
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) closeExportModal();
-  });
+function closeConfirmModal(){
+  const modal = document.getElementById("confirmModal");
+  if (!modal) return;
 
-  document.addEventListener("click", (e) => {
-    const btn = e.target?.closest?.("[data-export]");
+  modal.classList.add("hidden");
+  confirmCallback = null;
+}
+   
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest?.("[data-action]");
     if (!btn) return;
 
-    const kind = btn.getAttribute("data-export"); // "missing" | "repeated"
-    const col = getCurrent();
-    if (!col) return;
+    const a = btn.getAttribute("data-action");
+    const isExportAction =
+      a === "export-list" ||
+      a === "export-close" ||
+      a === "export-missing" ||
+      a === "export-reps";
 
-    let items = [];
-    let title = "Exportar";
-    let subtitle = col.name || "";
-    let filename = "export.txt";
+     if (a === "confirm-cancel") {
+  closeConfirmModal();
+  return;
+}
 
-    if (kind === "missing") {
-      items = col.items.filter(it => !it.have).map(it => it.label);
-      title = "Faltantes";
-      filename = `${(col.name || "coleccion").replace(/\s+/g, "_").toLowerCase()}_faltantes.txt`;
-    } else if (kind === "repeated") {
-      items = col.items
-        .filter(it => (it.rep || 0) > 0)
-        .flatMap(it => Array.from({ length: it.rep }, () => it.label));
-      title = "Repetidas";
-      filename = `${(col.name || "coleccion").replace(/\s+/g, "_").toLowerCase()}_repetidas.txt`;
-    } else {
-      return;
+if (a === "confirm-ok") {
+  if (confirmCallback) confirmCallback();
+  closeConfirmModal();
+  return;
+}
+     
+    if (!isExportAction) return;
+
+    e.preventDefault();
+
+    if (a === "export-list") return openModal();
+    if (a === "export-close") return closeModal();
+
+    if (a === "export-missing") {
+      closeModal();
+      return shareOrCopy(buildExportText("missing"));
     }
 
-    const text = items.join(", ");
-    openExportModal({
-      title,
-      subtitle,
-      text,
-      filename
-    });
+    if (a === "export-reps") {
+      closeModal();
+      return shareOrCopy(buildExportText("reps"));
+    }
   });
-
-  // exponer por si querés usarlo manualmente en el futuro
-  window.openExportModal = openExportModal;
 })();
 
-/* =============================
-   COVER (crear + detalle)
-============================= */
-(function setupCoverFeature(){
+/* ================================
+   COVER v3 — Crear + Detalle + Editar
+=============================== */
+(function () {
   const $id = (id) => document.getElementById(id);
 
-  /* ---------- util compresión ---------- */
-  function readFileAsDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(fr.result);
-      fr.onerror = reject;
-      fr.readAsDataURL(file);
+  function getCurrentSafe() {
+    try { return typeof getCurrent === "function" ? getCurrent() : null; }
+    catch { return null; }
+  }
+
+  async function fileToDataURL(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result || ""));
+      r.onerror = rej;
+      r.readAsDataURL(file);
     });
   }
 
-  function loadImage(dataUrl) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = dataUrl;
-    });
-  }
-
-  async function compressImageToDataURL(file, {
-    maxW = 800,
-    maxH = 800,
-    quality = 0.82,
-    mime = "image/jpeg"
-  } = {}) {
-    const dataUrl = await readFileAsDataURL(file);
-    const img = await loadImage(dataUrl);
-
-    let { width, height } = img;
-    const ratio = Math.min(maxW / width, maxH / height, 1);
-    const w = Math.round(width * ratio);
-    const h = Math.round(height * ratio);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0, w, h);
-
-    return canvas.toDataURL(mime, quality);
-  }
-
-  /* ---------- estado draft portada al crear ---------- */
   let draftCoverDataUrl = null;
 
   function paintCreateCover() {
@@ -1558,454 +1876,210 @@ init();
     fb.textContent = has ? "" : ((col.name || "").trim() || "📘");
   }
 
-  function paintDetailCover() {
-    const col = getCurrent();
-    const hero = $id("detailCoverHero");
-    const img = $id("detailCoverImg");
-    const fb = $id("detailCoverFallback");
-    const name = $id("detailCoverName");
-    const pct = $id("detailCoverPct");
-
-    if (!hero || !img || !fb || !name || !pct || !col) return;
-
-    const st = computeStats(col);
-    const has = !!col.cover;
-
-    name.textContent = col.name || "Colección";
-    pct.textContent = `${st.pct}% completado`;
-    img.src = has ? col.cover : "";
-    img.style.display = has ? "block" : "none";
-    fb.style.display = has ? "none" : "grid";
-    fb.textContent = has ? "" : (col.name || "📘");
-    hero.classList.remove("hidden");
-  }
-
-  /* ---------- hooks CREATE ---------- */
-  const createPickBtn = $id("createCoverPickBtn");
-  const createClearBtn = $id("createCoverClearBtn");
-  const createInput = $id("createCoverInput");
-/* =============================
-   DETAIL — ITEM (tap / long-press)
-============================= */
-function buildItemCell(it) {
-  const wrap = document.createElement("div");
-  wrap.className = "item sticker" + (it.have ? " have" : "") + (it.special ? " special" : "");
-
-  const code = document.createElement("div");
-  code.className = "item-code";
-  code.textContent = it.label;
-
-  // Badge: solo si rep > 0
-  const repCount = it.rep || 0;
-  if (repCount > 0) {
-    const badge = document.createElement("div");
-    badge.className = "rep-badge";
-    badge.textContent = repCount > 99 ? "99+" : String(repCount);
-    wrap.appendChild(badge);
-  }
-
-  // Nodo oculto por compatibilidad
-  const repHidden = document.createElement("div");
-  repHidden.className = "item-rep";
-  repHidden.textContent = `Rep: ${repCount}`;
-
-  // Long-press (robusto)
-  let pressTimer = null;
-  let longPressFired = false;
-  let suppressTapUntil = 0;
-
-  // iOS: evitar "mouse events" fantasmas después de touch
-  let lastTouchTime = 0;
-  const isRecentTouch = () => (Date.now() - lastTouchTime) < 900;
-
-  const clearPress = () => {
-    if (pressTimer) {
-      clearTimeout(pressTimer);
-      pressTimer = null;
-    }
-  };
-
-  const doLongPress = () => {
-    longPressFired = true;
-
-    // si tiene repetidas -> resto
-    if ((it.rep || 0) > 0) {
-      it.rep = clamp((it.rep || 0) - 1, 0, 999);
-      save();
-      renderDetail();
-      return;
-    }
-
-    // si no tiene repetidas pero está marcada -> confirmar desmarcar
-    if (it.have) {
-      suppressTapUntil = Date.now() + 1200;
-
-      openConfirmModal({
-        message: "⚠️ Estás a punto de quitar una figurita NO repetida.\n\n¿Querés desmarcarla igualmente?",
-        onConfirm: () => {
-          it.have = false;
-          it.rep = 0;
-          save();
-          renderDetail();
-        },
-        onCancel: () => {
-          suppressTapUntil = Date.now() + 400;
-        }
-      });
-    }
-  };
-
-  const onPressStart = () => {
-    longPressFired = false;
-    clearPress();
-    pressTimer = setTimeout(doLongPress, 500);
-  };
-
-  const onPressEnd = () => {
-    clearPress();
-  };
-
-  const onTap = () => {
-    if (Date.now() < suppressTapUntil) return;
-
-    if (!it.have) {
-      it.have = true;
-      it.rep = 0;
-      save();
-      renderDetail();
-      return;
-    }
-
-    it.rep = clamp((it.rep || 0) + 1, 0, 999);
-    save();
-    renderDetail();
-  };
-
-  // Touch + mouse (si hubo longpress, NO TAP)
-  wrap.addEventListener("touchstart", () => {
-    lastTouchTime = Date.now();
-    onPressStart();
-  }, { passive: true });
-
-  wrap.addEventListener("touchend", () => {
-    lastTouchTime = Date.now();
-    onPressEnd();
-    if (longPressFired) return;
-    onTap();
-  });
-
-  wrap.addEventListener("touchcancel", onPressEnd);
-
-  wrap.addEventListener("mousedown", () => {
-    if (isRecentTouch()) return;
-    onPressStart();
-  });
-
-  wrap.addEventListener("mouseup", () => {
-    if (isRecentTouch()) return;
-    onPressEnd();
-    if (longPressFired) return;
-    onTap();
-  });
-
-  wrap.addEventListener("mouseleave", onPressEnd);
-
-  wrap.appendChild(code);
-  wrap.appendChild(repHidden);
-  return wrap;
-}
-
-function resetCollection() {
-  const col = getCurrent();
-  if (!col) return;
-  const ok = confirm(`Resetear "${col.name}"?\n\nSe borran Tengo y Repetidas de todos los ítems.`);
-  if (!ok) return;
-  for (const it of col.items) {
-    it.have = false;
-    it.rep = 0;
-  }
-  save();
-  renderDetail();
-}
-
-/* =============================
-   EDIT — RENDER + APPLY
-============================= */
-function renderEdit() {
-  const col = getCurrent();
-  if (!col) return goCollections();
-
-  if (els.editTitle) els.editTitle.textContent = `Editar: ${col.name}`;
-  if (els.editName) els.editName.value = col.name;
-
-  // portada correcta de la colección actual
-  const editImg = document.getElementById("editCoverImg");
-  const editFallback = document.getElementById("editCoverFallback");
-  if (editImg && editFallback) {
-    const has = !!col.cover;
-    editImg.src = has ? col.cover : "";
-    editImg.style.display = has ? "block" : "none";
-    editFallback.style.display = has ? "none" : "grid";
-    editFallback.textContent = has ? "" : ((col.name || "").trim() || "📘");
-  }
-
-  const isSections = col.structure === "sections";
-  if (els.editSectionsArea) els.editSectionsArea.style.display = "block";
-  if (!els.editSectionsEditor) return;
-
-  els.editSectionsEditor.innerHTML = "";
-
-  if (isSections) {
-    for (const sec of col.sections) {
-      const count = col.items.filter(it => it.sectionId === sec.id).length;
-
-      const row = addSectionRow(els.editSectionsEditor, {
-        name: sec.name,
-        format: sec.format || "num",
-        prefix: sec.prefix || "",
-        count,
-        ownNumbering: !!sec.ownNumbering,
-        specials: Array.isArray(sec.specials) ? sec.specials : []
-      });
-
-      row.dataset.secId = sec.id;
-    }
-
-    enableDnD(els.editSectionsEditor);
-
-  } else {
-    const count = col.items.length;
-
-    addSectionRow(els.editSectionsEditor, {
-      name: "General",
-      format: "num",
-      prefix: "",
-      count,
-      ownNumbering: false,
-      specials: []
-    });
-  }
-}
-
-els.editAddSection?.addEventListener("click", () => {
-  addSectionRow(els.editSectionsEditor, {
-    name: `Sección ${els.editSectionsEditor.querySelectorAll("[data-section-row]").length + 1}`,
-    format: "num",
-    prefix: "",
-    count: 10,
-    ownNumbering: false,
-    specials: []
-  });
-  enableDnD(els.editSectionsEditor);
-});
-
-function applyEdit() {
-  const col = getCurrent();
-  if (!col) return goCollections();
-
-  const newName = (els.editName?.value || "").trim();
-  if (!newName) return alert("Nombre inválido.");
-  col.name = newName;
-
-  // mantener coherente el fallback si no hay tapa
-  const editFallback = document.getElementById("editCoverFallback");
-  if (editFallback && !col.cover) {
-    editFallback.textContent = col.name || "📘";
-  }
-
-  if (col.structure !== "sections") {
-    save();
-    goDash();
-    alert("Cambios guardados ✅");
-    return;
-  }
-
-  const read = readSections(els.editSectionsEditor);
-  if (!read.ok) return alert(read.error);
-
-  const rows = read.rows;
-
-  const oldByKey = new Map();
-  for (const it of col.items) oldByKey.set(it.key || `${it.sectionId}|${it.label}`, it);
-
-  const newSections = [];
-  const newItems = [];
-  let globalCounter = 1;
-  const numberMode = col.numberMode === "perSection" ? "perSection" : "global";
-
-  for (let idx = 0; idx < rows.length; idx++) {
-    const r = rows[idx];
-    const s = read.sections[idx];
-
-    const existingId = r.dataset.secId || null;
-    const secId = existingId || uid("sec");
-
-    newSections.push({
-      id: secId,
-      name: s.name,
-      format: s.format,
-      prefix: s.prefix,
-      ownNumbering: !!s.ownNumbering,
-      specials: s.specials
-    });
-
-    const specialsSet = new Set((s.specials || []).map(normCode));
-
-    if (s.format === "alfa") {
-      for (let i = 1; i <= s.count; i++) {
-        const label = `${s.prefix}${i}`;
-        const key = `alfa:${s.prefix}:${i}`;
-        const old = oldByKey.get(key);
-
-        newItems.push({
-          id: old?.id || uid("it"),
-          sectionId: secId,
-          label,
-          have: !!old?.have,
-          rep: old?.rep || 0,
-          special: specialsSet.has(normCode(label)),
-          key
-        });
-      }
-      continue;
-    }
-
-    const sectionIsLocal = (numberMode === "perSection") || s.ownNumbering;
-
-    for (let i = 1; i <= s.count; i++) {
-      const n = sectionIsLocal ? i : globalCounter;
-      const label = String(n);
-      const key = sectionIsLocal ? `numLocal:${secId}:${i}` : `numGlobal:${globalCounter}`;
-      const old = oldByKey.get(key);
-
-      newItems.push({
-        id: old?.id || uid("it"),
-        sectionId: secId,
-        label,
-        have: !!old?.have,
-        rep: old?.rep || 0,
-        special: specialsSet.has(normCode(label)),
-        key
-      });
-
-      if (!sectionIsLocal) globalCounter += 1;
-    }
-  }
-
-  col.sections = newSections;
-  col.items = newItems;
-
-  save();
-  goDash();
-  alert("Cambios guardados ✅");
-}
-  const editPickBtn = $id("editCoverPickBtn");
-  const editClearBtn = $id("editCoverClearBtn");
-  const editInput = $id("editCoverInput");
-
   function resetCreateCoverDraft() {
     draftCoverDataUrl = null;
     window.__draftCoverDataUrl = null;
     paintCreateCover();
   }
 
-  if (createPickBtn && createInput) {
-    createPickBtn.addEventListener("click", () => createInput.click());
+  // al entrar a create
+  const _origGoCreate = typeof goCreate === "function" ? goCreate : null;
+  if (_origGoCreate) {
+    window.goCreate = function () {
+      const r = _origGoCreate();
+      setTimeout(() => resetCreateCoverDraft(), 20);
+      return r;
+    };
   }
 
-  if (createClearBtn) {
-    createClearBtn.addEventListener("click", () => {
+  // Botones en CREATE + EDIT
+  document.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.("[data-action]");
+    if (!btn) return;
+    const a = btn.getAttribute("data-action");
+
+    if (a === "create-cover-pick") {
+      const input = $id("createCoverInput");
+      if (!input) return alert("No encuentro createCoverInput.");
+      input.click();
+      return;
+    }
+
+    if (a === "create-cover-clear") {
       resetCreateCoverDraft();
-      if (createInput) createInput.value = "";
-    });
-  }
+      const input = $id("createCoverInput");
+      if (input) input.value = "";
+      return;
+    }
 
-  if (editPickBtn && editInput) {
-    editPickBtn.addEventListener("click", () => editInput.click());
-  }
+    if (a === "edit-cover-pick") {
+      const input = $id("editCoverInput");
+      if (!input) return alert("No encuentro editCoverInput.");
+      input.click();
+      return;
+    }
 
-  if (editClearBtn) {
-    editClearBtn.addEventListener("click", () => {
+    if (a === "edit-cover-clear") {
       const col = getCurrent();
       if (!col) return;
       col.cover = null;
       save();
       paintEditCover();
-      if (state.view === "detail") paintDetailCover();
-      if (editInput) editInput.value = "";
-    });
-  }
+      if (typeof renderDetail === "function" && state.view === "detail") renderDetail();
+      const input = $id("editCoverInput");
+      if (input) input.value = "";
+      return;
+    }
+  });
 
-  if (createInput) {
-    createInput.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
-      e.target.value = "";
+  // Change archivo CREATE + EDIT
+  document.addEventListener("change", async (e) => {
+    const input = e.target;
+    if (!input) return;
+
+    if (input.id === "createCoverInput") {
+      const file = input.files?.[0];
+      input.value = "";
       if (!file) return;
 
       try {
-        draftCoverDataUrl = await compressImageToDataURL(file);
+        draftCoverDataUrl = await fileToDataURL(file);
         window.__draftCoverDataUrl = draftCoverDataUrl;
         paintCreateCover();
       } catch {
         alert("No pude cargar la imagen 😔");
       }
-    });
-  }
+      return;
+    }
 
-  if (editInput) {
-    editInput.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
-      e.target.value = "";
+    if (input.id === "editCoverInput") {
+      const file = input.files?.[0];
+      input.value = "";
       if (!file) return;
 
       const col = getCurrent();
       if (!col) return;
 
       try {
-        col.cover = await compressImageToDataURL(file);
+        col.cover = await fileToDataURL(file);
         save();
         paintEditCover();
-        if (state.view === "detail") paintDetailCover();
+        if (typeof renderDetail === "function" && state.view === "detail") renderDetail();
       } catch {
         alert("No pude cargar la imagen 😔");
       }
-    });
-  }
-
-  const originalGoCreate = goCreate;
-  goCreate = function () {
-    const r = originalGoCreate();
-    setTimeout(() => {
-      resetCreateCoverDraft();
-      paintCreateCover();
-    }, 20);
-    return r;
-  };
-
-  const originalRenderDetail = renderDetail;
-  renderDetail = function () {
-    originalRenderDetail();
-    paintDetailCover();
-  };
-
-  if (els.newName) {
-    els.newName.addEventListener("input", paintCreateCover);
-  }
-
-  document.addEventListener("click", (e) => {
-    const btn = e.target?.closest?.("[data-action]");
-    if (!btn) return;
-
-    const action = btn.getAttribute("data-action");
-
-    if (action === "create-save") {
-      window.__draftCoverDataUrl = draftCoverDataUrl || null;
     }
   });
 
-  paintCreateCover();
+  // Al crear: pasar draft a variable global para createCollection()
+  document.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.("[data-action]");
+    if (!btn) return;
+    if (btn.getAttribute("data-action") !== "create-save") return;
+    window.__draftCoverDataUrl = draftCoverDataUrl || null;
+  });
+
+  function renderCoverAndPctBar() {
+    const col = getCurrentSafe();
+    if (!col) return;
+
+    const img = $id("coverImg");
+    const fb = $id("coverFallback");
+    const fill = $id("pctFill");
+
+    const hasCover = !!col.cover;
+
+    if (fb) {
+      fb.style.display = hasCover ? "none" : "grid";
+      fb.textContent = hasCover ? "" : ((col.name || "").trim() || "📘");
+    }
+
+    if (img) {
+      img.src = hasCover ? col.cover : "";
+      img.style.display = hasCover ? "block" : "none";
+    }
+
+    if (fill && typeof computeStats === "function") {
+      const st = computeStats(col);
+      fill.style.width = (st.pct || 0) + "%";
+    }
+  }
+
+  const _origGoDetail = typeof goDetail === "function" ? goDetail : null;
+  if (_origGoDetail) {
+    window.goDetail = function (id) {
+      const r = _origGoDetail(id);
+      setTimeout(renderCoverAndPctBar, 60);
+      return r;
+    };
+  }
+
+  const _origRender = typeof renderDetail === "function" ? renderDetail : null;
+  if (_origRender && !window.renderDetail.__coverWrapped) {
+    const wrapped = function () {
+      const r = _origRender.apply(this, arguments);
+      renderCoverAndPctBar();
+      return r;
+    };
+    wrapped.__coverWrapped = true;
+    window.renderDetail = wrapped;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    paintCreateCover();
+    setTimeout(renderCoverAndPctBar, 80);
+    const nameInput = $id("newName");
+    if (nameInput) nameInput.addEventListener("input", paintCreateCover);
+  });
 })();
 
-/* =============================
-   FIN
-============================= */
+/* ===== MODO SIMPLE TEMPORAL (sin longtap ni repetidas) ===== */
+/* 🔴 BLOQUE DESACTIVADO TEMPORALMENTE */
+
+if (false) {
+
+(function(){
+
+  const originalBuildItemCell = window.buildItemCell;
+  if (!originalBuildItemCell) return;
+
+  window.buildItemCell = function(item){
+    const el = originalBuildItemCell(item);
+    if (!el) return el;
+
+    const clean = el.cloneNode(true);
+
+    clean.addEventListener("click", function(e){
+      e.preventDefault();
+      e.stopPropagation();
+
+      const col = getCurrent();
+      if (!col) return;
+
+      const it = col.items.find(x => x.id === item.id);
+      if (!it) return;
+
+      if (!it.have) {
+        it.have = true;
+        it.rep = 0;
+        save();
+        renderDetail();
+        return;
+      }
+
+      openConfirmModal(() => {
+        it.have = false;
+        it.rep = 0;
+        save();
+        renderDetail();
+      });
+
+      return;
+    });
+
+    return clean;
+  };
+
+})();
+
+}
