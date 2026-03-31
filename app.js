@@ -1312,135 +1312,33 @@ function renderSettings() {
 document.addEventListener("click", (e) => {
   const btn = e.target?.closest?.("[data-action]");
   if (!btn) return;
+
   const action = btn.getAttribute("data-action");
 
-  // dashboard
+  // DASH
   if (action === "dash-collections") return goCollections();
   if (action === "dash-loadedit") return goLoadEdit();
   if (action === "dash-settings") return goSettings();
-  if (action === "dash-stats") return alert("Estadísticas: próximamente 😉");
 
-  // create
+  // CREATE
   if (action === "go-create") return goCreate();
   if (action === "create-cancel") return goLoadEdit();
   if (action === "create-save") return createCollection();
 
-  // edit
+  // EDIT
   if (action === "open-edit") return goEdit();
   if (action === "edit-cancel") return goDash();
   if (action === "edit-save") return applyEdit();
 
-  // reset
-  if (action === "reset-collection") return resetCollection();
-  if (action === "complete-collection") {
+  // DELETE
+  if (action === "delete-confirm") return deleteCollection();
 
-    const col = getCurrent();
-    if (!col) return;
-
-    const ok = confirm("¿Marcar toda la colección como completa?");
-    if (!ok) return;
-
-    for (const it of (col.items || [])) {
-      it.have = true;
-      it.rep = 0;
-    }
-
-    save();
-    renderDetail();
-    return;
-  }
-
-  // backup
-  if (action === "export-backup") return exportBackup();
-
-  // filtros
+  // FILTERS
   if (action === "filter-all") return setFilter("all");
   if (action === "filter-miss") return setFilter("miss");
   if (action === "filter-rep") return setFilter("rep");
 
-  // load/edit picker
-  if (action === "open-edit-picker") {
-    if (els.editPicker && els.loadeditHub) {
-      const isHidden = els.editPicker.classList.contains("hidden");
-
-      if (isHidden) {
-        els.editPicker.classList.remove("hidden");
-        els.loadeditHub.classList.add("hidden");
-      } else {
-        els.editPicker.classList.add("hidden");
-        els.loadeditHub.classList.remove("hidden");
-      }
-    }
-
-    renderCollectionsSelects();
-
-    if (els.editSelect) {
-      els.editSelect.value = "";
-      els.editSelect.selectedIndex = 0;
-    }
-
-    return;
-  }
-
-  if (action === "open-delete-picker") {
-    if (els.deletePicker && els.loadeditHub) {
-      const isHidden = els.deletePicker.classList.contains("hidden");
-
-      if (isHidden) {
-        els.deletePicker.classList.remove("hidden");
-        els.loadeditHub.classList.add("hidden");
-      } else {
-        els.deletePicker.classList.add("hidden");
-        els.loadeditHub.classList.remove("hidden");
-      }
-    }
-
-    renderCollectionsSelects();
-
-    if (els.deleteSelect) {
-      els.deleteSelect.value = "";
-      els.deleteSelect.selectedIndex = 0;
-    }
-
-    return;
-  }
-});
-  if (els.editSelect) {
-    els.editSelect.value = "";
-    els.editSelect.selectedIndex = 0;
-  }
-
-  return;
-}
-
-if (action === "open-delete-picker") {
-  if (els.deletePicker && els.loadeditHub) {
-    const isHidden = els.deletePicker.classList.contains("hidden");
-
-    if (isHidden) {
-      // abrir eliminación
-      els.deletePicker.classList.remove("hidden");
-      els.loadeditHub.classList.add("hidden");
-    } else {
-      // cerrar eliminación
-      els.deletePicker.classList.add("hidden");
-      els.loadeditHub.classList.remove("hidden");
-    }
-  }
-
-  renderCollectionsSelects();
-
-  if (els.deleteSelect) {
-    els.deleteSelect.value = "";
-    els.deleteSelect.selectedIndex = 0;
-  }
-
-  return;
-}
-
-  if (action === "delete-confirm") return deleteCollection();
-
-  // back
+  // BACK
   if (action === "back") {
     if (state.view === "collections") return goDash();
     if (state.view === "loadedit") return goDash();
@@ -1449,24 +1347,6 @@ if (action === "open-delete-picker") {
     if (state.view === "edit") return goLoadEdit();
     if (state.view === "detail") return goCollections();
   }
-});
-
-els.btnEditOpen?.addEventListener("click", () => {
-  const id = els.editSelect?.value;
-  if (!id) return alert("Seleccioná una colección.");
-  state.currentId = id;
-  goEdit();
-});
-
-els.btnDeleteOpen?.addEventListener("click", () => {
-  deleteCollection();
-});
-
-els.importInput?.addEventListener("change", (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  handleImportFile(file);
-  e.target.value = "";
 });
 
 /* =============================
