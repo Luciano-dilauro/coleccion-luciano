@@ -1176,6 +1176,7 @@ const onPressEnd = () => {
 
 const onTap = () => {
  if (Date.now() < suppressTapUntil) return;
+   if (navigator.vibrate) navigator.vibrate(10);
    if (!it.have) {
     it.have = true;
     it.rep = 0;
