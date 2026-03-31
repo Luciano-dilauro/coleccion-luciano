@@ -907,3 +907,7 @@ label{font-weight:800}
   transform: scale(0.95);
   opacity: 0.8;
 }
+/* ⚡ MEJORAR RESPUESTA TÁCTIL */
+button, .item {
+  touch-action: manipulation;
+}
