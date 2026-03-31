@@ -898,3 +898,12 @@ label{font-weight:800}
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
+/* ⚡ FEEDBACK AL TAP */
+.sticker {
+  transition: transform 0.08s ease, opacity 0.08s ease;
+}
+
+.sticker:active {
+  transform: scale(0.95);
+  opacity: 0.8;
+}
