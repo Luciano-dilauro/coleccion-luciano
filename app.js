@@ -1098,7 +1098,7 @@ function wireConfirmModal() {
 
 function buildItemCell(it) {
   const wrap = document.createElement("div");
-  wrap.className = "item" + (it.have ? " have" : "") + (it.special ? " special" : "");
+  wrap.className = "item sticker" + (it.have ? " have" : "") + (it.special ? " special" : "");
 
   const code = document.createElement("div");
   code.className = "item-code";
