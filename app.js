@@ -1185,6 +1185,14 @@ const onTap = () => {
     return;
   }
   it.rep = clamp((it.rep || 0) + 1, 0, 999);
+   setTimeout(() => {
+  const badge = document.querySelector('.rep-badge');
+  if (badge) {
+    badge.classList.remove('pop');
+    void badge.offsetWidth;
+    badge.classList.add('pop');
+  }
+}, 0);
   save();
   renderDetail();
 };
