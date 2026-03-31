@@ -911,3 +911,10 @@ label{font-weight:800}
 button, .item {
   touch-action: manipulation;
 }
+.rep-badge {
+  transition: transform 0.15s ease;
+}
+
+.rep-badge.pop {
+  transform: scale(1.25);
+}
