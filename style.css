@@ -891,3 +891,10 @@ label{font-weight:800}
   bottom: auto !important;
   transform: none !important;
 }
+/* 🚫 NO SELECCIONAR TEXTO NI COSAS RARAS */
+* {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
