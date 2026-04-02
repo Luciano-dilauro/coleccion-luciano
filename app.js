@@ -2079,12 +2079,14 @@ if (false) {
   };
 })();
 }
-function renderChips(list, color = "gray") {
+function renderChips(list, color = "gray", specials = [])) {
   if (!list.length) return "-";
 
   return `
     <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-top:6px;">
-      ${list.map(n => `
+      ${list.map(n => {
+  const isSpecial = specials.includes(String(n));
+  return `
         <div style="
           display:flex;
           align-items:center;
@@ -2092,13 +2094,15 @@ function renderChips(list, color = "gray") {
           width:44px;
           height:44px;
           border-radius:8px;
-          border:2px solid ${color};
+          border:2px solid ${isSpecial ? "#d4af37" : color};
+background:${isSpecial ? "linear-gradient(135deg, #fff3b0, #f5c518)" : "transparent"};
+color:${isSpecial ? "#5c4400" : "inherit"};
           font-weight:600;
           font-size:13px;
         ">
           ${n}
         </div>
-      `).join("")}
+      }).join("")}
     </div>
   `;
 }
