@@ -2141,6 +2141,7 @@ const numbers = raw
 
 const resultsDiv = document.getElementById("scanPackResults");
 const col = getCurrent();
+const specials = col.specials || [];
 
 if (!resultsDiv || !col) return;
 
@@ -2163,8 +2164,8 @@ for (const num of numbers) {
 
 resultsDiv.innerHTML = `
   <div style="font-size:14px;">
- <div><b>Te faltan:</b> ${renderChips(faltan, "#7aa7ff")}
-<div style="margin-top:6px;"><b>Repetidas:</b> ${renderChips(repetidas, "#7aa7ff")}
+ <div><b>Te faltan:</b> ${renderChips(faltan, "#7aa7ff", specials)}
+<div style="margin-top:6px;"><b>Repetidas:</b> ${renderChips(repetidas, "#7aa7ff", specials)}
 <div style="margin-top:6px;"><b>No existen:</b> ${renderChips(noExisten, "#7aa7ff")}
     </div>
 `;
