@@ -2082,26 +2082,24 @@ if (false) {
 function renderChips(list, color = "gray") {
   if (!list.length) return "-";
 
-  return list.map(n => `
-  <span style="
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-
-    width:48px;
-    height:48px;
-
-    margin:4px;
-    border-radius:12px;
-
-    border:2px solid ${color};
-
-    font-weight:600;
-    font-size:14px;
-  ">
-    ${n}
-  </span>
-`).join("");
+  return `
+    <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-top:6px;">
+      ${list.map(n => `
+        <div style="
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          height:44px;
+          border-radius:10px;
+          border:2px solid ${color};
+          font-weight:600;
+          font-size:13px;
+        ">
+          ${n}
+        </div>
+      `).join("")}
+    </div>
+  `;
 }
 (function setupScanPackModal() {
   const btn = document.getElementById("scanPackBtn");
