@@ -2104,20 +2104,40 @@ if (false) {
 
   runBtn.addEventListener("click", () => {
 
-  const raw = input.value;
+ const raw = input.value;
 
 const numbers = raw
   .split(",")
-  .map(n => parseInt(n.trim()))
+  .map(n => parseInt(n.trim(), 10))
   .filter(n => !isNaN(n));
 
 const resultsDiv = document.getElementById("scanPackResults");
+const col = getCurrent();
+
+if (!resultsDiv || !col) return;
+
+const faltan = [];
+const repetidas = [];
+const noExisten = [];
+
+for (const num of numbers) {
+  const label = String(num);
+  const item = col.items.find(it => String(it.label) === label);
+
+  if (!item) {
+    noExisten.push(label);
+  } else if (item.have) {
+    repetidas.push(label);
+  } else {
+    faltan.push(label);
+  }
+}
 
 resultsDiv.innerHTML = `
   <div style="font-size:14px;">
-    <div><b>Te faltan:</b> ${numbers.join(", ")}</div>
-    <div style="margin-top:6px;"><b>Repetidas:</b> -</div>
-    <div style="margin-top:6px;"><b>No existen:</b> -</div>
+    <div><b>Te faltan:</b> ${faltan.length ? faltan.join(", ") : "-"}</div>
+    <div style="margin-top:6px;"><b>Repetidas:</b> ${repetidas.length ? repetidas.join(", ") : "-"}</div>
+    <div style="margin-top:6px;"><b>No existen:</b> ${noExisten.length ? noExisten.join(", ") : "-"}</div>
   </div>
 `;
 });
