@@ -2141,8 +2141,7 @@ const numbers = raw
 
 const resultsDiv = document.getElementById("scanPackResults");
 const col = getCurrent();
-const specials = col.specials || [];
-
+const specials = (col.items || []).flatMap(item => item.specials || []);
 if (!resultsDiv || !col) return;
 
 const faltan = [];
