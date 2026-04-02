@@ -2158,9 +2158,9 @@ for (const num of numbers) {
 
 resultsDiv.innerHTML = `
   <div style="font-size:14px;">
- <div><b>Te faltan:</b> ${renderChips(faltan, "#7aa7ff")}</div>
-<div style="margin-top:6px;"><b>Repetidas:</b> ${renderChips(repetidas, "#7aa7ff")}</div>
-<div style="margin-top:6px;"><b>No existen:</b> ${renderChips(noExisten, "#7aa7ff")}</div>   
+ <div><b>Te faltan:</b> ${renderChips(faltan, "#7aa7ff")}
+<div style="margin-top:6px;"><b>Repetidas:</b> ${renderChips(repetidas, "#7aa7ff")}
+<div style="margin-top:6px;"><b>No existen:</b> ${renderChips(noExisten, "#7aa7ff")}
     </div>
 `;
 const help = document.getElementById("scanPackHelp");
