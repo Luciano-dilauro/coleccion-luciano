@@ -2157,6 +2157,10 @@ resultsDiv.innerHTML = `
 <div style="margin-top:6px;"><b>No existen:</b> ${renderChips(noExisten, "#ccc")}</div>   
     </div>
 `;
+const help = document.getElementById("scanPackHelp");
+
+if (help) help.style.display = "none";
+if (input) input.style.display = "none";     
 });
      
   modal.addEventListener("click", (e) => {
