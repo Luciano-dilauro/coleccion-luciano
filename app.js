@@ -2067,20 +2067,48 @@ if (false) {
         renderDetail();
         return;
       }
-
-      openConfirmModal(() => {
+       openConfirmModal(() => {
         it.have = false;
         it.rep = 0;
         save();
         renderDetail();
       });
-
       return;
     });
-
     return clean;
   };
-
 })();
-
 }
+(function setupScanPackModal() {
+  const btn = document.getElementById("scanPackBtn");
+  const modal = document.getElementById("scanPackModal");
+  const input = document.getElementById("scanPackInput");
+  const runBtn = document.getElementById("scanPackRunBtn");
+  const closeBtn = document.getElementById("scanPackCloseBtn");
+
+  if (!btn || !modal || !input || !runBtn || !closeBtn) return;
+
+  function openModal() {
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    setTimeout(() => input.focus(), 30);
+  }
+
+  function closeModal() {
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  btn.addEventListener("click", openModal);
+  closeBtn.addEventListener("click", closeModal);
+
+  runBtn.addEventListener("click", () => {
+    alert("Después le damos inteligencia 😏\n\nPegaste: " + input.value);
+  });
+
+  modal.addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal-backdrop")) {
+      closeModal();
+    }
+  });
+})();
