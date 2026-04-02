@@ -2120,7 +2120,8 @@ resultsDiv.innerHTML = `
     <div style="margin-top:6px;"><b>No existen:</b> -</div>
   </div>
 `;
-
+});
+     
   modal.addEventListener("click", (e) => {
     if (e.target.classList.contains("modal-backdrop")) {
       closeModal();
