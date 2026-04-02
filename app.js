@@ -2089,8 +2089,9 @@ function renderChips(list, color = "gray") {
           display:flex;
           align-items:center;
           justify-content:center;
+          width:44px;
           height:44px;
-          border-radius:10px;
+          border-radius:8px;
           border:2px solid ${color};
           font-weight:600;
           font-size:13px;
