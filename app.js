@@ -2103,8 +2103,23 @@ if (false) {
   closeBtn.addEventListener("click", closeModal);
 
   runBtn.addEventListener("click", () => {
-    alert("Después le damos inteligencia 😏\n\nPegaste: " + input.value);
-  });
+
+  const raw = input.value;
+
+const numbers = raw
+  .split(",")
+  .map(n => parseInt(n.trim()))
+  .filter(n => !isNaN(n));
+
+const resultsDiv = document.getElementById("scanPackResults");
+
+resultsDiv.innerHTML = `
+  <div style="font-size:14px;">
+    <div><b>Te faltan:</b> ${numbers.join(", ")}</div>
+    <div style="margin-top:6px;"><b>Repetidas:</b> -</div>
+    <div style="margin-top:6px;"><b>No existen:</b> -</div>
+  </div>
+`;
 
   modal.addEventListener("click", (e) => {
     if (e.target.classList.contains("modal-backdrop")) {
