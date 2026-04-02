@@ -369,6 +369,26 @@
     </div>
   </div>
 </div>
+  <div id="scanPackModal" class="modal hidden" aria-hidden="true">
+  <div class="modal-backdrop"></div>
+  <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="Escanear sobre">
+    <div class="modal-title">Escanear sobre</div>
+    <div class="modal-sub">Pegá números separados por coma. Ej: 12, 45, 120</div>
+
+    <textarea
+      id="scanPackInput"
+      class="input"
+      rows="4"
+      placeholder="12, 45, 120"
+      style="margin-top:12px;"
+    ></textarea>
+
+    <div class="modal-actions" style="margin-top:12px;">
+      <button id="scanPackRunBtn" class="btn primary" type="button">Probar</button>
+      <button id="scanPackCloseBtn" class="btn" type="button">Cancelar</button>
+    </div>
+  </div>
+</div>
   
   <script src="app.js?v=2001"></script>
 </body>
