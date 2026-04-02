@@ -2085,7 +2085,7 @@ function renderChips(list, color = "gray", specials = []) {
   return `
     <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-top:6px;">
       ${list.map(n => {
-        const isSpecial = specials.includes(String(n));
+        const isSpecial = specials.map(String).includes(String(n));
         return `
           <div style="
             display:flex;
