@@ -2152,10 +2152,10 @@ for (const num of numbers) {
 
 resultsDiv.innerHTML = `
   <div style="font-size:14px;">
-    <div><b>Te faltan:</b> ${faltan.length ? faltan.join(", ") : "-"}</div>
-    <div style="margin-top:6px;"><b>Repetidas:</b> ${repetidas.length ? repetidas.join(", ") : "-"}</div>
-    <div style="margin-top:6px;"><b>No existen:</b> ${noExisten.length ? noExisten.join(", ") : "-"}</div>
-  </div>
+ <div><b>Te faltan:</b> ${renderChips(faltan, "#e0b84f")}</div>
+<div style="margin-top:6px;"><b>Repetidas:</b> ${renderChips(repetidas, "#7aa7ff")}</div>
+<div style="margin-top:6px;"><b>No existen:</b> ${renderChips(noExisten, "#ccc")}</div>   
+    </div>
 `;
 });
      
