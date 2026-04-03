@@ -892,13 +892,12 @@ label{font-weight:800}
   backdrop-filter: blur(6px);
   background: rgba(0, 0, 0, 0.25);
 }
-/*
 #confirmModal:not(.hidden) .modal-sheet {
   position: relative !important;
+  top: auto !important;
   bottom: auto !important;
   transform: none !important;
 }
-*/
 /* 🚫 NO SELECCIONAR TEXTO NI COSAS RARAS */
 * {
   -webkit-user-select: none;
