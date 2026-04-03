@@ -2079,16 +2079,19 @@ if (false) {
   };
 })();
 }
-function renderChips(list, color = "gray", specials = []) {
+function renderChips(list) {
   if (!list.length) return "-";
-console.log("SPECIALS FINAL:", specials);
+
   return `
     <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-top:6px;">
-      ${list.map(n => {
-        const isSpecial = specials.map(String).includes(String(n));
+      ${list.map(entry => {
+        const label = typeof entry === "string" ? entry : entry.label;
+        const isSpecial = typeof entry === "object" && !!entry.special;
+        const has = typeof entry === "object" && !!entry.have;
+
         return `
-          <div class="item ${isSpecial ? "special" : ""}">
-            ${n}
+          <div class="item sticker${has ? " have" : ""}${isSpecial ? " special" : ""}">
+            <div class="item-code">${label}</div>
           </div>
         `;
       }).join("")}
@@ -2140,13 +2143,13 @@ for (const num of numbers) {
   const label = String(num);
   const item = col.items.find(it => String(it.label) === label);
 
-  if (!item) {
-    noExisten.push(label);
-  } else if (item.have) {
-    repetidas.push(label);
-  } else {
-    faltan.push(label);
-  }
+if (!item) {
+  noExisten.push(label);
+} else if (item.have) {
+  repetidas.push(item);
+} else {
+  faltan.push(item);
+}
 }
 
 resultsDiv.innerHTML = `
