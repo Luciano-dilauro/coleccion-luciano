@@ -2176,6 +2176,8 @@ runBtn.onclick = () => {
   saveCurrent();
   renderGrid();
   closeModal();
+runBtn.textContent = "Probar";
+  runBtn.onclick = null;
 };
 
 resultsDiv.addEventListener("click", (e) => {
