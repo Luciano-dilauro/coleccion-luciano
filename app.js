@@ -2161,6 +2161,11 @@ resultsDiv.innerHTML = `
 <div style="margin-top:6px;"><b>No existen:</b> ${renderChips(noExisten, "#7aa7ff")}
     </div>
 `;
+     document.querySelectorAll('[data-selectable="1"]').forEach(el => {
+  el.addEventListener("click", () => {
+    el.classList.toggle("is-selected");
+  });
+});
 const help = document.getElementById("scanPackHelp");
 
 if (help) help.style.display = "none";
