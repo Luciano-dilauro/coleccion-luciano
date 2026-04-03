@@ -2090,7 +2090,8 @@ function renderChips(list) {
         const has = typeof entry === "object" && !!entry.have;
 
         return `
-  <div class="item sticker modal-chip${has ? " have" : ""}${isSpecial ? " special" : ""}"
+<div class="item sticker modal-chip${has ? " have" : ""}${isSpecial ? " special" : ""}"
+     data-selectable="1"
      data-label="${label}">
             <div class="item-code">${label}</div>
           </div>
