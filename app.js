@@ -2158,31 +2158,44 @@ resultsDiv.innerHTML = `
   <div style="font-size:14px;">
     <div><b>Te faltan:</b> ${renderChips(faltan, "#7aa7ff", specials)}</div>
     <div style="margin-top:6px;"><b>Repetidas:</b> ${renderChips(repetidas, "#7aa7ff", specials)}</div>
-    <div style="margin-top:6px;"><b>No existen:</b> ${renderChips(noExisten, "#7aa7ff")}</div>
-
-    <div style="margin-top:12px; display:flex; gap:8px;">
-      <button id="scanAcceptBtn">Aceptar</button>
-      <button id="scanCancelBtn">Cancelar</button>
+    <div style="margin-top:6px;"><b>No existen:</b> ${renderChips(noExisten, "#7aa7ff")}
     </div>
   </div>
 `;
-     runBtn.textContent = "Aceptar";
-     
-     resultsDiv.addEventListener("click", (e) => {
+runBtn.textContent = "Aceptar";
+
+runBtn.onclick = () => {
+  for (const item of faltan) {
+    item.have = true;
+  }
+
+  for (const item of repetidas) {
+    item.repeats = (item.repeats || 0) + 1;
+  }
+
+  saveCurrent();
+  renderGrid();
+  closeModal();
+};
+
+resultsDiv.addEventListener("click", (e) => {
   const chip = e.target.closest('[data-selectable="1"]');
   if (!chip) return;
 
   chip.classList.toggle("is-selected");
 });
+
 const help = document.getElementById("scanPackHelp");
 
 if (help) help.style.display = "none";
-if (input) input.style.display = "none";     
+if (input) input.style.display = "none";
+
+}); // 👈 cierra runBtn.addEventListener
+
+modal.addEventListener("click", (e) => {
+  if (e.target.classList.contains("modal-backdrop")) {
+    closeModal();
+  }
 });
-     
-  modal.addEventListener("click", (e) => {
-    if (e.target.classList.contains("modal-backdrop")) {
-      closeModal();
-    }
-  });
-})();
+
+})(); // 👈 cierre final del script
