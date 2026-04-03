@@ -2166,6 +2166,8 @@ resultsDiv.innerHTML = `
     </div>
   </div>
 `;
+     runBtn.textContent = "Aceptar";
+     
      resultsDiv.addEventListener("click", (e) => {
   const chip = e.target.closest('[data-selectable="1"]');
   if (!chip) return;
