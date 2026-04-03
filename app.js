@@ -2102,6 +2102,7 @@ function renderChips(list) {
 }
 (function setupScanPackModal() {
   const btn = document.getElementById("scanPackBtn");
+   btn.style.display = "none";
   const modal = document.getElementById("scanPackModal");
   const input = document.getElementById("scanPackInput");
   const runBtn = document.getElementById("scanPackRunBtn");
