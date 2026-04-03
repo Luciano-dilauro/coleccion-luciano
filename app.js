@@ -2156,10 +2156,15 @@ if (!item) {
 
 resultsDiv.innerHTML = `
   <div style="font-size:14px;">
- <div><b>Te faltan:</b> ${renderChips(faltan, "#7aa7ff", specials)}
-<div style="margin-top:6px;"><b>Repetidas:</b> ${renderChips(repetidas, "#7aa7ff", specials)}
-<div style="margin-top:6px;"><b>No existen:</b> ${renderChips(noExisten, "#7aa7ff")}
+    <div><b>Te faltan:</b> ${renderChips(faltan, "#7aa7ff", specials)}</div>
+    <div style="margin-top:6px;"><b>Repetidas:</b> ${renderChips(repetidas, "#7aa7ff", specials)}</div>
+    <div style="margin-top:6px;"><b>No existen:</b> ${renderChips(noExisten, "#7aa7ff")}</div>
+
+    <div style="margin-top:12px; display:flex; gap:8px;">
+      <button id="scanAcceptBtn">Aceptar</button>
+      <button id="scanCancelBtn">Cancelar</button>
     </div>
+  </div>
 `;
      resultsDiv.addEventListener("click", (e) => {
   const chip = e.target.closest('[data-selectable="1"]');
