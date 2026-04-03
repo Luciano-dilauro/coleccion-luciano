@@ -478,10 +478,10 @@ label{font-weight:800}
   margin-top: 10px;
 }
 .modal-chip {
-  width: 36px;
-  height: 36px;
-  min-height: 36px;
-  font-size: 12px;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  font-size: 13px;
 }
 /* =============================
    MODAL CENTRADO (override)
