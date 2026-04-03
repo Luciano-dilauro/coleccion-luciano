@@ -2081,7 +2081,7 @@ if (false) {
 }
 function renderChips(list, color = "gray", specials = []) {
   if (!list.length) return "-";
-
+console.log("SPECIALS FINAL:", specials);
   return `
     <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-top:6px;">
       ${list.map(n => {
